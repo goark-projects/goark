@@ -4,7 +4,7 @@
 
 `goark` is the core repository for the Goark ecosystem: a Go-native application framework intended to provide a Spring-like engineering model while staying close to Go's simplicity, explicit dependency boundaries, and concurrency primitives.
 
-The project is in its initial public bootstrap stage. This repository currently defines the root module and project conventions; framework APIs will be added here as the core contracts stabilize.
+This module provides the core runtime contracts: bean registration, dependency resolution, configuration environment, application context, lifecycle hooks, synchronous events, and framework error types.
 
 ## Goals
 
@@ -12,7 +12,77 @@ The project is in its initial public bootstrap stage. This repository currently 
 - Keep core contracts small, explicit, and testable.
 - Separate runtime bootstrap concerns into [`goark-projects/boot`](https://github.com/goark-projects/boot).
 - Favor Go-native design over Java-style reflection-heavy abstractions.
+- Use compile-time generated registration code instead of classpath scanning.
 - Build clear extension points for configuration, lifecycle, web, data, messaging, and observability modules.
+
+## Core Packages
+
+```text
+.
+├── config/      # Environment, PropertySource, Binder
+├── container/   # Bean definitions, registry, resolver, scopes
+├── context/     # ApplicationContext runtime orchestration
+├── errors/      # Framework error codes and wrappers
+├── event/       # Synchronous ordered event bus
+├── lifecycle/   # Start, Stop, Close lifecycle manager
+└── internal/    # Internal helpers
+```
+
+## Design Boundary
+
+Go does not have Java-style runtime class metadata or classpath scanning. Goark keeps that responsibility out of the core runtime.
+
+- `goark`: accepts explicit bean definitions and runs the application context.
+- `boot`: provides startup conventions, config file loading, and module assembly on top of core contracts.
+- `cli`: discovers source metadata and generates deterministic registration code.
+
+The generated code should call normal Go APIs such as `goark.Register`, `goark.RegisterInstance`, and `container.NewDefinition`.
+
+## Minimal Usage
+
+```go
+package main
+
+import (
+	"context"
+
+	"github.com/goark-projects/goark"
+	"github.com/goark-projects/goark/container"
+)
+
+type UserRepository struct{}
+
+type UserService struct {
+	Repository *UserRepository
+}
+
+func main() {
+	ctx := context.Background()
+	app := goark.MustNew()
+
+	_ = goark.Register(app, "userRepository", func(context.Context, container.Resolver) (*UserRepository, error) {
+		return &UserRepository{}, nil
+	})
+	_ = goark.Register(app, "userService", func(ctx context.Context, resolver container.Resolver) (*UserService, error) {
+		repository, err := goark.Get[*UserRepository](ctx, resolver, "userRepository")
+		if err != nil {
+			return nil, err
+		}
+		return &UserService{Repository: repository}, nil
+	}, container.WithDependencies("userRepository"))
+
+	if err := app.Start(ctx); err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := app.Close(ctx); err != nil {
+			panic(err)
+		}
+	}()
+
+	_ = goark.MustGet[*UserService](ctx, app, "userService")
+}
+```
 
 ## Module
 
@@ -22,7 +92,7 @@ go get github.com/goark-projects/goark
 
 ## Repository Status
 
-This repository is an early skeleton. Public APIs should be treated as unstable until the first tagged release.
+This repository is in active early development. Public APIs should be treated as unstable until the first tagged release.
 
 ## Development
 
@@ -35,23 +105,30 @@ Useful commands:
 
 ```bash
 go mod tidy
-go list -m
+go test ./...
 ```
 
 ## Repository Layout
 
 ```text
 .
-├── assets/      # README and brand assets
-├── go.mod       # Go module definition
-├── LICENSE      # Apache License 2.0
-└── README.md    # Project overview
+├── assets/       # README and brand assets
+├── config/       # Configuration environment and binding
+├── container/    # Bean container core
+├── context/      # Application context
+├── errors/       # Framework errors
+├── event/        # Event bus
+├── lifecycle/    # Lifecycle manager
+├── go.mod        # Go module definition
+├── LICENSE       # Apache License 2.0
+└── README.md     # Project overview
 ```
 
 ## Related Repositories
 
 - [`goark-projects/goark`](https://github.com/goark-projects/goark): core framework contracts.
 - [`goark-projects/boot`](https://github.com/goark-projects/boot): application bootstrap and convention layer.
+- [`goark-projects/cli`](https://github.com/goark-projects/cli): scaffolding and compile-time code generation.
 
 ## License
 
