@@ -31,6 +31,24 @@ type ConfigPropertySource = coreenv.ConfigPropertySource
 // ConfigFormat 是配置文件格式类型别名。
 type ConfigFormat = coreenv.ConfigFormat
 
+// BeanDefinition 是 Bean 定义类型别名。
+type BeanDefinition = container.Definition
+
+// BeanOption 是 Bean 注册选项类型别名。
+type BeanOption = container.Option
+
+// BeanScope 是 Bean 作用域类型别名。
+type BeanScope = container.Scope
+
+// ResolveOption 是按类型解析选项类型别名。
+type ResolveOption = container.ResolveOption
+
+// Resolver 是 Bean 解析器类型别名。
+type Resolver = container.Resolver
+
+// Provider 是 Bean 工厂函数类型别名。
+type Provider[T any] = container.Provider[T]
+
 const (
 	// DefaultConfigBaseName 是默认配置文件基础名称。
 	DefaultConfigBaseName = coreenv.DefaultConfigBaseName
@@ -41,6 +59,11 @@ const (
 	ConfigFormatProperties = coreenv.ConfigFormatProperties
 	// ConfigFormatTOML 表示 TOML 配置格式。
 	ConfigFormatTOML = coreenv.ConfigFormatTOML
+
+	// ScopeSingleton 表示单例 Bean 作用域。
+	ScopeSingleton = container.ScopeSingleton
+	// ScopePrototype 表示原型 Bean 作用域。
+	ScopePrototype = container.ScopePrototype
 )
 
 // Configuration 是应用配置单元类型别名。
@@ -99,7 +122,7 @@ var WithIgnoreResourceNotFound = coreenv.WithIgnoreResourceNotFound
 // LoadConfigPropertySource 从资源位置加载 yml/properties/toml 配置源。
 var LoadConfigPropertySource = coreenv.LoadConfigPropertySource
 
-// LoadDefaultConfigPropertySource 按默认名称加载 app.yml/app.yaml/app.properties/app.toml 配置源。
+// LoadDefaultConfigPropertySource 按默认名称加载 app.yml/app.properties/app.toml/app.yaml 配置源。
 var LoadDefaultConfigPropertySource = coreenv.LoadDefaultConfigPropertySource
 
 // LoadPropertiesPropertySource 从资源位置加载 .properties 配置源。
@@ -110,6 +133,36 @@ var WithConfiguration = appcontext.WithConfiguration
 
 // WithEventBus 设置事件总线。
 var WithEventBus = appcontext.WithEventBus
+
+// WithScope 设置 Bean 作用域。
+var WithScope = container.WithScope
+
+// WithSingleton 将 Bean 设置为单例作用域。
+var WithSingleton = container.WithSingleton
+
+// WithPrototype 将 Bean 设置为原型作用域。
+var WithPrototype = container.WithPrototype
+
+// WithLazy 设置单例 Bean 延迟初始化。
+var WithLazy = container.WithLazy
+
+// WithPrimary 将 Bean 标记为同类型解析时的首选项。
+var WithPrimary = container.WithPrimary
+
+// WithDependsOn 声明当前 Bean 初始化前必须先初始化的 Bean 名称。
+var WithDependsOn = container.WithDependsOn
+
+// WithDependencies 声明 Bean 的显式依赖名称。
+var WithDependencies = container.WithDependencies
+
+// WithOrder 设置 Bean 的稳定排序值。
+var WithOrder = container.WithOrder
+
+// WithPriority 设置 Bean 的候选优先级。
+var WithPriority = container.WithPriority
+
+// WithQualifier 指定按类型解析时优先使用的 Bean 名称。
+var WithQualifier = container.WithQualifier
 
 // NewConfigurationContext 创建配置注册上下文。
 var NewConfigurationContext = appcontext.NewConfigurationContext
@@ -125,7 +178,7 @@ func ResolveValueAs[T any](environment Environment, expression string) (T, error
 }
 
 // Register 注册类型安全 Bean 工厂。
-func Register[T any](app *ApplicationContext, name string, provider container.Provider[T], options ...container.Option) error {
+func Register[T any](app *ApplicationContext, name string, provider Provider[T], options ...BeanOption) error {
 	if app == nil {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "application context is nil")
 	}
@@ -137,7 +190,7 @@ func Register[T any](app *ApplicationContext, name string, provider container.Pr
 }
 
 // RegisterInstance 注册已有实例。
-func RegisterInstance[T any](app *ApplicationContext, name string, instance T, options ...container.Option) error {
+func RegisterInstance[T any](app *ApplicationContext, name string, instance T, options ...BeanOption) error {
 	if app == nil {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "application context is nil")
 	}
@@ -157,21 +210,21 @@ func RegisterConfiguration(app *ApplicationContext, configuration Configuration)
 }
 
 // Get 按名称解析 Bean。
-func Get[T any](ctx context.Context, resolver container.Resolver, name string) (T, error) {
+func Get[T any](ctx context.Context, resolver Resolver, name string) (T, error) {
 	return container.Get[T](ctx, resolver, name)
 }
 
 // GetByType 按类型解析 Bean。
-func GetByType[T any](ctx context.Context, resolver container.Resolver, options ...container.ResolveOption) (T, error) {
+func GetByType[T any](ctx context.Context, resolver Resolver, options ...ResolveOption) (T, error) {
 	return container.GetByType[T](ctx, resolver, options...)
 }
 
 // MustGet 是 Get 的 panic 版本。
-func MustGet[T any](ctx context.Context, resolver container.Resolver, name string) T {
+func MustGet[T any](ctx context.Context, resolver Resolver, name string) T {
 	return container.MustGet[T](ctx, resolver, name)
 }
 
 // MustGetByType 是 GetByType 的 panic 版本。
-func MustGetByType[T any](ctx context.Context, resolver container.Resolver, options ...container.ResolveOption) T {
+func MustGetByType[T any](ctx context.Context, resolver Resolver, options ...ResolveOption) T {
 	return container.MustGetByType[T](ctx, resolver, options...)
 }

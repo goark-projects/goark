@@ -11,12 +11,14 @@ type ResolveOption func(*resolveOptions)
 
 type resolveOptions struct {
 	qualifier string
+	qualified bool
 }
 
 // WithQualifier 指定按类型解析时优先使用的 Bean 名称。
 func WithQualifier(name string) ResolveOption {
 	return func(options *resolveOptions) {
 		options.qualifier = strings.TrimSpace(name)
+		options.qualified = true
 	}
 }
 
@@ -27,7 +29,7 @@ func newResolveOptions(options []ResolveOption) (resolveOptions, error) {
 			option(&out)
 		}
 	}
-	if out.qualifier == "" && len(options) > 0 {
+	if out.qualified && out.qualifier == "" {
 		return resolveOptions{}, arkerrors.New(arkerrors.CodeInvalidArgument, "bean qualifier is empty")
 	}
 	return out, nil

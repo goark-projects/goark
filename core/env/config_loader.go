@@ -49,9 +49,9 @@ var configSearchOrder = []struct {
 	format    ConfigFormat
 }{
 	{extension: ".yml", format: ConfigFormatYAML},
-	{extension: ".yaml", format: ConfigFormatYAML},
 	{extension: ".properties", format: ConfigFormatProperties},
 	{extension: ".toml", format: ConfigFormatTOML},
+	{extension: ".yaml", format: ConfigFormatYAML},
 }
 
 // WithPropertySourceName 指定加载后的 PropertySource 名称。
@@ -117,7 +117,7 @@ func LoadConfigPropertySource(ctx context.Context, loader resource.Loader, locat
 	return nil, arkerrors.Newf(arkerrors.CodeNotFound, "config property source %q not found; tried: %s", location, strings.Join(tried, ", "))
 }
 
-// LoadDefaultConfigPropertySource 按默认名称加载 app.yml/app.yaml/app.properties/app.toml 配置源。
+// LoadDefaultConfigPropertySource 按默认名称加载 app.yml/app.properties/app.toml/app.yaml 配置源。
 func LoadDefaultConfigPropertySource(ctx context.Context, loader resource.Loader, options ...PropertySourceLoadOption) (*ConfigPropertySource, error) {
 	return LoadConfigPropertySource(ctx, loader, DefaultConfigBaseName, options...)
 }
@@ -222,6 +222,9 @@ func preparePropertySourceLoad(ctx context.Context, loader resource.Loader, loca
 	loadOptions := newPropertySourceLoadOptions(options)
 	if err := validatePropertySourceEncoding(loadOptions.encoding); err != nil {
 		return "", propertySourceLoadOptions{}, err
+	}
+	if loadOptions.nameSet && loadOptions.name == "" {
+		return "", propertySourceLoadOptions{}, arkerrors.New(arkerrors.CodeInvalidArgument, "property source name is empty")
 	}
 	return location, loadOptions, nil
 }

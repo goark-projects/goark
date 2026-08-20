@@ -3,6 +3,7 @@ package container_test
 import (
 	"context"
 	stderrors "errors"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -151,6 +152,113 @@ func TestContainer_whenBeanIsPrototype_shouldCreateEachTime(t *testing.T) {
 	}
 }
 
+func TestContainer_whenDependsOnDeclared_shouldInitializeDependencyBeforeBean(t *testing.T) {
+	log := make([]string, 0, 2)
+	registry := container.NewRegistry()
+	if err := container.Register[*testService](registry, "service", func(context.Context, container.Resolver) (*testService, error) {
+		log = append(log, "service")
+		return &testService{}, nil
+	}, container.WithDependsOn("zzRepository")); err != nil {
+		t.Fatalf("register service failed: %v", err)
+	}
+	if err := container.Register[*testRepository](registry, "zzRepository", func(context.Context, container.Resolver) (*testRepository, error) {
+		log = append(log, "repository")
+		return &testRepository{}, nil
+	}); err != nil {
+		t.Fatalf("register repository failed: %v", err)
+	}
+	runtimeContainer, err := container.New(registry)
+	if err != nil {
+		t.Fatalf("create container failed: %v", err)
+	}
+
+	if err := runtimeContainer.InitializeSingletons(context.Background()); err != nil {
+		t.Fatalf("initialize singletons failed: %v", err)
+	}
+	expected := []string{"repository", "service"}
+	if !reflect.DeepEqual(log, expected) {
+		t.Fatalf("depends-on order should be enforced, got %#v", log)
+	}
+}
+
+func TestContainer_whenSingletonAlreadyCreated_shouldNotResolveDependsOnAgain(t *testing.T) {
+	var setupCreated atomic.Int64
+	registry := container.NewRegistry()
+	if err := container.Register[*testRepository](registry, "setup", func(context.Context, container.Resolver) (*testRepository, error) {
+		setupCreated.Add(1)
+		return &testRepository{}, nil
+	}, container.WithPrototype()); err != nil {
+		t.Fatalf("register setup failed: %v", err)
+	}
+	if err := container.Register[*testService](registry, "service", func(context.Context, container.Resolver) (*testService, error) {
+		return &testService{}, nil
+	}, container.WithDependsOn("setup")); err != nil {
+		t.Fatalf("register service failed: %v", err)
+	}
+	runtimeContainer, err := container.New(registry)
+	if err != nil {
+		t.Fatalf("create container failed: %v", err)
+	}
+
+	first := container.MustGet[*testService](context.Background(), runtimeContainer, "service")
+	second := container.MustGet[*testService](context.Background(), runtimeContainer, "service")
+	if first != second {
+		t.Fatal("expected singleton service")
+	}
+	if setupCreated.Load() != 1 {
+		t.Fatalf("depends-on prototype should be resolved once before singleton creation, got %d", setupCreated.Load())
+	}
+}
+
+func TestContainer_whenSingletonResolvedConcurrently_shouldResolveDependsOnOnce(t *testing.T) {
+	var setupCreated atomic.Int64
+	var serviceCreated atomic.Int64
+	registry := container.NewRegistry()
+	if err := container.Register[*testRepository](registry, "setup", func(context.Context, container.Resolver) (*testRepository, error) {
+		setupCreated.Add(1)
+		time.Sleep(10 * time.Millisecond)
+		return &testRepository{}, nil
+	}, container.WithPrototype()); err != nil {
+		t.Fatalf("register setup failed: %v", err)
+	}
+	if err := container.Register[*testService](registry, "service", func(context.Context, container.Resolver) (*testService, error) {
+		serviceCreated.Add(1)
+		time.Sleep(10 * time.Millisecond)
+		return &testService{}, nil
+	}, container.WithLazy(), container.WithDependsOn("setup")); err != nil {
+		t.Fatalf("register service failed: %v", err)
+	}
+	runtimeContainer, err := container.New(registry)
+	if err != nil {
+		t.Fatalf("create container failed: %v", err)
+	}
+
+	const goroutines = 32
+	var wg sync.WaitGroup
+	errs := make(chan error, goroutines)
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := container.Get[*testService](context.Background(), runtimeContainer, "service")
+			if err != nil {
+				errs <- err
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatalf("resolve service failed: %v", err)
+	}
+	if setupCreated.Load() != 1 {
+		t.Fatalf("depends-on setup should be resolved once, got %d", setupCreated.Load())
+	}
+	if serviceCreated.Load() != 1 {
+		t.Fatalf("singleton service should be created once, got %d", serviceCreated.Load())
+	}
+}
+
 func TestContainer_whenResolvingByTypeWithPrimary_shouldSelectPrimary(t *testing.T) {
 	registry := container.NewRegistry()
 	if err := container.Register[testWorker](registry, "secondary", func(context.Context, container.Resolver) (testWorker, error) {
@@ -200,6 +308,48 @@ func TestContainer_whenResolvingByTypeWithQualifier_shouldSelectNamedCandidate(t
 	}
 	if worker.Work() != "secondary" {
 		t.Fatalf("expected secondary worker, got %q", worker.Work())
+	}
+}
+
+func TestContainer_whenResolvingByTypeWithNilOption_shouldIgnoreOption(t *testing.T) {
+	registry := container.NewRegistry()
+	if err := container.Register[testWorker](registry, "worker", func(context.Context, container.Resolver) (testWorker, error) {
+		return primaryWorker{}, nil
+	}); err != nil {
+		t.Fatalf("register worker failed: %v", err)
+	}
+	runtimeContainer, err := container.New(registry)
+	if err != nil {
+		t.Fatalf("create container failed: %v", err)
+	}
+
+	worker, err := container.GetByType[testWorker](context.Background(), runtimeContainer, nil)
+	if err != nil {
+		t.Fatalf("resolve by type with nil option failed: %v", err)
+	}
+	if worker.Work() != "primary" {
+		t.Fatalf("expected primary worker, got %q", worker.Work())
+	}
+}
+
+func TestContainer_whenResolvingByTypeWithEmptyQualifier_shouldReturnInvalidArgument(t *testing.T) {
+	registry := container.NewRegistry()
+	if err := container.Register[testWorker](registry, "worker", func(context.Context, container.Resolver) (testWorker, error) {
+		return primaryWorker{}, nil
+	}); err != nil {
+		t.Fatalf("register worker failed: %v", err)
+	}
+	runtimeContainer, err := container.New(registry)
+	if err != nil {
+		t.Fatalf("create container failed: %v", err)
+	}
+
+	_, err = container.GetByType[testWorker](context.Background(), runtimeContainer, container.WithQualifier(" "))
+	if err == nil {
+		t.Fatal("expected empty qualifier error")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeInvalidArgument) {
+		t.Fatalf("expected invalid argument, got %v", err)
 	}
 }
 
@@ -433,6 +583,28 @@ func TestContainer_whenDependencyGraphHasCycle_shouldReturnCircularDependency(t 
 	_, err = container.Get[*testRepository](context.Background(), runtimeContainer, "a")
 	if err == nil {
 		t.Fatal("expected circular dependency error")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeCircularDependency) {
+		t.Fatalf("expected circular dependency, got %v", err)
+	}
+}
+
+func TestContainer_whenDependsOnGraphHasCycle_shouldFailFast(t *testing.T) {
+	registry := container.NewRegistry()
+	if err := container.Register[*testRepository](registry, "a", func(context.Context, container.Resolver) (*testRepository, error) {
+		return &testRepository{}, nil
+	}, container.WithDependsOn("b")); err != nil {
+		t.Fatalf("register a failed: %v", err)
+	}
+	if err := container.Register[*testService](registry, "b", func(context.Context, container.Resolver) (*testService, error) {
+		return &testService{}, nil
+	}, container.WithDependsOn("a")); err != nil {
+		t.Fatalf("register b failed: %v", err)
+	}
+
+	_, err := container.New(registry)
+	if err == nil {
+		t.Fatal("expected depends-on cycle error")
 	}
 	if !arkerrors.Is(err, arkerrors.CodeCircularDependency) {
 		t.Fatalf("expected circular dependency, got %v", err)

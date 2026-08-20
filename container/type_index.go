@@ -83,20 +83,79 @@ func (c *Container) selectPriority(typ reflect.Type, names []string) (string, bo
 }
 
 func (c *Container) matchingNames(typ reflect.Type) []string {
-	seen := make(map[string]struct{})
-	if names, ok := c.typeIndex[typ]; ok {
-		for _, name := range names {
-			seen[name] = struct{}{}
+	if names, ok := c.indexedNames(typ); ok {
+		return names
+	}
+	names := c.scanMatchingNames(typ)
+	return c.cacheTypeIndex(typ, names)
+}
+
+func (c *Container) rebuildTypeIndex(definitions []Definition) {
+	indexTypes := definitionTypes(definitions)
+	index := make(map[reflect.Type][]string, len(indexTypes))
+	for _, typ := range indexTypes {
+		index[typ] = matchingDefinitionNames(definitions, typ)
+	}
+	c.typeIndex = index
+}
+
+func definitionTypes(definitions []Definition) []reflect.Type {
+	seen := make(map[reflect.Type]struct{}, len(definitions))
+	types := make([]reflect.Type, 0, len(definitions))
+	for _, definition := range definitions {
+		if definition.Type == nil {
+			continue
+		}
+		if _, ok := seen[definition.Type]; ok {
+			continue
+		}
+		seen[definition.Type] = struct{}{}
+		types = append(types, definition.Type)
+	}
+	sort.Slice(types, func(i, j int) bool {
+		return types[i].String() < types[j].String()
+	})
+	return types
+}
+
+func matchingDefinitionNames(definitions []Definition, typ reflect.Type) []string {
+	names := make([]string, 0)
+	for _, definition := range definitions {
+		if typeAssignable(definition.Type, typ) {
+			names = append(names, definition.Name)
 		}
 	}
+	sort.Strings(names)
+	return names
+}
+
+func (c *Container) indexedNames(typ reflect.Type) ([]string, bool) {
+	c.typeIndexMu.RLock()
+	defer c.typeIndexMu.RUnlock()
+	names, ok := c.typeIndex[typ]
+	if !ok {
+		return nil, false
+	}
+	return append([]string(nil), names...), true
+}
+
+func (c *Container) cacheTypeIndex(typ reflect.Type, names []string) []string {
+	c.typeIndexMu.Lock()
+	defer c.typeIndexMu.Unlock()
+	if existing, ok := c.typeIndex[typ]; ok {
+		return append([]string(nil), existing...)
+	}
+	copied := append([]string(nil), names...)
+	c.typeIndex[typ] = copied
+	return append([]string(nil), copied...)
+}
+
+func (c *Container) scanMatchingNames(typ reflect.Type) []string {
+	names := make([]string, 0)
 	for name, definition := range c.definitions {
 		if typeAssignable(definition.Type, typ) {
-			seen[name] = struct{}{}
+			names = append(names, name)
 		}
-	}
-	names := make([]string, 0, len(seen))
-	for name := range seen {
-		names = append(names, name)
 	}
 	sort.Strings(names)
 	return names

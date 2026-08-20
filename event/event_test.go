@@ -38,6 +38,12 @@ type priorityOrderedHandler struct {
 func (h *priorityOrderedHandler) PriorityOrdered() {
 }
 
+type nilEventHandler struct{}
+
+func (*nilEventHandler) HandleEvent(context.Context, any) error {
+	return nil
+}
+
 func TestBus_whenPublishingTypedEvent_shouldInvokeHandlersInOrder(t *testing.T) {
 	bus := event.NewBus()
 	calls := make([]string, 0, 2)
@@ -148,5 +154,30 @@ func TestBus_whenHandlerFails_shouldStopAndWrapError(t *testing.T) {
 	}
 	if calls != 1 {
 		t.Fatalf("expected publish to stop on first error, got %d calls", calls)
+	}
+}
+
+func TestBus_whenPublishingWithNilContext_shouldReturnInvalidArgument(t *testing.T) {
+	bus := event.NewBus()
+
+	err := bus.Publish(nil, createdEvent{})
+	if err == nil {
+		t.Fatal("expected publish error")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeInvalidArgument) {
+		t.Fatalf("expected invalid argument, got %v", err)
+	}
+}
+
+func TestBus_whenSubscribingTypedNilHandler_shouldReturnInvalidArgument(t *testing.T) {
+	bus := event.NewBus()
+	var handler *nilEventHandler
+
+	err := bus.Subscribe(handler)
+	if err == nil {
+		t.Fatal("expected subscribe error")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeInvalidArgument) {
+		t.Fatalf("expected invalid argument, got %v", err)
 	}
 }

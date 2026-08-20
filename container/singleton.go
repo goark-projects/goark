@@ -12,7 +12,7 @@ type singletonCall struct {
 	err   error
 }
 
-func (c *Container) resolveSingleton(ctx context.Context, definition Definition) (any, error) {
+func (c *Container) resolveSingleton(ctx context.Context, state *resolutionState, definition Definition) (any, error) {
 	c.singletonMu.Lock()
 	if value, ok := c.singletons[definition.Name]; ok {
 		c.singletonMu.Unlock()
@@ -32,7 +32,11 @@ func (c *Container) resolveSingleton(ctx context.Context, definition Definition)
 	c.inFlight[definition.Name] = call
 	c.singletonMu.Unlock()
 
-	value, err := c.create(ctx, definition)
+	var value any
+	err := c.resolveDependsOn(ctx, state, definition)
+	if err == nil {
+		value, err = c.create(ctx, definition)
+	}
 
 	c.singletonMu.Lock()
 	if err == nil {

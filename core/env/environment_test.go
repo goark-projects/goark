@@ -2,8 +2,10 @@ package env_test
 
 import (
 	"reflect"
+	"sync"
 	"testing"
 
+	"github.com/goark-projects/goark/core/convert"
 	"github.com/goark-projects/goark/core/env"
 	arkerrors "github.com/goark-projects/goark/errors"
 )
@@ -50,6 +52,7 @@ func TestPropertyResolver_whenPlaceholdersHaveDefaults_shouldResolve(t *testing.
 	source, err := env.NewMapPropertySource("test", map[string]any{
 		"app.name":  "goark",
 		"app.title": "${app.name}-${missing:core}",
+		"fallback":  "core",
 	})
 	if err != nil {
 		t.Fatalf("create source failed: %v", err)
@@ -66,6 +69,13 @@ func TestPropertyResolver_whenPlaceholdersHaveDefaults_shouldResolve(t *testing.
 	title, ok := resolver.GetProperty("app.title")
 	if !ok || title != "goark-core" {
 		t.Fatalf("unexpected title: %q, %v", title, ok)
+	}
+	nested, err := resolver.ResolveRequiredPlaceholders("${missing:${fallback}}")
+	if err != nil {
+		t.Fatalf("resolve nested fallback failed: %v", err)
+	}
+	if nested != "core" {
+		t.Fatalf("unexpected nested fallback: %q", nested)
 	}
 	unresolved, err := resolver.ResolvePlaceholders("x-${unknown}")
 	if err != nil {
@@ -105,6 +115,111 @@ func TestPropertyResolver_whenTargetTypeIsRequested_shouldConvertValue(t *testin
 	}
 }
 
+func TestMapPropertySource_whenMutableValuesAreExposed_shouldReturnDefensiveCopies(t *testing.T) {
+	pointerTags := []any{"pointer-core", "pointer-env"}
+	sourceValues := map[string]any{
+		"tags":        []any{"core", "env"},
+		"nested":      map[string]any{"name": "goark"},
+		"pointerTags": &pointerTags,
+	}
+	source, err := env.NewMapPropertySource("test", sourceValues)
+	if err != nil {
+		t.Fatalf("create source failed: %v", err)
+	}
+	sourceValues["tags"].([]any)[0] = "mutated-input"
+	sourceValues["nested"].(map[string]any)["name"] = "mutated-input"
+	pointerTags[0] = "mutated-input"
+
+	tags, ok := source.GetProperty("tags")
+	if !ok {
+		t.Fatal("tags property not found")
+	}
+	if tags.([]any)[0] != "core" {
+		t.Fatalf("input mutation should not affect source, got %#v", tags)
+	}
+	pointerValue, ok := source.GetProperty("pointerTags")
+	if !ok {
+		t.Fatal("pointerTags property not found")
+	}
+	if (*(pointerValue.(*[]any)))[0] != "pointer-core" {
+		t.Fatalf("input pointer mutation should not affect source, got %#v", pointerValue)
+	}
+
+	sourceSnapshot := source.Source().(map[string]any)
+	sourceSnapshot["tags"].([]any)[0] = "mutated-source"
+	sourceSnapshot["nested"].(map[string]any)["name"] = "mutated-source"
+	(*sourceSnapshot["pointerTags"].(*[]any))[0] = "mutated-source"
+	tags, _ = source.GetProperty("tags")
+	nested, _ := source.GetProperty("nested")
+	pointerValue, _ = source.GetProperty("pointerTags")
+	if tags.([]any)[0] != "core" || nested.(map[string]any)["name"] != "goark" || (*(pointerValue.(*[]any)))[0] != "pointer-core" {
+		t.Fatalf("source snapshot mutation should not affect source, got tags=%#v nested=%#v pointer=%#v", tags, nested, pointerValue)
+	}
+
+	tags.([]any)[0] = "mutated-get"
+	nested.(map[string]any)["name"] = "mutated-get"
+	(*(pointerValue.(*[]any)))[0] = "mutated-get"
+	tags, _ = source.GetProperty("tags")
+	nested, _ = source.GetProperty("nested")
+	pointerValue, _ = source.GetProperty("pointerTags")
+	if tags.([]any)[0] != "core" || nested.(map[string]any)["name"] != "goark" || (*(pointerValue.(*[]any)))[0] != "pointer-core" {
+		t.Fatalf("property value mutation should not affect source, got tags=%#v nested=%#v pointer=%#v", tags, nested, pointerValue)
+	}
+}
+
+func TestPropertyResolver_whenConfiguredConcurrently_shouldRemainRaceFree(t *testing.T) {
+	source, err := env.NewMapPropertySource("test", map[string]any{
+		"server.port": "8080",
+	})
+	if err != nil {
+		t.Fatalf("create source failed: %v", err)
+	}
+	sources, err := env.NewMutablePropertySources(source)
+	if err != nil {
+		t.Fatalf("create property sources failed: %v", err)
+	}
+	resolver, err := env.NewPropertySourcesPropertyResolver(sources)
+	if err != nil {
+		t.Fatalf("create resolver failed: %v", err)
+	}
+
+	const goroutines = 16
+	var wg sync.WaitGroup
+	errs := make(chan error, goroutines*2)
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 100; j++ {
+				if _, _, err := resolver.GetPropertyAs("server.port", reflect.TypeOf(0)); err != nil {
+					errs <- err
+					return
+				}
+				if err := resolver.ValidateRequiredProperties(); err != nil {
+					errs <- err
+					return
+				}
+			}
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 100; j++ {
+				if err := resolver.SetConversionService(convert.DefaultService()); err != nil {
+					errs <- err
+					return
+				}
+				resolver.SetRequiredProperties("server.port")
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatalf("concurrent resolver access failed: %v", err)
+	}
+}
+
 func TestStandardEnvironmentProfiles_whenActiveProfilesAreEmpty_shouldUseDefaultProfiles(t *testing.T) {
 	environment, err := env.NewStandardEnvironment()
 	if err != nil {
@@ -118,6 +233,17 @@ func TestStandardEnvironmentProfiles_whenActiveProfilesAreEmpty_shouldUseDefault
 	}
 	if !environment.AcceptsProfiles("prod") || environment.AcceptsProfiles("default") {
 		t.Fatalf("unexpected active profile state: active=%#v default=%#v", environment.ActiveProfiles(), environment.DefaultProfiles())
+	}
+}
+
+func TestStandardEnvironmentProfiles_whenNegatedProfileIsEmpty_shouldNotMatch(t *testing.T) {
+	environment, err := env.NewStandardEnvironment()
+	if err != nil {
+		t.Fatalf("create environment failed: %v", err)
+	}
+
+	if environment.AcceptsProfiles("!") {
+		t.Fatal("empty negated profile should not match")
 	}
 }
 

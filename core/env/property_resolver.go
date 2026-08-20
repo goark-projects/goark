@@ -3,6 +3,7 @@ package env
 import (
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/goark-projects/goark/core/convert"
 	"github.com/goark-projects/goark/core/lang"
@@ -39,6 +40,7 @@ type ConfigurablePropertyResolver interface {
 
 // PropertySourcesPropertyResolver 基于 PropertySources 实现属性解析。
 type PropertySourcesPropertyResolver struct {
+	mu                 sync.RWMutex
 	propertySources    PropertySources
 	conversionService  *convert.Service
 	requiredProperties []string
@@ -106,7 +108,7 @@ func (r *PropertySourcesPropertyResolver) GetPropertyAs(key string, targetType r
 		}
 		value = resolved
 	}
-	converted, err := r.conversionService.Convert(value, targetType)
+	converted, err := r.conversionServiceSnapshot().Convert(value, targetType)
 	if err != nil {
 		return nil, true, err
 	}
@@ -138,7 +140,7 @@ func (r *PropertySourcesPropertyResolver) ConversionService() *convert.Service {
 	if r == nil {
 		return nil
 	}
-	return r.conversionService
+	return r.conversionServiceSnapshot()
 }
 
 func (r *PropertySourcesPropertyResolver) SetConversionService(service *convert.Service) error {
@@ -148,6 +150,8 @@ func (r *PropertySourcesPropertyResolver) SetConversionService(service *convert.
 	if service == nil {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "conversion service is nil")
 	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.conversionService = service
 	return nil
 }
@@ -156,6 +160,8 @@ func (r *PropertySourcesPropertyResolver) SetRequiredProperties(keys ...string) 
 	if r == nil {
 		return
 	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.requiredProperties = append([]string(nil), keys...)
 }
 
@@ -164,7 +170,7 @@ func (r *PropertySourcesPropertyResolver) ValidateRequiredProperties() error {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "property resolver is nil")
 	}
 	missing := make([]string, 0)
-	for _, key := range r.requiredProperties {
+	for _, key := range r.requiredPropertiesSnapshot() {
 		if !r.ContainsProperty(key) {
 			missing = append(missing, key)
 		}
@@ -218,7 +224,7 @@ func (r *PropertySourcesPropertyResolver) findProperty(key string) (any, bool) {
 }
 
 func (r *PropertySourcesPropertyResolver) valueToString(value any) (string, error) {
-	converted, err := r.conversionService.Convert(value, reflect.TypeOf(""))
+	converted, err := r.conversionServiceSnapshot().Convert(value, reflect.TypeOf(""))
 	if err != nil {
 		return "", err
 	}
@@ -227,6 +233,21 @@ func (r *PropertySourcesPropertyResolver) valueToString(value any) (string, erro
 		return "", arkerrors.Newf(arkerrors.CodeTypeMismatch, "property value is %T, expected string", converted)
 	}
 	return text, nil
+}
+
+func (r *PropertySourcesPropertyResolver) conversionServiceSnapshot() *convert.Service {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if r.conversionService == nil {
+		return convert.DefaultService()
+	}
+	return r.conversionService
+}
+
+func (r *PropertySourcesPropertyResolver) requiredPropertiesSnapshot() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return append([]string(nil), r.requiredProperties...)
 }
 
 func (r *PropertySourcesPropertyResolver) resolvePlaceholders(text string, required bool, depth int) (string, error) {
@@ -242,7 +263,7 @@ func (r *PropertySourcesPropertyResolver) resolvePlaceholders(text string, requi
 	offset := 0
 	for start >= 0 {
 		builder.WriteString(text[offset:start])
-		end := strings.Index(text[start+len(placeholderPrefix):], placeholderSuffix)
+		end := findPlaceholderEnd(text, start)
 		if end < 0 {
 			if required {
 				return "", arkerrors.Newf(arkerrors.CodeInvalidArgument, "unclosed property placeholder in %q", text)
@@ -250,7 +271,6 @@ func (r *PropertySourcesPropertyResolver) resolvePlaceholders(text string, requi
 			builder.WriteString(text[start:])
 			return builder.String(), nil
 		}
-		end += start + len(placeholderPrefix)
 		rawExpression := text[start : end+len(placeholderSuffix)]
 		expression := text[start+len(placeholderPrefix) : end]
 		value, ok, err := r.resolvePlaceholderExpression(expression, required, depth)
@@ -276,6 +296,27 @@ func (r *PropertySourcesPropertyResolver) resolvePlaceholders(text string, requi
 		return r.resolvePlaceholders(resolved, required, depth+1)
 	}
 	return resolved, nil
+}
+
+func findPlaceholderEnd(text string, start int) int {
+	index := start + len(placeholderPrefix)
+	nested := 0
+	for index < len(text) {
+		switch {
+		case strings.HasPrefix(text[index:], placeholderSuffix):
+			if nested == 0 {
+				return index
+			}
+			nested--
+			index += len(placeholderSuffix)
+		case strings.HasPrefix(text[index:], placeholderPrefix):
+			nested++
+			index += len(placeholderPrefix)
+		default:
+			index++
+		}
+	}
+	return -1
 }
 
 func (r *PropertySourcesPropertyResolver) resolvePlaceholderExpression(expression string, required bool, depth int) (string, bool, error) {

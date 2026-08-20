@@ -49,7 +49,6 @@ import (
 	"context"
 
 	"github.com/goark-projects/goark"
-	"github.com/goark-projects/goark/container"
 )
 
 type UserRepository struct{}
@@ -62,16 +61,16 @@ func main() {
 	ctx := context.Background()
 	app := goark.MustNew()
 
-	_ = goark.Register(app, "userRepository", func(context.Context, container.Resolver) (*UserRepository, error) {
+	_ = goark.Register(app, "userRepository", func(context.Context, goark.Resolver) (*UserRepository, error) {
 		return &UserRepository{}, nil
 	})
-	_ = goark.Register(app, "userService", func(ctx context.Context, resolver container.Resolver) (*UserService, error) {
+	_ = goark.Register(app, "userService", func(ctx context.Context, resolver goark.Resolver) (*UserService, error) {
 		repository, err := goark.Get[*UserRepository](ctx, resolver, "userRepository")
 		if err != nil {
 			return nil, err
 		}
 		return &UserService{Repository: repository}, nil
-	}, container.WithDependencies("userRepository"))
+	}, goark.WithDependencies("userRepository"))
 
 	if err := app.Start(ctx); err != nil {
 		panic(err)

@@ -1,6 +1,8 @@
 package convert_test
 
 import (
+	"bytes"
+	"io"
 	"reflect"
 	"testing"
 	"time"
@@ -67,5 +69,25 @@ func TestService_whenTargetCannotAcceptNil_shouldReturnError(t *testing.T) {
 	_, err := convert.Convert[int](service, nil)
 	if err == nil {
 		t.Fatal("expected nil conversion error")
+	}
+}
+
+func TestService_whenConvertingSliceToInterfaceSliceWithNilElement_shouldPreserveNil(t *testing.T) {
+	service := convert.DefaultService()
+
+	var nilBuffer *bytes.Buffer
+	converted, err := service.Convert([]*bytes.Buffer{nilBuffer, bytes.NewBufferString("goark")}, reflect.TypeOf([]io.Reader{}))
+	if err != nil {
+		t.Fatalf("convert slice with nil interface element failed: %v", err)
+	}
+	readers := converted.([]io.Reader)
+	if len(readers) != 2 {
+		t.Fatalf("expected two readers, got %d", len(readers))
+	}
+	if readers[0] != nil {
+		t.Fatalf("expected nil reader at index 0, got %#v", readers[0])
+	}
+	if readers[1] == nil {
+		t.Fatal("expected non-nil reader at index 1")
 	}
 }

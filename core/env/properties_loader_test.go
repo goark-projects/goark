@@ -150,6 +150,23 @@ func TestLoadConfigPropertySource_whenLocationHasNoExtension_shouldUsePriority(t
 			wantSource: "application.toml",
 			wantValue:  "toml",
 		},
+		{
+			name: "toml before yaml fallback",
+			files: map[string]string{
+				"application.toml": "selected = \"toml\"\n",
+				"application.yaml": "selected: yaml\n",
+			},
+			wantSource: "application.toml",
+			wantValue:  "toml",
+		},
+		{
+			name: "yaml fallback",
+			files: map[string]string{
+				"application.yaml": "selected: yaml\n",
+			},
+			wantSource: "application.yaml",
+			wantValue:  "yaml",
+		},
 	}
 
 	for _, tt := range tests {
@@ -198,10 +215,25 @@ func TestLoadDefaultConfigPropertySource_shouldUseAppBaseName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load default config property source failed: %v", err)
 	}
-	if source.Name() != "app.yaml" {
-		t.Fatalf("expected app.yaml source, got %q", source.Name())
+	if source.Name() != "app.properties" {
+		t.Fatalf("expected app.properties source, got %q", source.Name())
 	}
-	assertAnyProperty(t, source, "selected", "yaml")
+	assertAnyProperty(t, source, "selected", "properties")
+}
+
+func TestLoadConfigPropertySource_whenExplicitNameIsBlank_shouldReturnError(t *testing.T) {
+	loader, err := resource.NewLoader(resource.WithFileBase(t.TempDir()))
+	if err != nil {
+		t.Fatalf("create loader failed: %v", err)
+	}
+
+	_, err = env.LoadConfigPropertySource(context.Background(), loader, "app.yml", env.WithPropertySourceName(" "))
+	if err == nil {
+		t.Fatal("expected blank property source name error")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeInvalidArgument) {
+		t.Fatalf("expected invalid argument, got %v", err)
+	}
 }
 
 func TestLoadPropertiesPropertySource_whenMissingIgnored_shouldReturnNil(t *testing.T) {
@@ -238,6 +270,16 @@ func TestLoadProperties_whenUnicodeEscapeInvalid_shouldReturnError(t *testing.T)
 	_, err := env.ParseProperties([]byte("bad=\\u12xx"))
 	if err == nil {
 		t.Fatal("expected parse error")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeInvalidArgument) {
+		t.Fatalf("expected invalid argument, got %v", err)
+	}
+}
+
+func TestLoadProperties_whenUnicodeSurrogatePairInvalid_shouldReturnError(t *testing.T) {
+	_, err := env.ParseProperties([]byte("bad=\\uD83D\\u0041"))
+	if err == nil {
+		t.Fatal("expected surrogate pair parse error")
 	}
 	if !arkerrors.Is(err, arkerrors.CodeInvalidArgument) {
 		t.Fatalf("expected invalid argument, got %v", err)

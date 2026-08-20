@@ -3,6 +3,7 @@ package container
 import (
 	"reflect"
 	"sort"
+	"strings"
 	"sync"
 
 	arkerrors "github.com/goark-projects/goark/errors"
@@ -11,6 +12,8 @@ import (
 // Container 是不可变定义、并发安全实例缓存的 Bean 容器。
 type Container struct {
 	definitions map[string]Definition
+
+	typeIndexMu sync.RWMutex
 	typeIndex   map[reflect.Type][]string
 
 	singletonMu sync.Mutex
@@ -36,11 +39,9 @@ func New(registry *Registry) (*Container, error) {
 			return nil, err
 		}
 	}
+	c.rebuildTypeIndex(definitions)
 	if err := c.validateDependencies(definitions); err != nil {
 		return nil, err
-	}
-	for typ := range c.typeIndex {
-		sort.Strings(c.typeIndex[typ])
 	}
 	return c, nil
 }
@@ -67,17 +68,71 @@ func (c *Container) addDefinition(definition Definition) error {
 		return arkerrors.Newf(arkerrors.CodeAlreadyExists, "bean %q already exists", definition.Name)
 	}
 	c.definitions[definition.Name] = definition.clone()
-	c.typeIndex[definition.Type] = append(c.typeIndex[definition.Type], definition.Name)
 	return nil
 }
 
 func (c *Container) validateDependencies(definitions []Definition) error {
 	for _, definition := range definitions {
-		for _, dependency := range definition.normalized().DependsOn {
+		normalized := definition.normalized()
+		for _, dependency := range normalized.DependsOn {
 			if _, exists := c.definitions[dependency]; !exists {
-				return arkerrors.Newf(arkerrors.CodeNotFound, "bean %q depends on missing bean %q", definition.Name, dependency)
+				return arkerrors.Newf(arkerrors.CodeNotFound, "bean %q depends on missing bean %q", normalized.Name, dependency)
 			}
 		}
 	}
+	return c.validateDependencyCycles(definitions)
+}
+
+type dependencyVisitState uint8
+
+const (
+	dependencyVisiting dependencyVisitState = iota + 1
+	dependencyVisited
+)
+
+func (c *Container) validateDependencyCycles(definitions []Definition) error {
+	states := make(map[string]dependencyVisitState, len(definitions))
+	path := make([]string, 0, len(definitions))
+	var visit func(string) error
+	visit = func(name string) error {
+		switch states[name] {
+		case dependencyVisiting:
+			return arkerrors.Newf(arkerrors.CodeCircularDependency, "circular depends-on detected: %s", dependencyCycle(path, name))
+		case dependencyVisited:
+			return nil
+		}
+		definition, exists := c.definitions[name]
+		if !exists {
+			return nil
+		}
+		states[name] = dependencyVisiting
+		path = append(path, name)
+		for _, dependency := range definition.normalized().DependsOn {
+			if err := visit(dependency); err != nil {
+				return err
+			}
+		}
+		path = path[:len(path)-1]
+		states[name] = dependencyVisited
+		return nil
+	}
+	for _, definition := range definitions {
+		if err := visit(definition.normalized().Name); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func dependencyCycle(path []string, target string) string {
+	index := 0
+	for i, name := range path {
+		if name == target {
+			index = i
+			break
+		}
+	}
+	cycle := append([]string(nil), path[index:]...)
+	cycle = append(cycle, target)
+	return strings.Join(cycle, " -> ")
 }

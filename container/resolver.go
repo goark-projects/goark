@@ -82,9 +82,21 @@ func (c *Container) resolve(ctx context.Context, state *resolutionState, name st
 	defer state.exit(name)
 
 	if definition.Scope == ScopeSingleton {
-		return c.resolveSingleton(ctx, definition)
+		return c.resolveSingleton(ctx, state, definition)
+	}
+	if err := c.resolveDependsOn(ctx, state, definition); err != nil {
+		return nil, err
 	}
 	return c.create(ctx, definition)
+}
+
+func (c *Container) resolveDependsOn(ctx context.Context, state *resolutionState, definition Definition) error {
+	for _, dependency := range definition.normalized().DependsOn {
+		if _, err := c.resolve(ctx, state, dependency); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (c *Container) create(ctx context.Context, definition Definition) (value any, err error) {

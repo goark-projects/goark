@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"reflect"
+	"strings"
 
 	"github.com/goark-projects/goark/core/lang"
 	arkerrors "github.com/goark-projects/goark/errors"
@@ -170,6 +171,7 @@ func NewInstanceDefinition[T any](name string, instance T, options ...Option) (D
 }
 
 func (d Definition) normalized() Definition {
+	d.Name = strings.TrimSpace(d.Name)
 	dependsOn := mergeDependsOn(d.DependsOn, d.Dependencies)
 	d.DependsOn = append([]string(nil), dependsOn...)
 	d.Dependencies = append([]string(nil), dependsOn...)
@@ -183,7 +185,7 @@ func (d Definition) clone() Definition {
 }
 
 func validateDefinition(def Definition) error {
-	if def.Name == "" {
+	if strings.TrimSpace(def.Name) == "" {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "bean name is empty")
 	}
 	if def.Type == nil {
@@ -197,8 +199,8 @@ func validateDefinition(def Definition) error {
 	default:
 		return arkerrors.Newf(arkerrors.CodeInvalidArgument, "bean %q has invalid scope %q", def.Name, def.Scope)
 	}
-	for _, dependency := range def.Dependencies {
-		if dependency == "" {
+	for _, dependency := range def.DependsOn {
+		if strings.TrimSpace(dependency) == "" {
 			return arkerrors.Newf(arkerrors.CodeInvalidArgument, "bean %q has empty dependency name", def.Name)
 		}
 	}
@@ -206,14 +208,15 @@ func validateDefinition(def Definition) error {
 }
 
 func mergeDependsOn(dependsOn []string, dependencies []string) []string {
-	if len(dependsOn) == 0 {
-		return append([]string(nil), dependencies...)
+	merged := make([]string, 0, len(dependsOn)+len(dependencies))
+	for _, dependency := range dependsOn {
+		dependency = strings.TrimSpace(dependency)
+		if !containsDependencyName(merged, dependency) {
+			merged = append(merged, dependency)
+		}
 	}
-	if len(dependencies) == 0 {
-		return append([]string(nil), dependsOn...)
-	}
-	merged := append([]string(nil), dependsOn...)
 	for _, dependency := range dependencies {
+		dependency = strings.TrimSpace(dependency)
 		if !containsDependencyName(merged, dependency) {
 			merged = append(merged, dependency)
 		}

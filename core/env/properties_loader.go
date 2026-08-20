@@ -139,6 +139,9 @@ func parseUnicodeEscape(text string) (rune, int, error) {
 	}
 	r := rune(high)
 	if utf16.IsSurrogate(r) {
+		if !isHighSurrogate(r) {
+			return 0, 0, arkerrors.New(arkerrors.CodeInvalidArgument, "unicode low surrogate cannot appear without high surrogate")
+		}
 		if len(text) < 10 || text[4] != '\\' || text[5] != 'u' {
 			return 0, 0, arkerrors.New(arkerrors.CodeInvalidArgument, "unicode surrogate pair is incomplete")
 		}
@@ -146,7 +149,19 @@ func parseUnicodeEscape(text string) (rune, int, error) {
 		if err != nil {
 			return 0, 0, arkerrors.Wrap(arkerrors.CodeInvalidArgument, err, "unicode surrogate pair is invalid")
 		}
-		return utf16.DecodeRune(r, rune(low)), 10, nil
+		lowRune := rune(low)
+		if !isLowSurrogate(lowRune) {
+			return 0, 0, arkerrors.New(arkerrors.CodeInvalidArgument, "unicode surrogate pair low value is invalid")
+		}
+		return utf16.DecodeRune(r, lowRune), 10, nil
 	}
 	return r, 4, nil
+}
+
+func isHighSurrogate(r rune) bool {
+	return r >= 0xD800 && r <= 0xDBFF
+}
+
+func isLowSurrogate(r rune) bool {
+	return r >= 0xDC00 && r <= 0xDFFF
 }

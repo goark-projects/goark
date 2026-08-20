@@ -314,9 +314,32 @@ func convertSlice(value any, targetType reflect.Type, service *Service) (any, er
 		if err != nil {
 			return nil, err
 		}
-		slice = reflect.Append(slice, reflect.ValueOf(converted))
+		convertedValue, err := sliceElementValue(converted, targetType.Elem())
+		if err != nil {
+			return nil, err
+		}
+		slice = reflect.Append(slice, convertedValue)
 	}
 	return slice.Interface(), nil
+}
+
+func sliceElementValue(value any, elemType reflect.Type) (reflect.Value, error) {
+	if util.IsNil(value) {
+		switch elemType.Kind() {
+		case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+			return reflect.Zero(elemType), nil
+		default:
+			return reflect.Value{}, arkerrors.Newf(arkerrors.CodeConversion, "nil cannot be appended to %s slice", elemType)
+		}
+	}
+	elemValue := reflect.ValueOf(value)
+	if elemValue.Type().AssignableTo(elemType) {
+		return elemValue, nil
+	}
+	if elemValue.Type().ConvertibleTo(elemType) {
+		return elemValue.Convert(elemType), nil
+	}
+	return reflect.Value{}, arkerrors.Newf(arkerrors.CodeTypeMismatch, "converted slice element is %T, expected %s", value, elemType)
 }
 
 func textUnmarshalerTarget(targetType reflect.Type) bool {

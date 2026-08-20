@@ -207,6 +207,9 @@ func (e *StandardEnvironment) AcceptsProfiles(profiles ...string) bool {
 		if negated {
 			profile = strings.TrimSpace(strings.TrimPrefix(profile, "!"))
 		}
+		if profile == "" {
+			continue
+		}
 		_, matched := active[profile]
 		if negated && !matched {
 			return true

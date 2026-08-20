@@ -86,7 +86,7 @@ func (b *Bus) Subscribe(handler Handler, options ...Option) error {
 	if b == nil {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "event bus is nil")
 	}
-	if handler == nil {
+	if reflectx.IsNil(handler) {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "event handler is nil")
 	}
 
@@ -132,6 +132,9 @@ func Subscribe[T any](b *Bus, handler func(context.Context, T) error, options ..
 func (b *Bus) Publish(ctx context.Context, evt any) error {
 	if b == nil {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "event bus is nil")
+	}
+	if ctx == nil {
+		return arkerrors.New(arkerrors.CodeInvalidArgument, "context is nil")
 	}
 	if evt == nil {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "event is nil")
