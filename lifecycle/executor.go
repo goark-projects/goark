@@ -209,6 +209,9 @@ func closeHooks(hooks []Hook) error {
 func sortedHooks(hooks []Hook) []Hook {
 	copied := append([]Hook(nil), hooks...)
 	sort.SliceStable(copied, func(i, j int) bool {
+		if copied[i].Priority != copied[j].Priority {
+			return copied[i].Priority
+		}
 		if copied[i].Order == copied[j].Order {
 			return copied[i].Name < copied[j].Name
 		}

@@ -5,6 +5,8 @@ import (
 	"sort"
 
 	"github.com/goark-projects/goark/container"
+	coreenv "github.com/goark-projects/goark/core/env"
+	"github.com/goark-projects/goark/core/util"
 	arkerrors "github.com/goark-projects/goark/errors"
 	"github.com/goark-projects/goark/event"
 	"github.com/goark-projects/goark/internal/reflectx"
@@ -12,9 +14,11 @@ import (
 )
 
 type refreshPlan struct {
-	registry *container.Registry
-	events   *event.Bus
-	skip     bool
+	registry       *container.Registry
+	env            coreenv.ConfigurableEnvironment
+	configurations []Configuration
+	events         *event.Bus
+	skip           bool
 }
 
 // Refresh 构建容器并初始化所有非延迟单例。
@@ -34,8 +38,12 @@ func (a *ApplicationContext) Refresh(ctx stdcontext.Context) error {
 		return nil
 	}
 
+	if err := applyConfigurations(ctx, plan.env, plan.registry, plan.configurations); err != nil {
+		a.finishRefresh(nil, nil, nil, err)
+		return err
+	}
 	runtimeContainer, manager, err := buildRuntime(ctx, plan.registry, plan.events)
-	a.finishRefresh(runtimeContainer, manager, err)
+	a.finishRefresh(plan.registry, runtimeContainer, manager, err)
 	if err != nil {
 		return err
 	}
@@ -54,24 +62,48 @@ func (a *ApplicationContext) beginRefresh() (refreshPlan, error) {
 	if a.refreshing {
 		return refreshPlan{}, arkerrors.New(arkerrors.CodeConflict, "application context is refreshing")
 	}
+	registry, err := cloneRegistry(a.registry)
+	if err != nil {
+		return refreshPlan{}, err
+	}
 	a.refreshing = true
+	configurations := make([]Configuration, 0, len(a.configurations))
+	for _, configuration := range a.configurations {
+		configurations = append(configurations, configuration)
+	}
 	return refreshPlan{
-		registry: a.registry,
-		events:   a.events,
+		registry:       registry,
+		env:            a.env,
+		configurations: configurations,
+		events:         a.events,
 	}, nil
 }
 
-func (a *ApplicationContext) finishRefresh(runtimeContainer *container.Container, manager *lifecycle.Manager, err error) {
+func (a *ApplicationContext) finishRefresh(registry *container.Registry, runtimeContainer *container.Container, manager *lifecycle.Manager, err error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if err != nil {
 		a.refreshing = false
 		return
 	}
+	a.registry = registry
 	a.container = runtimeContainer
 	a.lifecycle = manager
 	a.refreshed = true
 	a.refreshing = false
+}
+
+func cloneRegistry(source *container.Registry) (*container.Registry, error) {
+	if source == nil {
+		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "bean registry is nil")
+	}
+	cloned := container.NewRegistry()
+	for _, definition := range source.Definitions() {
+		if err := cloned.Register(definition); err != nil {
+			return nil, err
+		}
+	}
+	return cloned, nil
 }
 
 func buildRuntime(ctx stdcontext.Context, registry *container.Registry, events *event.Bus) (*container.Container, *lifecycle.Manager, error) {
@@ -106,6 +138,9 @@ func registerRuntimeHooks(manager *lifecycle.Manager, events *event.Bus, instanc
 			options := []event.Option{event.WithName(name)}
 			if ordered, ok := instance.(lifecycle.Ordered); ok {
 				options = append(options, event.WithOrder(ordered.Order()))
+			}
+			if util.IsPriorityOrdered(instance) {
+				options = append(options, event.WithPriority())
 			}
 			if err := events.Subscribe(handler, options...); err != nil {
 				return err

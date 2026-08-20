@@ -10,16 +10,13 @@ func (a *ApplicationContext) RegisterDefinition(definition container.Definition)
 	if a == nil {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "application context is nil")
 	}
-	a.mu.RLock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	if a.closed || a.closing {
-		a.mu.RUnlock()
 		return arkerrors.New(arkerrors.CodeClosed, "application context is closed")
 	}
 	if a.refreshed || a.refreshing {
-		a.mu.RUnlock()
 		return arkerrors.New(arkerrors.CodeConflict, "application context has already been refreshed")
 	}
-	registry := a.registry
-	a.mu.RUnlock()
-	return registry.Register(definition)
+	return a.registry.Register(definition)
 }

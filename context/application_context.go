@@ -3,36 +3,38 @@ package context
 import (
 	"sync"
 
-	"github.com/goark-projects/goark/config"
 	"github.com/goark-projects/goark/container"
+	coreenv "github.com/goark-projects/goark/core/env"
 	"github.com/goark-projects/goark/event"
 	"github.com/goark-projects/goark/lifecycle"
 )
 
 // ApplicationContext 是 Goark 核心运行时上下文。
 type ApplicationContext struct {
-	mu         sync.RWMutex
-	registry   *container.Registry
-	env        *config.Environment
-	events     *event.Bus
-	container  *container.Container
-	lifecycle  *lifecycle.Manager
-	refreshing bool
-	refreshed  bool
-	closing    bool
-	closed     bool
+	mu             sync.RWMutex
+	registry       *container.Registry
+	env            coreenv.ConfigurableEnvironment
+	configurations map[string]Configuration
+	events         *event.Bus
+	container      *container.Container
+	lifecycle      *lifecycle.Manager
+	refreshing     bool
+	refreshed      bool
+	closing        bool
+	closed         bool
 }
 
 // New 创建应用上下文。
 func New(options ...Option) (*ApplicationContext, error) {
-	env, err := config.NewEnvironment()
+	env, err := coreenv.NewStandardEnvironment()
 	if err != nil {
 		return nil, err
 	}
 	app := &ApplicationContext{
-		registry: container.NewRegistry(),
-		env:      env,
-		events:   event.NewBus(),
+		registry:       container.NewRegistry(),
+		env:            env,
+		configurations: make(map[string]Configuration),
+		events:         event.NewBus(),
 	}
 	for _, option := range options {
 		if option == nil {
@@ -46,7 +48,17 @@ func New(options ...Option) (*ApplicationContext, error) {
 }
 
 // Environment 返回配置环境。
-func (a *ApplicationContext) Environment() *config.Environment {
+func (a *ApplicationContext) Environment() coreenv.Environment {
+	if a == nil {
+		return nil
+	}
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.env
+}
+
+// ConfigurableEnvironment 返回可配置环境。
+func (a *ApplicationContext) ConfigurableEnvironment() coreenv.ConfigurableEnvironment {
 	if a == nil {
 		return nil
 	}

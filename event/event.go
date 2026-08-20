@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/goark-projects/goark/core/util"
 	arkerrors "github.com/goark-projects/goark/errors"
 	"github.com/goark-projects/goark/internal/reflectx"
 )
@@ -28,6 +29,7 @@ type Subscription struct {
 	Name      string
 	EventType reflect.Type
 	Order     int
+	Priority  bool
 	Handler   Handler
 }
 
@@ -45,6 +47,13 @@ func WithName(name string) Option {
 func WithOrder(order int) Option {
 	return func(s *Subscription) {
 		s.Order = order
+	}
+}
+
+// WithPriority 将订阅标记为优先排序。
+func WithPriority() Option {
+	return func(s *Subscription) {
+		s.Priority = true
 	}
 }
 
@@ -81,7 +90,11 @@ func (b *Bus) Subscribe(handler Handler, options ...Option) error {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "event handler is nil")
 	}
 
-	subscription := Subscription{Handler: handler}
+	subscription := Subscription{
+		Order:    util.OrderOf(handler),
+		Priority: util.IsPriorityOrdered(handler),
+		Handler:  handler,
+	}
 	for _, option := range options {
 		if option != nil {
 			option(&subscription)
@@ -151,6 +164,9 @@ func (b *Bus) matchingHandlers(eventType reflect.Type) []registeredHandler {
 		}
 	}
 	sort.SliceStable(matched, func(i, j int) bool {
+		if matched[i].Priority != matched[j].Priority {
+			return matched[i].Priority
+		}
 		if matched[i].Order == matched[j].Order {
 			return matched[i].seq < matched[j].seq
 		}

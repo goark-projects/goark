@@ -274,3 +274,60 @@ func TestContainer_whenProviderPanics_shouldReturnCreationError(t *testing.T) {
 		t.Fatalf("expected creation error, got %v", err)
 	}
 }
+
+func TestRegistry_whenDefinitionsReturned_shouldReturnDefensiveCopies(t *testing.T) {
+	registry := container.NewRegistry()
+	if err := container.Register[*testService](registry, "service", func(context.Context, container.Resolver) (*testService, error) {
+		return &testService{}, nil
+	}, container.WithDependencies("repo")); err != nil {
+		t.Fatalf("register service failed: %v", err)
+	}
+
+	definitions := registry.Definitions()
+	if len(definitions) != 1 {
+		t.Fatalf("expected one definition, got %d", len(definitions))
+	}
+	definitions[0].Name = "mutated"
+	definitions[0].Dependencies[0] = "mutated"
+
+	definition, ok := registry.Definition("service")
+	if !ok {
+		t.Fatal("expected original service definition")
+	}
+	if definition.Name != "service" {
+		t.Fatalf("definition name should be immutable, got %q", definition.Name)
+	}
+	if len(definition.Dependencies) != 1 || definition.Dependencies[0] != "repo" {
+		t.Fatalf("definition dependencies should be immutable, got %#v", definition.Dependencies)
+	}
+}
+
+func TestContainer_whenRegistryChangesAfterCreation_shouldKeepDefinitionSnapshot(t *testing.T) {
+	registry := container.NewRegistry()
+	if err := container.Register[*testRepository](registry, "repo", func(context.Context, container.Resolver) (*testRepository, error) {
+		return &testRepository{}, nil
+	}); err != nil {
+		t.Fatalf("register repo failed: %v", err)
+	}
+	runtimeContainer, err := container.New(registry)
+	if err != nil {
+		t.Fatalf("create container failed: %v", err)
+	}
+	if err := container.Register[*testService](registry, "service", func(context.Context, container.Resolver) (*testService, error) {
+		return &testService{}, nil
+	}); err != nil {
+		t.Fatalf("register service after container creation failed: %v", err)
+	}
+
+	names := runtimeContainer.Names()
+	if len(names) != 1 || names[0] != "repo" {
+		t.Fatalf("container should keep original definition snapshot, got %#v", names)
+	}
+	_, err = runtimeContainer.Get(context.Background(), "service")
+	if err == nil {
+		t.Fatal("container should not see registry changes after creation")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeNotFound) {
+		t.Fatalf("expected not found, got %v", err)
+	}
+}

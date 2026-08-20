@@ -5,6 +5,7 @@ import (
 
 	"github.com/goark-projects/goark/container"
 	appcontext "github.com/goark-projects/goark/context"
+	coreenv "github.com/goark-projects/goark/core/env"
 	arkerrors "github.com/goark-projects/goark/errors"
 )
 
@@ -13,6 +14,21 @@ type ApplicationContext = appcontext.ApplicationContext
 
 // Option 是应用上下文初始化选项。
 type Option = appcontext.Option
+
+// Environment 是 Goark 核心配置环境类型别名。
+type Environment = coreenv.Environment
+
+// ConfigurableEnvironment 是可配置环境类型别名。
+type ConfigurableEnvironment = coreenv.ConfigurableEnvironment
+
+// PropertySource 是配置源类型别名。
+type PropertySource = coreenv.PropertySource
+
+// Configuration 是应用配置单元类型别名。
+type Configuration = appcontext.Configuration
+
+// ConfigurationDescriptor 是应用配置单元只读描述类型别名。
+type ConfigurationDescriptor = appcontext.ConfigurationDescriptor
 
 // New 创建应用上下文。
 func New(options ...Option) (*ApplicationContext, error) {
@@ -33,6 +49,9 @@ var WithEnvironment = appcontext.WithEnvironment
 
 // WithPropertySource 添加配置源。
 var WithPropertySource = appcontext.WithPropertySource
+
+// WithConfiguration 注册应用配置单元。
+var WithConfiguration = appcontext.WithConfiguration
 
 // WithEventBus 设置事件总线。
 var WithEventBus = appcontext.WithEventBus
@@ -59,6 +78,14 @@ func RegisterInstance[T any](app *ApplicationContext, name string, instance T, o
 		return err
 	}
 	return app.RegisterDefinition(definition)
+}
+
+// RegisterConfiguration 注册应用配置单元。
+func RegisterConfiguration(app *ApplicationContext, configuration Configuration) error {
+	if app == nil {
+		return arkerrors.New(arkerrors.CodeInvalidArgument, "application context is nil")
+	}
+	return app.RegisterConfiguration(configuration)
 }
 
 // Get 按名称解析 Bean。

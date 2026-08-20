@@ -13,6 +13,8 @@ const (
 	CodeAlreadyExists      Code = "ALREADY_EXISTS"
 	CodeNotFound           Code = "NOT_FOUND"
 	CodeTypeMismatch       Code = "TYPE_MISMATCH"
+	CodeConversion         Code = "CONVERSION"
+	CodeResource           Code = "RESOURCE"
 	CodeCircularDependency Code = "CIRCULAR_DEPENDENCY"
 	CodeCreation           Code = "CREATION"
 	CodeConflict           Code = "CONFLICT"

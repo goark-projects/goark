@@ -13,15 +13,15 @@ This module provides the core runtime contracts: bean registration, dependency r
 - Separate runtime bootstrap concerns into [`goark-projects/boot`](https://github.com/goark-projects/boot).
 - Favor Go-native design over Java-style reflection-heavy abstractions.
 - Use compile-time generated registration code instead of classpath scanning.
-- Build clear extension points for configuration, lifecycle, web, data, messaging, and observability modules.
+- Build clear extension points for configuration, lifecycle, web, data, messaging, and observability extensions.
 
 ## Core Packages
 
 ```text
 .
-├── config/      # Environment, PropertySource, Binder
+├── core/        # lang, util, resource, convert, env contracts
 ├── container/   # Bean definitions, registry, resolver, scopes
-├── context/     # ApplicationContext runtime orchestration
+├── context/     # ApplicationContext, Configuration, refresh lifecycle
 ├── errors/      # Framework error codes and wrappers
 ├── event/       # Synchronous ordered event bus
 ├── lifecycle/   # Start, Stop, Close lifecycle manager
@@ -33,10 +33,12 @@ This module provides the core runtime contracts: bean registration, dependency r
 Go does not have Java-style runtime class metadata or classpath scanning. Goark keeps that responsibility out of the core runtime.
 
 - `goark`: accepts explicit bean definitions and runs the application context.
-- `boot`: provides startup conventions, config file loading, and module assembly on top of core contracts.
+- `boot`: provides startup conventions, config file loading, and configuration assembly on top of core contracts.
 - `cli`: discovers source metadata and generates deterministic registration code.
 
-The generated code should call normal Go APIs such as `goark.Register`, `goark.RegisterInstance`, and `container.NewDefinition`.
+Generated code should prefer `context.Configuration` / `goark.Configuration` as the stable assembly target, then call normal Go APIs such as `goark.Register`, `goark.RegisterInstance`, and `container.NewDefinition` inside the configuration.
+
+`core/env` follows the Spring Framework `core.env` boundary: `Environment`, `PropertyResolver`, `PropertySource`, `PropertySources`, and `ConfigurableEnvironment`. Spring Boot style configuration binding belongs in `boot`, not in the core module.
 
 ## Minimal Usage
 
@@ -84,7 +86,57 @@ func main() {
 }
 ```
 
-## Module
+## Configuration Assembly
+
+CLI-generated code should target `goark.Configuration` instead of emitting unrelated registration functions.
+
+```go
+package main
+
+import (
+	"context"
+
+	"github.com/goark-projects/goark"
+	"github.com/goark-projects/goark/container"
+)
+
+type UserConfiguration struct{}
+
+func (UserConfiguration) Name() string {
+	return "user"
+}
+
+func (UserConfiguration) Order() int {
+	return 100
+}
+
+func (UserConfiguration) Register(ctx context.Context, registry *container.Registry) error {
+	_ = ctx
+	if err := container.RegisterInstance[*UserRepository](registry, "userRepository", &UserRepository{}); err != nil {
+		return err
+	}
+	return container.Register[*UserService](registry, "userService", func(ctx context.Context, resolver container.Resolver) (*UserService, error) {
+		repository, err := container.Get[*UserRepository](ctx, resolver, "userRepository")
+		if err != nil {
+			return nil, err
+		}
+		return &UserService{Repository: repository}, nil
+	}, container.WithDependencies("userRepository"))
+}
+
+func run(ctx context.Context) error {
+	app := goark.MustNew(goark.WithConfiguration(UserConfiguration{}))
+	if err := app.Start(ctx); err != nil {
+		return err
+	}
+	defer app.Close(ctx)
+
+	_ = goark.MustGet[*UserService](ctx, app, "userService")
+	return nil
+}
+```
+
+## Installation
 
 ```bash
 go get github.com/goark-projects/goark
@@ -113,9 +165,9 @@ go test ./...
 ```text
 .
 ├── assets/       # README and brand assets
-├── config/       # Configuration environment and binding
 ├── container/    # Bean container core
 ├── context/      # Application context
+├── core/         # Spring-core style Go contracts
 ├── errors/       # Framework errors
 ├── event/        # Event bus
 ├── lifecycle/    # Lifecycle manager

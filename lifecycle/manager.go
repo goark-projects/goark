@@ -3,6 +3,7 @@ package lifecycle
 import (
 	"sync"
 
+	"github.com/goark-projects/goark/core/util"
 	arkerrors "github.com/goark-projects/goark/errors"
 	"github.com/goark-projects/goark/internal/reflectx"
 )
@@ -82,9 +83,11 @@ func newHook(name string, target any, options ...Option) (Hook, error) {
 		}
 	}
 
-	hook := Hook{Name: name, Target: target}
-	if ordered, ok := target.(Ordered); ok {
-		hook.Order = ordered.Order()
+	hook := Hook{
+		Name:     name,
+		Order:    util.OrderOf(target),
+		Priority: util.IsPriorityOrdered(target),
+		Target:   target,
 	}
 	for _, option := range options {
 		if option != nil {

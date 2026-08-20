@@ -16,6 +16,28 @@ type createdEvent struct {
 
 type ignoredEvent struct{}
 
+type orderedHandler struct {
+	name  string
+	order int
+	calls *[]string
+}
+
+func (h *orderedHandler) Order() int {
+	return h.order
+}
+
+func (h *orderedHandler) HandleEvent(context.Context, any) error {
+	*h.calls = append(*h.calls, h.name)
+	return nil
+}
+
+type priorityOrderedHandler struct {
+	*orderedHandler
+}
+
+func (h *priorityOrderedHandler) PriorityOrdered() {
+}
+
 func TestBus_whenPublishingTypedEvent_shouldInvokeHandlersInOrder(t *testing.T) {
 	bus := event.NewBus()
 	calls := make([]string, 0, 2)
@@ -38,6 +60,48 @@ func TestBus_whenPublishingTypedEvent_shouldInvokeHandlersInOrder(t *testing.T) 
 	expected := []string{"first:42", "second:42"}
 	if !reflect.DeepEqual(calls, expected) {
 		t.Fatalf("unexpected calls: %#v", calls)
+	}
+}
+
+func TestBus_whenHandlersImplementOrdered_shouldUseGlobalOrderContracts(t *testing.T) {
+	bus := event.NewBus()
+	calls := make([]string, 0, 3)
+	handlers := []event.Handler{
+		&orderedHandler{name: "normal-early", order: 10, calls: &calls},
+		&priorityOrderedHandler{orderedHandler: &orderedHandler{name: "priority", order: 100, calls: &calls}},
+		&orderedHandler{name: "normal-late", order: 20, calls: &calls},
+	}
+	for _, handler := range handlers {
+		if err := bus.Subscribe(handler); err != nil {
+			t.Fatalf("subscribe handler failed: %v", err)
+		}
+	}
+
+	if err := bus.Publish(context.Background(), createdEvent{}); err != nil {
+		t.Fatalf("publish failed: %v", err)
+	}
+	expected := []string{"priority", "normal-early", "normal-late"}
+	if !reflect.DeepEqual(calls, expected) {
+		t.Fatalf("unexpected ordered handler calls: %#v", calls)
+	}
+}
+
+func TestBus_whenExplicitOrderProvided_shouldOverrideHandlerOrder(t *testing.T) {
+	bus := event.NewBus()
+	calls := make([]string, 0, 2)
+	if err := bus.Subscribe(&orderedHandler{name: "second", order: 1, calls: &calls}, event.WithOrder(20)); err != nil {
+		t.Fatalf("subscribe second failed: %v", err)
+	}
+	if err := bus.Subscribe(&orderedHandler{name: "first", order: 100, calls: &calls}, event.WithOrder(10)); err != nil {
+		t.Fatalf("subscribe first failed: %v", err)
+	}
+
+	if err := bus.Publish(context.Background(), createdEvent{}); err != nil {
+		t.Fatalf("publish failed: %v", err)
+	}
+	expected := []string{"first", "second"}
+	if !reflect.DeepEqual(calls, expected) {
+		t.Fatalf("unexpected explicit order calls: %#v", calls)
 	}
 }
 

@@ -38,6 +38,13 @@ func (h *testHook) Close() error {
 	return h.closeErr
 }
 
+type priorityTestHook struct {
+	*testHook
+}
+
+func (h *priorityTestHook) PriorityOrdered() {
+}
+
 func TestManager_whenStartedStoppedAndClosed_shouldRespectOrder(t *testing.T) {
 	log := make([]string, 0, 6)
 	manager := lifecycle.NewManager()
@@ -74,6 +81,36 @@ func TestManager_whenStartedStoppedAndClosed_shouldRespectOrder(t *testing.T) {
 	}
 	if !reflect.DeepEqual(log, expected) {
 		t.Fatalf("unexpected lifecycle order: %#v", log)
+	}
+}
+
+func TestManager_whenHooksImplementPriorityOrdered_shouldUseGlobalOrderContracts(t *testing.T) {
+	log := make([]string, 0, 6)
+	manager := lifecycle.NewManager()
+	if err := manager.Register("normal-early", &testHook{name: "normal-early", order: 10, log: &log}); err != nil {
+		t.Fatalf("register normal early failed: %v", err)
+	}
+	if err := manager.Register("priority", &priorityTestHook{testHook: &testHook{name: "priority", order: 100, log: &log}}); err != nil {
+		t.Fatalf("register priority failed: %v", err)
+	}
+
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatalf("start failed: %v", err)
+	}
+	if err := manager.Close(context.Background()); err != nil {
+		t.Fatalf("close failed: %v", err)
+	}
+
+	expected := []string{
+		"start:priority",
+		"start:normal-early",
+		"stop:normal-early",
+		"stop:priority",
+		"close:normal-early",
+		"close:priority",
+	}
+	if !reflect.DeepEqual(log, expected) {
+		t.Fatalf("unexpected priority lifecycle order: %#v", log)
 	}
 }
 
