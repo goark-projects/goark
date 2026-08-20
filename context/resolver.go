@@ -20,12 +20,12 @@ func (a *ApplicationContext) Get(ctx stdcontext.Context, name string) (any, erro
 }
 
 // GetByType 按类型解析 Bean。
-func (a *ApplicationContext) GetByType(ctx stdcontext.Context, typ reflect.Type) (any, error) {
+func (a *ApplicationContext) GetByType(ctx stdcontext.Context, typ reflect.Type, options ...container.ResolveOption) (any, error) {
 	runtimeContainer, err := a.runtimeContainer()
 	if err != nil {
 		return nil, err
 	}
-	return runtimeContainer.GetByType(ctx, typ)
+	return runtimeContainer.GetByType(ctx, typ, options...)
 }
 
 // Container 返回底层容器。

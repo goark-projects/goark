@@ -120,3 +120,49 @@ func TestStandardEnvironmentProfiles_whenActiveProfilesAreEmpty_shouldUseDefault
 		t.Fatalf("unexpected active profile state: active=%#v default=%#v", environment.ActiveProfiles(), environment.DefaultProfiles())
 	}
 }
+
+func TestMatchProfileExpression_whenExpressionUsesBooleanOperators_shouldEvaluate(t *testing.T) {
+	environment, err := env.NewStandardEnvironment()
+	if err != nil {
+		t.Fatalf("create environment failed: %v", err)
+	}
+	if err := environment.SetActiveProfiles("prod", "mysql"); err != nil {
+		t.Fatalf("set active profiles failed: %v", err)
+	}
+
+	cases := []struct {
+		expression string
+		want       bool
+	}{
+		{expression: "prod", want: true},
+		{expression: "dev | prod", want: true},
+		{expression: "prod & mysql", want: true},
+		{expression: "prod & !mysql", want: false},
+		{expression: "prod & (mysql | postgres)", want: true},
+		{expression: "!dev", want: true},
+	}
+	for _, item := range cases {
+		got, err := env.MatchProfileExpression(environment, item.expression)
+		if err != nil {
+			t.Fatalf("match %q failed: %v", item.expression, err)
+		}
+		if got != item.want {
+			t.Fatalf("expression %q expected %v, got %v", item.expression, item.want, got)
+		}
+	}
+}
+
+func TestMatchProfileExpression_whenExpressionInvalid_shouldReturnError(t *testing.T) {
+	environment, err := env.NewStandardEnvironment()
+	if err != nil {
+		t.Fatalf("create environment failed: %v", err)
+	}
+
+	_, err = env.MatchProfileExpression(environment, "dev | | test")
+	if err == nil {
+		t.Fatal("expected invalid expression error")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeInvalidArgument) {
+		t.Fatalf("expected invalid argument, got %v", err)
+	}
+}

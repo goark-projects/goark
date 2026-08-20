@@ -23,8 +23,8 @@ func (c *Container) Get(ctx context.Context, name string) (any, error) {
 	return c.resolve(ctx, state, name)
 }
 
-// GetByType 按类型解析 Bean；多候选时必须存在唯一 Primary。
-func (c *Container) GetByType(ctx context.Context, typ reflect.Type) (any, error) {
+// GetByType 按类型解析 Bean；多候选时依次使用 qualifier、Primary、Priority 选择。
+func (c *Container) GetByType(ctx context.Context, typ reflect.Type, options ...ResolveOption) (any, error) {
 	if c == nil {
 		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "bean container is nil")
 	}
@@ -34,7 +34,11 @@ func (c *Container) GetByType(ctx context.Context, typ reflect.Type) (any, error
 	if typ == nil {
 		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "bean type is nil")
 	}
-	name, err := c.selectByType(typ)
+	resolveOptions, err := newResolveOptions(options)
+	if err != nil {
+		return nil, err
+	}
+	name, err := c.selectByType(typ, resolveOptions)
 	if err != nil {
 		return nil, err
 	}

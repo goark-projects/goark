@@ -66,6 +66,32 @@ func (c *failingConfiguration) Register(_ stdcontext.Context, registry *containe
 	return nil
 }
 
+type contextAwareConfiguration struct {
+	name string
+	log  *[]string
+}
+
+func (c *contextAwareConfiguration) Name() string {
+	return c.name
+}
+
+func (c *contextAwareConfiguration) Order() int {
+	return 0
+}
+
+func (c *contextAwareConfiguration) Register(stdcontext.Context, *container.Registry) error {
+	*c.log = append(*c.log, "legacy-register")
+	return nil
+}
+
+func (c *contextAwareConfiguration) RegisterWithContext(_ stdcontext.Context, config appcontext.ConfigurationContext) error {
+	*c.log = append(*c.log, "context-register")
+	if config.Environment() == nil {
+		return stderrors.New("environment missing")
+	}
+	return container.RegisterInstance[string](config.Registry(), "configuration."+c.name, c.name)
+}
+
 func TestApplicationContext_whenConfigurationsRegistered_shouldConfigureEnvironmentBeforeRegistration(t *testing.T) {
 	log := make([]string, 0, 6)
 	app, err := appcontext.New()
@@ -98,6 +124,48 @@ func TestApplicationContext_whenConfigurationsRegistered_shouldConfigureEnvironm
 	}
 	if !reflect.DeepEqual(log, expected) {
 		t.Fatalf("unexpected configuration flow: %#v", log)
+	}
+}
+
+func TestApplicationContext_whenConfigurationIsContextAware_shouldUseRegistrationContext(t *testing.T) {
+	log := make([]string, 0)
+	app, err := appcontext.New()
+	if err != nil {
+		t.Fatalf("create app failed: %v", err)
+	}
+	if err := app.RegisterConfiguration(&contextAwareConfiguration{name: "aware", log: &log}); err != nil {
+		t.Fatalf("register configuration failed: %v", err)
+	}
+
+	if err := app.Refresh(stdcontext.Background()); err != nil {
+		t.Fatalf("refresh failed: %v", err)
+	}
+	if !reflect.DeepEqual(log, []string{"context-register"}) {
+		t.Fatalf("unexpected registration path: %#v", log)
+	}
+	value := container.MustGet[string](stdcontext.Background(), app, "configuration.aware")
+	if value != "aware" {
+		t.Fatalf("unexpected configuration bean: %q", value)
+	}
+}
+
+func TestProfileCondition_whenExpressionMatches_shouldReturnTrue(t *testing.T) {
+	environment, err := coreenv.NewStandardEnvironment()
+	if err != nil {
+		t.Fatalf("create environment failed: %v", err)
+	}
+	if err := environment.SetActiveProfiles("prod", "mysql"); err != nil {
+		t.Fatalf("set active profiles failed: %v", err)
+	}
+	registry := container.NewRegistry()
+	conditionContext := appcontext.NewConfigurationContext(environment, registry)
+
+	matched, err := appcontext.ProfileCondition{Expression: "prod & mysql"}.Matches(conditionContext, appcontext.AnnotationMetadata{Name: "dataSource"})
+	if err != nil {
+		t.Fatalf("profile condition failed: %v", err)
+	}
+	if !matched {
+		t.Fatal("expected profile condition to match")
 	}
 }
 

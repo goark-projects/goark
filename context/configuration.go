@@ -18,6 +18,11 @@ type Configuration interface {
 	Register(ctx stdcontext.Context, registry *container.Registry) error
 }
 
+// ContextAwareConfiguration 可以在注册 Bean 时访问环境和注册表。
+type ContextAwareConfiguration interface {
+	RegisterWithContext(ctx stdcontext.Context, config ConfigurationContext) error
+}
+
 // EnvironmentConfigurer 允许配置单元在 Bean 注册前调整环境。
 type EnvironmentConfigurer interface {
 	ConfigureEnvironment(ctx stdcontext.Context, env coreenv.ConfigurableEnvironment) error
@@ -126,6 +131,13 @@ func applyConfigurations(ctx stdcontext.Context, env coreenv.ConfigurableEnviron
 	for _, configuration := range configurations {
 		if err := ctx.Err(); err != nil {
 			return arkerrors.Wrap(arkerrors.CodeLifecycle, err, "configuration registration canceled")
+		}
+		registrationContext := NewConfigurationContext(env, registry)
+		if contextAware, ok := configuration.(ContextAwareConfiguration); ok {
+			if err := contextAware.RegisterWithContext(ctx, registrationContext); err != nil {
+				return arkerrors.Wrapf(arkerrors.CodeCreation, err, "configuration %q registration failed", configuration.Name())
+			}
+			continue
 		}
 		if err := configuration.Register(ctx, registry); err != nil {
 			return arkerrors.Wrapf(arkerrors.CodeCreation, err, "configuration %q registration failed", configuration.Name())

@@ -59,6 +59,7 @@ func (c *Container) Names() []string {
 }
 
 func (c *Container) addDefinition(definition Definition) error {
+	definition = definition.normalized()
 	if err := validateDefinition(definition); err != nil {
 		return err
 	}
@@ -72,7 +73,7 @@ func (c *Container) addDefinition(definition Definition) error {
 
 func (c *Container) validateDependencies(definitions []Definition) error {
 	for _, definition := range definitions {
-		for _, dependency := range definition.Dependencies {
+		for _, dependency := range definition.normalized().DependsOn {
 			if _, exists := c.definitions[dependency]; !exists {
 				return arkerrors.Newf(arkerrors.CodeNotFound, "bean %q depends on missing bean %q", definition.Name, dependency)
 			}

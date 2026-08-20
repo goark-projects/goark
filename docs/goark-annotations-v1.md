@@ -790,7 +790,7 @@ V1 内置 Scope：
 
 ```go
 //goark:configuration
-//goark:property-source("classpath:application.properties")
+//goark:property-source("classpath:app.yml")
 type AppConfiguration struct{}
 ```
 
@@ -806,8 +806,9 @@ type AppConfiguration struct{}
 2. 加载结果写入 `core/env.Environment` 的 PropertySource 链。
 3. 后加载的 PropertySource 优先级高于先加载的同级资源。
 4. `ignoreResourceNotFound=false` 时资源不存在必须报错。
+5. 未携带扩展名的资源路径按 `yml`、`yaml`、`properties`、`toml` 顺序查找。
 
-V1 只要求支持 Java `.properties` 风格的键值文件。YAML、TOML、JSON 等格式可以通过后续 PropertySourceFactory 扩展，但不属于 V1 默认格式。
+V1 默认支持 YAML、Java `.properties`、TOML 三类配置文件。默认配置基础名称是 `app`，即 `app.yml`、`app.yaml`、`app.properties`、`app.toml`。格式解析由 Koanf 驱动；YAML 优先，`.properties` 次之，TOML 最后。
 
 ### property-sources
 

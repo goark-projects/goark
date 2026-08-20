@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 
+	"github.com/goark-projects/goark/core/lang"
 	arkerrors "github.com/goark-projects/goark/errors"
 	"github.com/goark-projects/goark/internal/reflectx"
 )
@@ -19,7 +20,7 @@ const (
 // Resolver 提供 Bean 解析能力，Provider 通过它显式获取依赖。
 type Resolver interface {
 	Get(ctx context.Context, name string) (any, error)
-	GetByType(ctx context.Context, typ reflect.Type) (any, error)
+	GetByType(ctx context.Context, typ reflect.Type, options ...ResolveOption) (any, error)
 }
 
 // Provider 是类型安全的 Bean 工厂函数。
@@ -30,11 +31,15 @@ type Factory func(ctx context.Context, resolver Resolver) (any, error)
 
 // Definition 描述一个可被容器管理的 Bean。
 type Definition struct {
-	Name         string
-	Type         reflect.Type
-	Scope        Scope
-	Lazy         bool
-	Primary      bool
+	Name      string
+	Type      reflect.Type
+	Scope     Scope
+	Lazy      bool
+	Primary   bool
+	DependsOn []string
+	Order     int
+	Priority  lang.Optional[int]
+	// Dependencies 是 DependsOn 的兼容别名，保留给早期显式注册代码使用。
 	Dependencies []string
 	Factory      Factory
 }
@@ -73,11 +78,31 @@ func WithPrimary() Option {
 	}
 }
 
-// WithDependencies 声明 Bean 的显式依赖名称，用于提前校验与拓扑分析。
-func WithDependencies(names ...string) Option {
+// WithDependsOn 声明当前 Bean 初始化前必须先初始化的 Bean 名称。
+func WithDependsOn(names ...string) Option {
 	copied := append([]string(nil), names...)
 	return func(def *Definition) {
+		def.DependsOn = append(def.DependsOn, copied...)
 		def.Dependencies = append(def.Dependencies, copied...)
+	}
+}
+
+// WithDependencies 声明 Bean 的显式依赖名称，用于提前校验与拓扑分析。
+func WithDependencies(names ...string) Option {
+	return WithDependsOn(names...)
+}
+
+// WithOrder 设置 Bean 的稳定排序值，数值越小优先级越高。
+func WithOrder(value int) Option {
+	return func(def *Definition) {
+		def.Order = value
+	}
+}
+
+// WithPriority 设置 Bean 的候选优先级，数值越小优先级越高。
+func WithPriority(value int) Option {
+	return func(def *Definition) {
+		def.Priority = lang.Some(value)
 	}
 }
 
@@ -106,6 +131,7 @@ func NewDefinition[T any](name string, provider Provider[T], options ...Option) 
 			option(&definition)
 		}
 	}
+	definition = definition.normalized()
 	if err := validateDefinition(definition); err != nil {
 		return Definition{}, err
 	}
@@ -133,6 +159,7 @@ func NewInstanceDefinition[T any](name string, instance T, options ...Option) (D
 			option(&definition)
 		}
 	}
+	definition = definition.normalized()
 	if definition.Scope != ScopeSingleton {
 		return Definition{}, arkerrors.Newf(arkerrors.CodeInvalidArgument, "bean %q instance must use singleton scope", name)
 	}
@@ -142,7 +169,15 @@ func NewInstanceDefinition[T any](name string, instance T, options ...Option) (D
 	return definition.clone(), nil
 }
 
+func (d Definition) normalized() Definition {
+	dependsOn := mergeDependsOn(d.DependsOn, d.Dependencies)
+	d.DependsOn = append([]string(nil), dependsOn...)
+	d.Dependencies = append([]string(nil), dependsOn...)
+	return d
+}
+
 func (d Definition) clone() Definition {
+	d.DependsOn = append([]string(nil), d.DependsOn...)
 	d.Dependencies = append([]string(nil), d.Dependencies...)
 	return d
 }
@@ -168,6 +203,31 @@ func validateDefinition(def Definition) error {
 		}
 	}
 	return nil
+}
+
+func mergeDependsOn(dependsOn []string, dependencies []string) []string {
+	if len(dependsOn) == 0 {
+		return append([]string(nil), dependencies...)
+	}
+	if len(dependencies) == 0 {
+		return append([]string(nil), dependsOn...)
+	}
+	merged := append([]string(nil), dependsOn...)
+	for _, dependency := range dependencies {
+		if !containsDependencyName(merged, dependency) {
+			merged = append(merged, dependency)
+		}
+	}
+	return merged
+}
+
+func containsDependencyName(names []string, target string) bool {
+	for _, name := range names {
+		if name == target {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeInstance(name string, expected reflect.Type, value any) (any, error) {

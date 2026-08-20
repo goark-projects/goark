@@ -26,12 +26,12 @@ func Get[T any](ctx context.Context, resolver Resolver, name string) (T, error) 
 }
 
 // GetByType 按类型解析并转换为目标类型。
-func GetByType[T any](ctx context.Context, resolver Resolver) (T, error) {
+func GetByType[T any](ctx context.Context, resolver Resolver, options ...ResolveOption) (T, error) {
 	var zero T
 	if resolver == nil {
 		return zero, arkerrors.New(arkerrors.CodeInvalidArgument, "bean resolver is nil")
 	}
-	value, err := resolver.GetByType(ctx, reflectx.TypeOf[T]())
+	value, err := resolver.GetByType(ctx, reflectx.TypeOf[T](), options...)
 	if err != nil {
 		return zero, err
 	}
@@ -52,8 +52,8 @@ func MustGet[T any](ctx context.Context, resolver Resolver, name string) T {
 }
 
 // MustGetByType 是 GetByType 的 panic 版本。
-func MustGetByType[T any](ctx context.Context, resolver Resolver) T {
-	value, err := GetByType[T](ctx, resolver)
+func MustGetByType[T any](ctx context.Context, resolver Resolver, options ...ResolveOption) T {
+	value, err := GetByType[T](ctx, resolver, options...)
 	if err != nil {
 		panic(err)
 	}

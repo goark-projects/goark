@@ -91,3 +91,11 @@ type PropertiesPropertySource = MapPropertySource
 func NewPropertiesPropertySource(name string, source map[string]any) (*PropertiesPropertySource, error) {
 	return NewMapPropertySource(name, source)
 }
+
+// ConfigPropertySource 语义上表示文件配置源。
+type ConfigPropertySource = MapPropertySource
+
+// NewConfigPropertySource 创建文件配置源。
+func NewConfigPropertySource(name string, source map[string]any) (*ConfigPropertySource, error) {
+	return NewMapPropertySource(name, source)
+}

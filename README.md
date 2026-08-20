@@ -33,12 +33,12 @@ This module provides the core runtime contracts: bean registration, dependency r
 Go does not have Java-style runtime class metadata or classpath scanning. Goark keeps that responsibility out of the core runtime.
 
 - `goark`: accepts explicit bean definitions and runs the application context.
-- `boot`: provides startup conventions, config file loading, and configuration assembly on top of core contracts.
+- `boot`: provides startup conventions, default config discovery, profile layering, and configuration assembly on top of core contracts.
 - `cli`: discovers source metadata and generates deterministic registration code.
 
 Generated code should prefer `context.Configuration` / `goark.Configuration` as the stable assembly target, then call normal Go APIs such as `goark.Register`, `goark.RegisterInstance`, and `container.NewDefinition` inside the configuration.
 
-`core/env` follows the Spring Framework `core.env` boundary: `Environment`, `PropertyResolver`, `PropertySource`, `PropertySources`, and `ConfigurableEnvironment`. Spring Boot style configuration binding belongs in `boot`, not in the core module.
+`core/env` follows the Spring Framework `core.env` boundary: `Environment`, `PropertyResolver`, `PropertySource`, `PropertySources`, `ConfigurableEnvironment`, and explicit file-backed `PropertySource` loading. Spring Boot style configuration discovery, profile layering, and binding belongs in `boot`, not in the core module.
 
 ## Minimal Usage
 

@@ -25,6 +25,7 @@ func (r *Registry) Register(definition Definition) error {
 	if r == nil {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "bean registry is nil")
 	}
+	definition = definition.normalized()
 	if err := validateDefinition(definition); err != nil {
 		return err
 	}

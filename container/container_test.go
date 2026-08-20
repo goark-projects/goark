@@ -177,6 +177,136 @@ func TestContainer_whenResolvingByTypeWithPrimary_shouldSelectPrimary(t *testing
 	}
 }
 
+func TestContainer_whenResolvingByTypeWithQualifier_shouldSelectNamedCandidate(t *testing.T) {
+	registry := container.NewRegistry()
+	if err := container.Register[testWorker](registry, "primary", func(context.Context, container.Resolver) (testWorker, error) {
+		return primaryWorker{}, nil
+	}, container.WithPrimary()); err != nil {
+		t.Fatalf("register primary failed: %v", err)
+	}
+	if err := container.Register[testWorker](registry, "secondary", func(context.Context, container.Resolver) (testWorker, error) {
+		return secondaryWorker{}, nil
+	}); err != nil {
+		t.Fatalf("register secondary failed: %v", err)
+	}
+	runtimeContainer, err := container.New(registry)
+	if err != nil {
+		t.Fatalf("create container failed: %v", err)
+	}
+
+	worker, err := container.GetByType[testWorker](context.Background(), runtimeContainer, container.WithQualifier("secondary"))
+	if err != nil {
+		t.Fatalf("resolve by qualifier failed: %v", err)
+	}
+	if worker.Work() != "secondary" {
+		t.Fatalf("expected secondary worker, got %q", worker.Work())
+	}
+}
+
+func TestContainer_whenResolvingByTypeWithQualifierTypeMismatch_shouldReturnTypeMismatch(t *testing.T) {
+	registry := container.NewRegistry()
+	if err := container.Register[*testRepository](registry, "repo", func(context.Context, container.Resolver) (*testRepository, error) {
+		return &testRepository{}, nil
+	}); err != nil {
+		t.Fatalf("register repo failed: %v", err)
+	}
+	if err := container.Register[testWorker](registry, "worker", func(context.Context, container.Resolver) (testWorker, error) {
+		return primaryWorker{}, nil
+	}); err != nil {
+		t.Fatalf("register worker failed: %v", err)
+	}
+	runtimeContainer, err := container.New(registry)
+	if err != nil {
+		t.Fatalf("create container failed: %v", err)
+	}
+
+	_, err = container.GetByType[testWorker](context.Background(), runtimeContainer, container.WithQualifier("repo"))
+	if err == nil {
+		t.Fatal("expected type mismatch")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeTypeMismatch) {
+		t.Fatalf("expected type mismatch, got %v", err)
+	}
+}
+
+func TestContainer_whenResolvingByTypeWithPriority_shouldSelectHighestPriority(t *testing.T) {
+	registry := container.NewRegistry()
+	if err := container.Register[testWorker](registry, "slow", func(context.Context, container.Resolver) (testWorker, error) {
+		return secondaryWorker{}, nil
+	}, container.WithPriority(100)); err != nil {
+		t.Fatalf("register slow failed: %v", err)
+	}
+	if err := container.Register[testWorker](registry, "fast", func(context.Context, container.Resolver) (testWorker, error) {
+		return primaryWorker{}, nil
+	}, container.WithPriority(10)); err != nil {
+		t.Fatalf("register fast failed: %v", err)
+	}
+	runtimeContainer, err := container.New(registry)
+	if err != nil {
+		t.Fatalf("create container failed: %v", err)
+	}
+
+	worker, err := container.GetByType[testWorker](context.Background(), runtimeContainer)
+	if err != nil {
+		t.Fatalf("resolve by priority failed: %v", err)
+	}
+	if worker.Work() != "primary" {
+		t.Fatalf("expected highest priority worker, got %q", worker.Work())
+	}
+}
+
+func TestContainer_whenPrimaryAndPriorityBothExist_shouldSelectPrimary(t *testing.T) {
+	registry := container.NewRegistry()
+	if err := container.Register[testWorker](registry, "priority", func(context.Context, container.Resolver) (testWorker, error) {
+		return secondaryWorker{}, nil
+	}, container.WithPriority(0)); err != nil {
+		t.Fatalf("register priority failed: %v", err)
+	}
+	if err := container.Register[testWorker](registry, "primary", func(context.Context, container.Resolver) (testWorker, error) {
+		return primaryWorker{}, nil
+	}, container.WithPrimary(), container.WithPriority(100)); err != nil {
+		t.Fatalf("register primary failed: %v", err)
+	}
+	runtimeContainer, err := container.New(registry)
+	if err != nil {
+		t.Fatalf("create container failed: %v", err)
+	}
+
+	worker, err := container.GetByType[testWorker](context.Background(), runtimeContainer)
+	if err != nil {
+		t.Fatalf("resolve by type failed: %v", err)
+	}
+	if worker.Work() != "primary" {
+		t.Fatalf("expected primary worker, got %q", worker.Work())
+	}
+}
+
+func TestContainer_whenTypeHasMultipleSamePriorityCandidates_shouldReturnConflict(t *testing.T) {
+	registry := container.NewRegistry()
+	if err := container.Register[testWorker](registry, "a", func(context.Context, container.Resolver) (testWorker, error) {
+		return primaryWorker{}, nil
+	}, container.WithPriority(10)); err != nil {
+		t.Fatalf("register worker a failed: %v", err)
+	}
+	if err := container.Register[testWorker](registry, "b", func(context.Context, container.Resolver) (testWorker, error) {
+		return secondaryWorker{}, nil
+	}, container.WithPriority(10)); err != nil {
+		t.Fatalf("register worker b failed: %v", err)
+	}
+	runtimeContainer, err := container.New(registry)
+	if err != nil {
+		t.Fatalf("create container failed: %v", err)
+	}
+
+	_, err = container.GetByType[testWorker](context.Background(), runtimeContainer)
+	if err == nil {
+		t.Fatal("expected conflict error")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeConflict) {
+		t.Fatalf("expected conflict, got %v", err)
+	}
+}
+
 func TestContainer_whenTypeHasMultipleCandidatesWithoutPrimary_shouldReturnConflict(t *testing.T) {
 	registry := container.NewRegistry()
 	if err := container.Register[testWorker](registry, "a", func(context.Context, container.Resolver) (testWorker, error) {
@@ -207,7 +337,7 @@ func TestContainer_whenDependencyIsMissing_shouldFailFast(t *testing.T) {
 	registry := container.NewRegistry()
 	if err := container.Register[*testService](registry, "service", func(context.Context, container.Resolver) (*testService, error) {
 		return &testService{}, nil
-	}, container.WithDependencies("missing")); err != nil {
+	}, container.WithDependsOn("missing")); err != nil {
 		t.Fatalf("register service failed: %v", err)
 	}
 
@@ -217,6 +347,61 @@ func TestContainer_whenDependencyIsMissing_shouldFailFast(t *testing.T) {
 	}
 	if !arkerrors.Is(err, arkerrors.CodeNotFound) {
 		t.Fatalf("expected not found, got %v", err)
+	}
+}
+
+func TestDefinition_whenOptionsApplied_shouldExposeBeanMetadata(t *testing.T) {
+	definition, err := container.NewDefinition[*testRepository]("repo", func(context.Context, container.Resolver) (*testRepository, error) {
+		return &testRepository{}, nil
+	},
+		container.WithPrimary(),
+		container.WithLazy(),
+		container.WithPrototype(),
+		container.WithDependsOn("database", "cache"),
+		container.WithOrder(-100),
+		container.WithPriority(10),
+	)
+	if err != nil {
+		t.Fatalf("new definition failed: %v", err)
+	}
+
+	if !definition.Primary {
+		t.Fatal("expected primary metadata")
+	}
+	if !definition.Lazy {
+		t.Fatal("expected lazy metadata")
+	}
+	if definition.Scope != container.ScopePrototype {
+		t.Fatalf("expected prototype scope, got %q", definition.Scope)
+	}
+	if definition.Order != -100 {
+		t.Fatalf("expected order -100, got %d", definition.Order)
+	}
+	priority, ok := definition.Priority.Value()
+	if !ok || priority != 10 {
+		t.Fatalf("expected priority 10, got value=%d present=%v", priority, ok)
+	}
+	if len(definition.DependsOn) != 2 || definition.DependsOn[0] != "database" || definition.DependsOn[1] != "cache" {
+		t.Fatalf("unexpected depends-on metadata: %#v", definition.DependsOn)
+	}
+	if len(definition.Dependencies) != 2 || definition.Dependencies[0] != "database" || definition.Dependencies[1] != "cache" {
+		t.Fatalf("legacy dependencies should mirror depends-on metadata: %#v", definition.Dependencies)
+	}
+}
+
+func TestDefinition_whenLegacyDependenciesUsed_shouldMirrorDependsOnMetadata(t *testing.T) {
+	definition, err := container.NewDefinition[*testRepository]("repo", func(context.Context, container.Resolver) (*testRepository, error) {
+		return &testRepository{}, nil
+	}, container.WithDependencies("database"))
+	if err != nil {
+		t.Fatalf("new definition failed: %v", err)
+	}
+
+	if len(definition.DependsOn) != 1 || definition.DependsOn[0] != "database" {
+		t.Fatalf("expected legacy dependencies to populate depends-on, got %#v", definition.DependsOn)
+	}
+	if len(definition.Dependencies) != 1 || definition.Dependencies[0] != "database" {
+		t.Fatalf("expected legacy dependencies to remain populated, got %#v", definition.Dependencies)
 	}
 }
 
@@ -289,6 +474,7 @@ func TestRegistry_whenDefinitionsReturned_shouldReturnDefensiveCopies(t *testing
 	}
 	definitions[0].Name = "mutated"
 	definitions[0].Dependencies[0] = "mutated"
+	definitions[0].DependsOn[0] = "mutated"
 
 	definition, ok := registry.Definition("service")
 	if !ok {
@@ -299,6 +485,9 @@ func TestRegistry_whenDefinitionsReturned_shouldReturnDefensiveCopies(t *testing
 	}
 	if len(definition.Dependencies) != 1 || definition.Dependencies[0] != "repo" {
 		t.Fatalf("definition dependencies should be immutable, got %#v", definition.Dependencies)
+	}
+	if len(definition.DependsOn) != 1 || definition.DependsOn[0] != "repo" {
+		t.Fatalf("definition depends-on should be immutable, got %#v", definition.DependsOn)
 	}
 }
 
