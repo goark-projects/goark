@@ -4,6 +4,7 @@ import (
 	"context"
 	stderrors "errors"
 	"sort"
+	"strings"
 
 	arkerrors "github.com/goark-projects/goark/errors"
 )
@@ -85,8 +86,12 @@ func (m *Manager) beginStart() ([]Hook, error) {
 	case stateRunning:
 		return nil, nil
 	case stateStopped:
+		hooks, err := sortedHooks(m.hooks)
+		if err != nil {
+			return nil, err
+		}
 		m.state = stateStarting
-		return sortedHooks(m.hooks), nil
+		return hooks, nil
 	case stateClosed:
 		return nil, arkerrors.New(arkerrors.CodeClosed, "lifecycle manager is closed")
 	default:
@@ -136,11 +141,19 @@ func (m *Manager) beginClose() ([]Hook, []Hook, error) {
 	case stateClosed:
 		return nil, nil, nil
 	case stateRunning:
+		hooks, err := sortedHooks(m.hooks)
+		if err != nil {
+			return nil, nil, err
+		}
 		m.state = stateStopping
-		return append([]Hook(nil), m.started...), sortedHooks(m.hooks), nil
+		return append([]Hook(nil), m.started...), hooks, nil
 	case stateStopped:
+		hooks, err := sortedHooks(m.hooks)
+		if err != nil {
+			return nil, nil, err
+		}
 		m.state = stateStopping
-		return nil, sortedHooks(m.hooks), nil
+		return nil, hooks, nil
 	default:
 		return nil, nil, arkerrors.New(arkerrors.CodeConflict, "lifecycle manager is busy")
 	}
@@ -206,16 +219,117 @@ func closeHooks(hooks []Hook) error {
 	return joined
 }
 
-func sortedHooks(hooks []Hook) []Hook {
+func sortedHooks(hooks []Hook) ([]Hook, error) {
 	copied := append([]Hook(nil), hooks...)
 	sort.SliceStable(copied, func(i, j int) bool {
-		if copied[i].Priority != copied[j].Priority {
-			return copied[i].Priority
-		}
-		if copied[i].Order == copied[j].Order {
-			return copied[i].Name < copied[j].Name
-		}
-		return copied[i].Order < copied[j].Order
+		return lessHook(copied[i], copied[j])
 	})
-	return copied
+	return dependencySortedHooks(copied)
+}
+
+func dependencySortedHooks(hooks []Hook) ([]Hook, error) {
+	if len(hooks) == 0 {
+		return hooks, nil
+	}
+	indicesByName := make(map[string]int, len(hooks))
+	for index, hook := range hooks {
+		indicesByName[hook.Name] = index
+	}
+
+	dependents := make(map[int][]int, len(hooks))
+	inDegree := make([]int, len(hooks))
+	seenEdges := make(map[[2]int]struct{})
+	for index, hook := range hooks {
+		for _, dependency := range hook.DependsOn {
+			dependencyIndex, exists := indicesByName[dependency]
+			if !exists {
+				continue
+			}
+			key := [2]int{dependencyIndex, index}
+			if _, exists := seenEdges[key]; exists {
+				continue
+			}
+			seenEdges[key] = struct{}{}
+			dependents[dependencyIndex] = append(dependents[dependencyIndex], index)
+			inDegree[index]++
+		}
+	}
+	for index := range dependents {
+		sortHookIndices(dependents[index], hooks)
+	}
+
+	ready := make([]int, 0, len(hooks))
+	for index, degree := range inDegree {
+		if degree == 0 {
+			ready = append(ready, index)
+		}
+	}
+	sortHookIndices(ready, hooks)
+
+	sorted := make([]Hook, 0, len(hooks))
+	emitted := make([]bool, len(hooks))
+	for len(sorted) < len(hooks) {
+		if len(ready) == 0 {
+			return nil, arkerrors.Newf(arkerrors.CodeCircularDependency, "circular lifecycle dependency detected: %s", lifecycleDependencyCycleDescription(hooks, emitted, indicesByName))
+		}
+		index := ready[0]
+		ready = ready[1:]
+		if emitted[index] {
+			continue
+		}
+		emitted[index] = true
+		sorted = append(sorted, hooks[index])
+		for _, dependent := range dependents[index] {
+			if emitted[dependent] {
+				continue
+			}
+			inDegree[dependent]--
+			if inDegree[dependent] <= 0 {
+				ready = append(ready, dependent)
+			}
+		}
+		sortHookIndices(ready, hooks)
+	}
+	return sorted, nil
+}
+
+func lifecycleDependencyCycleDescription(hooks []Hook, emitted []bool, indicesByName map[string]int) string {
+	parts := make([]string, 0)
+	for index := range hooks {
+		if emitted[index] {
+			continue
+		}
+		for _, dependency := range hooks[index].DependsOn {
+			dependencyIndex, exists := indicesByName[dependency]
+			if !exists || emitted[dependencyIndex] {
+				continue
+			}
+			parts = append(parts, hooks[index].Name+" -> "+dependency)
+		}
+	}
+	if len(parts) == 0 {
+		for index := range hooks {
+			if !emitted[index] {
+				parts = append(parts, hooks[index].Name)
+			}
+		}
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, "; ")
+}
+
+func sortHookIndices(indices []int, hooks []Hook) {
+	sort.SliceStable(indices, func(i, j int) bool {
+		return lessHook(hooks[indices[i]], hooks[indices[j]])
+	})
+}
+
+func lessHook(left Hook, right Hook) bool {
+	if left.Priority != right.Priority {
+		return left.Priority
+	}
+	if left.Order == right.Order {
+		return left.Name < right.Name
+	}
+	return left.Order < right.Order
 }

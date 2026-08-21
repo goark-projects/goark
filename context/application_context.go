@@ -11,17 +11,18 @@ import (
 
 // ApplicationContext 是 Goark 核心运行时上下文。
 type ApplicationContext struct {
-	mu             sync.RWMutex
-	registry       *container.Registry
-	env            coreenv.ConfigurableEnvironment
-	configurations map[string]Configuration
-	events         *event.Bus
-	container      *container.Container
-	lifecycle      *lifecycle.Manager
-	refreshing     bool
-	refreshed      bool
-	closing        bool
-	closed         bool
+	mu                      sync.RWMutex
+	registry                *container.Registry
+	env                     coreenv.ConfigurableEnvironment
+	configurations          map[string]Configuration
+	events                  *event.Bus
+	container               *container.Container
+	lifecycle               *lifecycle.Manager
+	allowCircularReferences bool
+	refreshing              bool
+	refreshed               bool
+	closing                 bool
+	closed                  bool
 }
 
 // New 创建应用上下文。

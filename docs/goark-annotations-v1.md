@@ -12,6 +12,7 @@ Goark 注解是写在 Go 注释中的编译期元数据，由 `goark` CLI 扫描
 - 保持 Go 代码可读、可编译、可审查。
 - 生成代码确定、显式、可提交。
 - 支持私有字段注入，生成代码放在同一个 Go package 内。
+- 依赖关系默认由生成器基于注入点自动推导，不要求业务代码重复书写初始化依赖。
 - 让生成器产出的代码只依赖 `goark` 核心库，不依赖 `boot` 或其他扩展模块。
 
 ## 非目标
@@ -716,7 +717,7 @@ V1 中 `lazy` 只支持 BeanDefinition 级别的 lazy-init：容器 refresh 时�
 
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `value` | string | 无 | Bean 名称；多个名称用英文逗号分隔 |
+| `value` | string | 无 | Bean 名称；多个名称可用英文逗号分隔，生成器也必须兼容多个字符串参数 |
 
 示例：
 
@@ -730,14 +731,16 @@ type ApiResourceService struct{}
 
 ```go
 //goark:depends-on("database,cacheManager")
+//goark:depends-on("schemaMigrator", "redisClient")
 ```
 
 规则：
 
-1. 当前 Bean 创建前必须先创建 `depends-on` 指定的 Bean。
-2. ApplicationContext 关闭时，当前 Bean 必须先于其依赖 Bean 销毁。
-3. 指定不存在的 Bean 名称必须报错。
-4. 循环依赖必须报错。
+1. 普通字段注入、方法参数注入、`resource`、`qualifier`、`named` 的依赖关系由生成器自动推导，不需要额外写 `depends-on`。
+2. `depends-on` 表示手工初始化和生命周期顺序依赖：当前 Bean 创建前必须先创建 `depends-on` 指定的 Bean。
+3. ApplicationContext 关闭时，当前 Bean 必须先于 `depends-on` 指定的依赖 Bean 销毁；自动推导依赖同样参与生命周期顺序。
+4. 指定不存在的 Bean 名称必须报错。
+5. `depends-on` 形成的循环依赖必须报错，即使启用了循环引用开关也不能放行。
 
 ### scope
 
@@ -1265,6 +1268,35 @@ Bean 方法参数默认按参数类型解析，并且默认是必需依赖。若
 
 `autowired(required=false)` 对字段和方法参数都合法。字段依赖不存在时保留字段零值；方法参数依赖不存在时传入 `nil`，因此方法参数类型必须是 nil-able 类型。`required=false` 不屏蔽多候选 Bean、类型不匹配、限定名冲突等错误。
 
+## 依赖图推导与循环依赖
+
+生成器必须用 Go 类型检查结果构建完整依赖图，不能依赖运行时反射扫描。依赖边来源分两类：
+
+- 自动推导依赖：字段注入、setter 注入、Bean 方法参数、`autowired`、`inject`、`resource`、`qualifier`、`named`。
+- 手工依赖：用户显式声明的 `goark:depends-on`。
+
+依赖边语义分三类：
+
+- `factory`：Bean 方法参数、构造函数参数或 provider 内必须先解析的依赖。该类依赖不能通过 early singleton 解决循环。
+- `injection`：字段或 setter 注入依赖。单例 Bean 在启用循环引用开关时可以通过 early singleton 解决循环。
+- `depends-on`：手工初始化顺序依赖。该类依赖控制创建和生命周期顺序，不执行注入，循环必须报错。
+
+生成器解析依赖候选时必须保持 Spring 顺序：
+
+1. `qualifier`、`named`、`resource(name=...)` 等显式名称优先。
+2. 按类型存在多个候选时，先选唯一 `primary`。
+3. 没有 `primary` 时按最高 `priority` 选择唯一候选。
+4. 仍不唯一时报多候选错误。
+5. `required=false` 且依赖不存在时不生成硬依赖边；依赖存在时仍参与依赖图校验。
+
+循环依赖规则：
+
+1. 默认不允许循环依赖。
+2. `goark.WithAllowCircularReferences(true)` 或 boot 配置 `goark.main.allow-circular-references=true` 打开后，只允许单例 Bean 的字段或 setter 注入循环。
+3. Bean 方法参数、构造参数、provider 内即时解析依赖、prototype Bean、`depends-on` 初始化顺序依赖形成的循环必须报错。
+4. 允许的单例字段注入循环由容器按 Spring 风格分两阶段处理：先实例化并暴露 early singleton，再执行生成器写入的依赖注入函数。
+5. early singleton 只允许同一解析链内的循环注入使用；普通并发 `Get` 必须等待 Bean 注入完成后返回。
+
 ## 生成规则
 
 CLI 扫描源码后生成普通 Go 文件，文件名建议使用：
@@ -1280,7 +1312,7 @@ zz_goark_<package>_gen.go
 - Component、Service、Repository 的 provider。
 - Configuration 的 `Name`、`Order`、`Register` 方法。
 - Bean 方法对应的 provider。
-- BeanDefinition 元数据：`primary`、`lazy`、`depends-on`、`scope`、`order`、`priority`。
+- BeanDefinition 元数据：`primary`、`lazy`、`depends-on`、`scope`、`order`、`priority`、依赖描述符。
 - Environment 装配代码：`property-source`、`property-sources`。
 - 条件装配判断代码：`profile`、`conditional`。
 - 字段和方法参数的 Bean 依赖注入代码：`autowired`、`inject`、`resource`、`qualifier`、`named`。
@@ -1290,6 +1322,9 @@ zz_goark_<package>_gen.go
 生成代码必须：
 
 - 使用确定性排序。
+- 用图算法合并自动推导依赖和手工 `depends-on` 依赖，并去重。
+- 所有依赖描述都必须参与单例启动和生命周期关闭顺序计算。
+- 字段或 setter 注入依赖生成 `WithInjectionDependencies` 和 `WithDependencyInjector`；Bean 方法参数或构造参数依赖生成 `WithFactoryDependencies`；手工 `depends-on` 生成 `WithDependsOn`。
 - 不依赖运行时扫描。
 - 不修改用户源码。
 - 可被 `go test ./...` 直接编译。
@@ -1332,7 +1367,6 @@ type ApiResourceRepository struct {
 }
 
 //goark:service("apiResourceService")
-//goark:depends-on("database")
 type ApiResourceService struct {
 	//goark:autowired
 	//goark:qualifier("apiResourceRepository")

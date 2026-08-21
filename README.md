@@ -70,7 +70,7 @@ func main() {
 			return nil, err
 		}
 		return &UserService{Repository: repository}, nil
-	}, goark.WithDependencies("userRepository"))
+	}, goark.WithFactoryDependencies("userRepository"))
 
 	if err := app.Start(ctx); err != nil {
 		panic(err)
@@ -120,7 +120,7 @@ func (UserConfiguration) Register(ctx context.Context, registry *container.Regis
 			return nil, err
 		}
 		return &UserService{Repository: repository}, nil
-	}, container.WithDependencies("userRepository"))
+	}, container.WithFactoryDependencies("userRepository"))
 }
 
 func run(ctx context.Context) error {

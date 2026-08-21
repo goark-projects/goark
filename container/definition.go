@@ -30,19 +30,23 @@ type Provider[T any] func(ctx context.Context, resolver Resolver) (T, error)
 // Factory 是容器内部使用的非泛型工厂函数。
 type Factory func(ctx context.Context, resolver Resolver) (any, error)
 
+// DependencyInjector 在 Bean 实例创建后执行字段或 setter 注入。
+type DependencyInjector func(ctx context.Context, resolver Resolver, bean any) error
+
 // Definition 描述一个可被容器管理的 Bean。
 type Definition struct {
-	Name      string
-	Type      reflect.Type
-	Scope     Scope
-	Lazy      bool
-	Primary   bool
-	DependsOn []string
-	Order     int
-	Priority  lang.Optional[int]
-	// Dependencies 是 DependsOn 的兼容别名，保留给早期显式注册代码使用。
-	Dependencies []string
-	Factory      Factory
+	Name                  string
+	Type                  reflect.Type
+	Scope                 Scope
+	Lazy                  bool
+	Primary               bool
+	DependsOn             []string
+	Order                 int
+	Priority              lang.Optional[int]
+	Dependencies          []string
+	DependencyDescriptors []DependencyDescriptor
+	Factory               Factory
+	DependencyInjector    DependencyInjector
 }
 
 // Option 调整 Bean 定义元数据。
@@ -81,16 +85,81 @@ func WithPrimary() Option {
 
 // WithDependsOn 声明当前 Bean 初始化前必须先初始化的 Bean 名称。
 func WithDependsOn(names ...string) Option {
-	copied := append([]string(nil), names...)
+	copied := splitDependencyNames(names)
 	return func(def *Definition) {
 		def.DependsOn = append(def.DependsOn, copied...)
-		def.Dependencies = append(def.Dependencies, copied...)
+		for _, name := range copied {
+			def.DependencyDescriptors = appendDependencyDescriptor(
+				def.DependencyDescriptors,
+				dependencyDescriptor(name, DependencyKindDependsOn, DependencySourceManual, false),
+			)
+		}
 	}
 }
 
-// WithDependencies 声明 Bean 的显式依赖名称，用于提前校验与拓扑分析。
+// WithDependencies 声明生成器推导出的工厂依赖名称，用于校验与拓扑分析。
 func WithDependencies(names ...string) Option {
-	return WithDependsOn(names...)
+	return WithFactoryDependencies(names...)
+}
+
+// WithFactoryDependencies 声明工厂方法或构造参数依赖。
+func WithFactoryDependencies(names ...string) Option {
+	return withDependencyNames(DependencyKindFactory, DependencySourceInferred, false, names...)
+}
+
+// WithInjectionDependencies 声明字段或 setter 注入依赖。
+func WithInjectionDependencies(names ...string) Option {
+	return withDependencyNames(DependencyKindInjection, DependencySourceInferred, false, names...)
+}
+
+// WithOptionalInjectionDependencies 声明可选字段或 setter 注入依赖。
+func WithOptionalInjectionDependencies(names ...string) Option {
+	return withDependencyNames(DependencyKindInjection, DependencySourceInferred, true, names...)
+}
+
+// WithDependencyDescriptors 追加完整依赖描述，供生成器写入精确依赖图。
+func WithDependencyDescriptors(descriptors ...DependencyDescriptor) Option {
+	copied := append([]DependencyDescriptor(nil), descriptors...)
+	return func(def *Definition) {
+		for _, descriptor := range copied {
+			def.DependencyDescriptors = appendDependencyDescriptor(def.DependencyDescriptors, descriptor)
+		}
+	}
+}
+
+// WithDependencyInjector 设置 Bean 实例创建后的依赖注入函数。
+func WithDependencyInjector(injector DependencyInjector) Option {
+	return func(def *Definition) {
+		def.DependencyInjector = injector
+	}
+}
+
+// WithTypedDependencyInjector 设置类型安全的依赖注入函数。
+func WithTypedDependencyInjector[T any](injector func(context.Context, Resolver, T) error) Option {
+	return func(def *Definition) {
+		if injector == nil {
+			def.DependencyInjector = nil
+			return
+		}
+		def.DependencyInjector = func(ctx context.Context, resolver Resolver, bean any) error {
+			typed, ok := bean.(T)
+			if !ok {
+				return arkerrors.Newf(arkerrors.CodeTypeMismatch, "bean %q injector received %T, expected %s", def.Name, bean, typeName[T]())
+			}
+			return injector(ctx, resolver, typed)
+		}
+	}
+}
+
+func withDependencyNames(kind DependencyKind, source DependencySource, optional bool, names ...string) Option {
+	copied := splitDependencyNames(names)
+	return func(def *Definition) {
+		for _, name := range copied {
+			descriptor := dependencyDescriptor(name, kind, source, optional)
+			def.DependencyDescriptors = appendDependencyDescriptor(def.DependencyDescriptors, descriptor)
+			def.Dependencies = append(def.Dependencies, descriptor.Name)
+		}
+	}
 }
 
 // WithOrder 设置 Bean 的稳定排序值，数值越小优先级越高。
@@ -172,15 +241,17 @@ func NewInstanceDefinition[T any](name string, instance T, options ...Option) (D
 
 func (d Definition) normalized() Definition {
 	d.Name = strings.TrimSpace(d.Name)
-	dependsOn := mergeDependsOn(d.DependsOn, d.Dependencies)
+	descriptors, dependsOn, dependencies := normalizeDefinitionDependencies(d.DependencyDescriptors, d.DependsOn, d.Dependencies)
+	d.DependencyDescriptors = append([]DependencyDescriptor(nil), descriptors...)
 	d.DependsOn = append([]string(nil), dependsOn...)
-	d.Dependencies = append([]string(nil), dependsOn...)
+	d.Dependencies = append([]string(nil), dependencies...)
 	return d
 }
 
 func (d Definition) clone() Definition {
 	d.DependsOn = append([]string(nil), d.DependsOn...)
 	d.Dependencies = append([]string(nil), d.Dependencies...)
+	d.DependencyDescriptors = append([]DependencyDescriptor(nil), d.DependencyDescriptors...)
 	return d
 }
 
@@ -199,29 +270,12 @@ func validateDefinition(def Definition) error {
 	default:
 		return arkerrors.Newf(arkerrors.CodeInvalidArgument, "bean %q has invalid scope %q", def.Name, def.Scope)
 	}
-	for _, dependency := range def.DependsOn {
-		if strings.TrimSpace(dependency) == "" {
+	for _, dependency := range def.DependencyDescriptors {
+		if strings.TrimSpace(dependency.Name) == "" {
 			return arkerrors.Newf(arkerrors.CodeInvalidArgument, "bean %q has empty dependency name", def.Name)
 		}
 	}
 	return nil
-}
-
-func mergeDependsOn(dependsOn []string, dependencies []string) []string {
-	merged := make([]string, 0, len(dependsOn)+len(dependencies))
-	for _, dependency := range dependsOn {
-		dependency = strings.TrimSpace(dependency)
-		if !containsDependencyName(merged, dependency) {
-			merged = append(merged, dependency)
-		}
-	}
-	for _, dependency := range dependencies {
-		dependency = strings.TrimSpace(dependency)
-		if !containsDependencyName(merged, dependency) {
-			merged = append(merged, dependency)
-		}
-	}
-	return merged
 }
 
 func containsDependencyName(names []string, target string) bool {

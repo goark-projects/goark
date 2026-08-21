@@ -54,12 +54,16 @@ func (c *Container) InitializeSingletons(ctx context.Context) error {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "context is nil")
 	}
 	names := make([]string, 0, len(c.definitions))
-	for name, definition := range c.definitions {
-		if definition.Scope == ScopeSingleton && !definition.Lazy {
-			names = append(names, name)
+	if len(c.startupOrder) > 0 {
+		names = append(names, c.startupOrder...)
+	} else {
+		for name, definition := range c.definitions {
+			if definition.Scope == ScopeSingleton && !definition.Lazy {
+				names = append(names, name)
+			}
 		}
+		sort.Strings(names)
 	}
-	sort.Strings(names)
 	for _, name := range names {
 		if _, err := c.Get(ctx, name); err != nil {
 			return err
@@ -77,6 +81,11 @@ func (c *Container) resolve(ctx context.Context, state *resolutionState, name st
 		return nil, arkerrors.Newf(arkerrors.CodeNotFound, "bean %q not found", name)
 	}
 	if cycle, ok := state.enter(name); ok {
+		if c.allowCircularReferences {
+			if value, exists := c.getEarlySingleton(name); exists {
+				return value, nil
+			}
+		}
 		return nil, arkerrors.Newf(arkerrors.CodeCircularDependency, "circular dependency detected: %s", cycle)
 	}
 	defer state.exit(name)
@@ -91,8 +100,11 @@ func (c *Container) resolve(ctx context.Context, state *resolutionState, name st
 }
 
 func (c *Container) resolveDependsOn(ctx context.Context, state *resolutionState, definition Definition) error {
-	for _, dependency := range definition.normalized().DependsOn {
-		if _, err := c.resolve(ctx, state, dependency); err != nil {
+	for _, dependency := range definition.normalized().DependencyDescriptors {
+		if dependency.Kind != DependencyKindDependsOn {
+			continue
+		}
+		if _, err := c.resolve(ctx, state, dependency.Name); err != nil {
 			return err
 		}
 	}
@@ -100,6 +112,17 @@ func (c *Container) resolveDependsOn(ctx context.Context, state *resolutionState
 }
 
 func (c *Container) create(ctx context.Context, definition Definition) (value any, err error) {
+	value, err = c.instantiate(ctx, definition)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.populate(ctx, definition, value); err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+func (c *Container) instantiate(ctx context.Context, definition Definition) (value any, err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			if recoveredErr, ok := recovered.(error); ok {
@@ -114,4 +137,23 @@ func (c *Container) create(ctx context.Context, definition Definition) (value an
 		return nil, arkerrors.Wrapf(arkerrors.CodeCreation, err, "failed to create bean %q", definition.Name)
 	}
 	return normalizeInstance(definition.Name, definition.Type, value)
+}
+
+func (c *Container) populate(ctx context.Context, definition Definition, value any) (err error) {
+	if definition.DependencyInjector == nil {
+		return nil
+	}
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			if recoveredErr, ok := recovered.(error); ok {
+				err = arkerrors.Wrapf(arkerrors.CodeCreation, recoveredErr, "bean %q injector panicked", definition.Name)
+				return
+			}
+			err = arkerrors.Newf(arkerrors.CodeCreation, "bean %q injector panicked: %v", definition.Name, recovered)
+		}
+	}()
+	if err := definition.DependencyInjector(ctx, c, value); err != nil {
+		return arkerrors.Wrapf(arkerrors.CodeCreation, err, "failed to populate bean %q", definition.Name)
+	}
+	return nil
 }

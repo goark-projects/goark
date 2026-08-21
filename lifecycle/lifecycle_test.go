@@ -114,6 +114,80 @@ func TestManager_whenHooksImplementPriorityOrdered_shouldUseGlobalOrderContracts
 	}
 }
 
+func TestManager_whenHooksDeclareDependsOn_shouldStartDependenciesFirst(t *testing.T) {
+	log := make([]string, 0, 6)
+	manager := lifecycle.NewManager()
+	if err := manager.Register("aa-service", &testHook{name: "aa-service", order: 1, log: &log}, lifecycle.WithDependsOn("zz-repository")); err != nil {
+		t.Fatalf("register service failed: %v", err)
+	}
+	if err := manager.Register("zz-repository", &testHook{name: "zz-repository", order: 100, log: &log}); err != nil {
+		t.Fatalf("register repository failed: %v", err)
+	}
+
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatalf("start failed: %v", err)
+	}
+	if err := manager.Close(context.Background()); err != nil {
+		t.Fatalf("close failed: %v", err)
+	}
+
+	expected := []string{
+		"start:zz-repository",
+		"start:aa-service",
+		"stop:aa-service",
+		"stop:zz-repository",
+		"close:aa-service",
+		"close:zz-repository",
+	}
+	if !reflect.DeepEqual(log, expected) {
+		t.Fatalf("unexpected dependency lifecycle order: %#v", log)
+	}
+}
+
+func TestManager_whenHooksDeclareDependsOnCycle_shouldFailFast(t *testing.T) {
+	log := make([]string, 0, 1)
+	manager := lifecycle.NewManager()
+	if err := manager.Register("a", &testHook{name: "a", log: &log}, lifecycle.WithDependsOn("b")); err != nil {
+		t.Fatalf("register a failed: %v", err)
+	}
+	if err := manager.Register("b", &testHook{name: "b", log: &log}, lifecycle.WithDependsOn("a")); err != nil {
+		t.Fatalf("register b failed: %v", err)
+	}
+
+	err := manager.Start(context.Background())
+	if err == nil {
+		t.Fatal("expected circular lifecycle dependency error")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeCircularDependency) {
+		t.Fatalf("expected circular dependency, got %v", err)
+	}
+	if len(log) != 0 {
+		t.Fatalf("cyclic hooks should not start, got %#v", log)
+	}
+	if err := manager.Register("c", &testHook{name: "c", log: &log}); err != nil {
+		t.Fatalf("manager should remain stopped after sort failure: %v", err)
+	}
+}
+
+func TestManager_whenHookDependsOnItself_shouldFailFast(t *testing.T) {
+	log := make([]string, 0, 1)
+	manager := lifecycle.NewManager()
+	if err := manager.Register("self", &testHook{name: "self", log: &log}, lifecycle.WithDependsOn("self")); err != nil {
+		t.Fatalf("register self failed: %v", err)
+	}
+
+	err := manager.Close(context.Background())
+	if err == nil {
+		t.Fatal("expected circular lifecycle dependency error")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeCircularDependency) {
+		t.Fatalf("expected circular dependency, got %v", err)
+	}
+	if len(log) != 0 {
+		t.Fatalf("self-dependent hook should not close, got %#v", log)
+	}
+}
+
 func TestManager_whenStartFails_shouldRollbackStartedHooks(t *testing.T) {
 	log := make([]string, 0, 3)
 	manager := lifecycle.NewManager()

@@ -44,3 +44,11 @@ func WithEventBus(bus *event.Bus) Option {
 		return nil
 	}
 }
+
+// WithAllowCircularReferences 设置是否允许单例字段注入循环依赖。
+func WithAllowCircularReferences(allow bool) Option {
+	return func(app *ApplicationContext) error {
+		app.allowCircularReferences = allow
+		return nil
+	}
+}

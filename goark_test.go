@@ -15,6 +15,14 @@ type facadeService struct {
 	Repository *facadeRepository
 }
 
+type facadeCircularService struct {
+	Repository *facadeCircularRepository
+}
+
+type facadeCircularRepository struct {
+	Service *facadeCircularService
+}
+
 type facadeWorker interface {
 	Work() string
 }
@@ -82,5 +90,47 @@ func TestGoarkFacade_whenUsingBeanMetadataOptions_shouldResolveByFacadeOptions(t
 	}
 	if qualified.Work() != "secondary" {
 		t.Fatalf("expected qualified secondary worker, got %q", qualified.Work())
+	}
+}
+
+func TestGoarkFacade_whenAllowCircularReferencesEnabled_shouldResolveFieldCycle(t *testing.T) {
+	app := goark.MustNew(goark.WithAllowCircularReferences(true))
+	if err := goark.Register[*facadeCircularService](app, "service", func(context.Context, goark.Resolver) (*facadeCircularService, error) {
+		return &facadeCircularService{}, nil
+	},
+		goark.WithInjectionDependencies("repository"),
+		goark.WithTypedDependencyInjector(func(ctx context.Context, resolver goark.Resolver, service *facadeCircularService) error {
+			repository, err := goark.Get[*facadeCircularRepository](ctx, resolver, "repository")
+			if err != nil {
+				return err
+			}
+			service.Repository = repository
+			return nil
+		}),
+	); err != nil {
+		t.Fatalf("register service failed: %v", err)
+	}
+	if err := goark.Register[*facadeCircularRepository](app, "repository", func(context.Context, goark.Resolver) (*facadeCircularRepository, error) {
+		return &facadeCircularRepository{}, nil
+	},
+		goark.WithInjectionDependencies("service"),
+		goark.WithTypedDependencyInjector(func(ctx context.Context, resolver goark.Resolver, repository *facadeCircularRepository) error {
+			service, err := goark.Get[*facadeCircularService](ctx, resolver, "service")
+			if err != nil {
+				return err
+			}
+			repository.Service = service
+			return nil
+		}),
+	); err != nil {
+		t.Fatalf("register repository failed: %v", err)
+	}
+
+	if err := app.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh failed: %v", err)
+	}
+	service := goark.MustGet[*facadeCircularService](context.Background(), app, "service")
+	if service.Repository == nil || service.Repository.Service != service {
+		t.Fatalf("expected resolved circular references, got %#v", service.Repository)
 	}
 }

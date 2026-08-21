@@ -40,6 +40,15 @@ type BeanOption = container.Option
 // BeanScope 是 Bean 作用域类型别名。
 type BeanScope = container.Scope
 
+// DependencyDescriptor 是 Bean 依赖描述类型别名。
+type DependencyDescriptor = container.DependencyDescriptor
+
+// DependencyKind 是依赖边语义类型别名。
+type DependencyKind = container.DependencyKind
+
+// DependencySource 是依赖来源类型别名。
+type DependencySource = container.DependencySource
+
 // ResolveOption 是按类型解析选项类型别名。
 type ResolveOption = container.ResolveOption
 
@@ -48,6 +57,9 @@ type Resolver = container.Resolver
 
 // Provider 是 Bean 工厂函数类型别名。
 type Provider[T any] = container.Provider[T]
+
+// DependencyInjector 是 Bean 依赖注入函数类型别名。
+type DependencyInjector = container.DependencyInjector
 
 const (
 	// DefaultConfigBaseName 是默认配置文件基础名称。
@@ -64,6 +76,18 @@ const (
 	ScopeSingleton = container.ScopeSingleton
 	// ScopePrototype 表示原型 Bean 作用域。
 	ScopePrototype = container.ScopePrototype
+
+	// DependencyKindFactory 表示工厂方法或构造参数依赖。
+	DependencyKindFactory = container.DependencyKindFactory
+	// DependencyKindInjection 表示字段或 setter 注入依赖。
+	DependencyKindInjection = container.DependencyKindInjection
+	// DependencyKindDependsOn 表示手工 depends-on 初始化顺序依赖。
+	DependencyKindDependsOn = container.DependencyKindDependsOn
+
+	// DependencySourceInferred 表示由生成器自动推导出的依赖。
+	DependencySourceInferred = container.DependencySourceInferred
+	// DependencySourceManual 表示由用户显式声明的依赖。
+	DependencySourceManual = container.DependencySourceManual
 )
 
 // Configuration 是应用配置单元类型别名。
@@ -134,6 +158,9 @@ var WithConfiguration = appcontext.WithConfiguration
 // WithEventBus 设置事件总线。
 var WithEventBus = appcontext.WithEventBus
 
+// WithAllowCircularReferences 设置是否允许单例字段注入循环依赖。
+var WithAllowCircularReferences = appcontext.WithAllowCircularReferences
+
 // WithScope 设置 Bean 作用域。
 var WithScope = container.WithScope
 
@@ -152,8 +179,23 @@ var WithPrimary = container.WithPrimary
 // WithDependsOn 声明当前 Bean 初始化前必须先初始化的 Bean 名称。
 var WithDependsOn = container.WithDependsOn
 
-// WithDependencies 声明 Bean 的显式依赖名称。
+// WithDependencies 声明 Bean 的工厂依赖名称。
 var WithDependencies = container.WithDependencies
+
+// WithFactoryDependencies 声明 Bean 的工厂依赖名称。
+var WithFactoryDependencies = container.WithFactoryDependencies
+
+// WithInjectionDependencies 声明 Bean 的字段或 setter 注入依赖名称。
+var WithInjectionDependencies = container.WithInjectionDependencies
+
+// WithOptionalInjectionDependencies 声明 Bean 的可选字段或 setter 注入依赖名称。
+var WithOptionalInjectionDependencies = container.WithOptionalInjectionDependencies
+
+// WithDependencyDescriptors 追加完整依赖描述。
+var WithDependencyDescriptors = container.WithDependencyDescriptors
+
+// WithDependencyInjector 设置 Bean 实例创建后的依赖注入函数。
+var WithDependencyInjector = container.WithDependencyInjector
 
 // WithOrder 设置 Bean 的稳定排序值。
 var WithOrder = container.WithOrder
@@ -163,6 +205,11 @@ var WithPriority = container.WithPriority
 
 // WithQualifier 指定按类型解析时优先使用的 Bean 名称。
 var WithQualifier = container.WithQualifier
+
+// WithTypedDependencyInjector 设置类型安全的 Bean 依赖注入函数。
+func WithTypedDependencyInjector[T any](injector func(context.Context, Resolver, T) error) BeanOption {
+	return container.WithTypedDependencyInjector(injector)
+}
 
 // NewConfigurationContext 创建配置注册上下文。
 var NewConfigurationContext = appcontext.NewConfigurationContext

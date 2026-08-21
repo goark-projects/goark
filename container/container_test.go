@@ -21,6 +21,14 @@ type testService struct {
 	Repository *testRepository
 }
 
+type circularService struct {
+	Repository *circularRepository
+}
+
+type circularRepository struct {
+	Service *circularService
+}
+
 type testWorker interface {
 	Work() string
 }
@@ -126,6 +134,72 @@ func TestContainer_whenSingletonResolvedConcurrently_shouldCreateOnce(t *testing
 	}
 	if created.Load() != 1 {
 		t.Fatalf("expected one creation, got %d", created.Load())
+	}
+}
+
+func TestContainer_whenSingletonIsBeingPopulated_shouldNotExposeEarlySingletonToExternalGet(t *testing.T) {
+	registry := container.NewRegistry()
+	injectorEntered := make(chan struct{})
+	releaseInjector := make(chan struct{})
+	if err := container.Register[*testService](registry, "service", func(context.Context, container.Resolver) (*testService, error) {
+		return &testService{}, nil
+	},
+		container.WithLazy(),
+		container.WithTypedDependencyInjector(func(ctx context.Context, resolver container.Resolver, service *testService) error {
+			close(injectorEntered)
+			select {
+			case <-releaseInjector:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+			service.Repository = &testRepository{ID: 42}
+			return nil
+		}),
+	); err != nil {
+		t.Fatalf("register service failed: %v", err)
+	}
+	runtimeContainer, err := container.New(registry, container.WithAllowCircularReferences(true))
+	if err != nil {
+		t.Fatalf("create container failed: %v", err)
+	}
+
+	firstDone := make(chan error, 1)
+	go func() {
+		_, err := container.Get[*testService](context.Background(), runtimeContainer, "service")
+		firstDone <- err
+	}()
+	<-injectorEntered
+
+	type resolveResult struct {
+		service *testService
+		err     error
+	}
+	secondDone := make(chan resolveResult, 1)
+	go func() {
+		service, err := container.Get[*testService](context.Background(), runtimeContainer, "service")
+		secondDone <- resolveResult{service: service, err: err}
+	}()
+
+	select {
+	case result := <-secondDone:
+		close(releaseInjector)
+		if result.err != nil {
+			t.Fatalf("external get should wait instead of returning early error: %v", result.err)
+		}
+		t.Fatalf("external get received singleton before injection completed: %#v", result.service)
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	close(releaseInjector)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("first resolve failed: %v", err)
+	}
+	result := <-secondDone
+	if result.err != nil {
+		t.Fatalf("second resolve failed: %v", result.err)
+	}
+	if result.service.Repository == nil || result.service.Repository.ID != 42 {
+		t.Fatalf("second resolve should receive populated singleton, got %#v", result.service)
 	}
 }
 
@@ -535,23 +609,49 @@ func TestDefinition_whenOptionsApplied_shouldExposeBeanMetadata(t *testing.T) {
 		t.Fatalf("unexpected depends-on metadata: %#v", definition.DependsOn)
 	}
 	if len(definition.Dependencies) != 2 || definition.Dependencies[0] != "database" || definition.Dependencies[1] != "cache" {
-		t.Fatalf("legacy dependencies should mirror depends-on metadata: %#v", definition.Dependencies)
+		t.Fatalf("dependencies should include depends-on metadata for legacy readers: %#v", definition.Dependencies)
+	}
+	if len(definition.DependencyDescriptors) != 2 {
+		t.Fatalf("expected two dependency descriptors, got %#v", definition.DependencyDescriptors)
+	}
+	for _, descriptor := range definition.DependencyDescriptors {
+		if descriptor.Kind != container.DependencyKindDependsOn || descriptor.Source != container.DependencySourceManual {
+			t.Fatalf("expected manual depends-on descriptor, got %#v", descriptor)
+		}
 	}
 }
 
-func TestDefinition_whenLegacyDependenciesUsed_shouldMirrorDependsOnMetadata(t *testing.T) {
+func TestDefinition_whenFactoryAndInjectionDependenciesUsed_shouldKeepDependsOnSeparate(t *testing.T) {
 	definition, err := container.NewDefinition[*testRepository]("repo", func(context.Context, container.Resolver) (*testRepository, error) {
 		return &testRepository{}, nil
-	}, container.WithDependencies("database"))
+	},
+		container.WithDependsOn("database, cache"),
+		container.WithFactoryDependencies("factoryDependency"),
+		container.WithInjectionDependencies("fieldDependency"),
+	)
 	if err != nil {
 		t.Fatalf("new definition failed: %v", err)
 	}
 
-	if len(definition.DependsOn) != 1 || definition.DependsOn[0] != "database" {
-		t.Fatalf("expected legacy dependencies to populate depends-on, got %#v", definition.DependsOn)
+	if len(definition.DependsOn) != 2 || definition.DependsOn[0] != "database" || definition.DependsOn[1] != "cache" {
+		t.Fatalf("expected only manual depends-on names, got %#v", definition.DependsOn)
 	}
-	if len(definition.Dependencies) != 1 || definition.Dependencies[0] != "database" {
-		t.Fatalf("expected legacy dependencies to remain populated, got %#v", definition.Dependencies)
+	expectedDependencies := []string{"database", "cache", "factoryDependency", "fieldDependency"}
+	if !reflect.DeepEqual(definition.Dependencies, expectedDependencies) {
+		t.Fatalf("expected all dependency names, got %#v", definition.Dependencies)
+	}
+	kinds := make(map[string]container.DependencyKind)
+	for _, descriptor := range definition.DependencyDescriptors {
+		kinds[descriptor.Name] = descriptor.Kind
+	}
+	if kinds["database"] != container.DependencyKindDependsOn || kinds["cache"] != container.DependencyKindDependsOn {
+		t.Fatalf("manual descriptors should be depends-on, got %#v", kinds)
+	}
+	if kinds["factoryDependency"] != container.DependencyKindFactory {
+		t.Fatalf("factory dependency kind mismatch: %#v", kinds)
+	}
+	if kinds["fieldDependency"] != container.DependencyKindInjection {
+		t.Fatalf("field dependency kind mismatch: %#v", kinds)
 	}
 }
 
@@ -611,6 +711,148 @@ func TestContainer_whenDependsOnGraphHasCycle_shouldFailFast(t *testing.T) {
 	}
 }
 
+func TestContainer_whenInjectionDependencyGraphHasCycle_shouldFailFastByDefault(t *testing.T) {
+	registry := circularRegistry(t, false)
+
+	_, err := container.New(registry)
+	if err == nil {
+		t.Fatal("expected circular dependency error")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeCircularDependency) {
+		t.Fatalf("expected circular dependency, got %v", err)
+	}
+}
+
+func TestContainer_whenAllowCircularReferencesEnabled_shouldResolveSingletonFieldCycle(t *testing.T) {
+	registry := circularRegistry(t, false)
+	runtimeContainer, err := container.New(registry, container.WithAllowCircularReferences(true))
+	if err != nil {
+		t.Fatalf("create container failed: %v", err)
+	}
+
+	if err := runtimeContainer.InitializeSingletons(context.Background()); err != nil {
+		t.Fatalf("initialize singletons failed: %v", err)
+	}
+	service := container.MustGet[*circularService](context.Background(), runtimeContainer, "service")
+	repository := container.MustGet[*circularRepository](context.Background(), runtimeContainer, "repository")
+	if service.Repository != repository {
+		t.Fatalf("service should reference repository, got %#v", service.Repository)
+	}
+	if repository.Service != service {
+		t.Fatalf("repository should reference early service singleton, got %#v", repository.Service)
+	}
+}
+
+func TestContainer_whenFactoryDependencyGraphHasCycle_shouldFailEvenWhenCircularReferencesAllowed(t *testing.T) {
+	registry := container.NewRegistry()
+	if err := container.Register[*testRepository](registry, "repository", func(context.Context, container.Resolver) (*testRepository, error) {
+		return &testRepository{}, nil
+	}, container.WithFactoryDependencies("service")); err != nil {
+		t.Fatalf("register repository failed: %v", err)
+	}
+	if err := container.Register[*testService](registry, "service", func(context.Context, container.Resolver) (*testService, error) {
+		return &testService{}, nil
+	}, container.WithFactoryDependencies("repository")); err != nil {
+		t.Fatalf("register service failed: %v", err)
+	}
+
+	_, err := container.New(registry, container.WithAllowCircularReferences(true))
+	if err == nil {
+		t.Fatal("expected circular dependency error")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeCircularDependency) {
+		t.Fatalf("expected circular dependency, got %v", err)
+	}
+}
+
+func TestContainer_whenDependsOnGraphHasCycle_shouldFailEvenWhenCircularReferencesAllowed(t *testing.T) {
+	registry := container.NewRegistry()
+	if err := container.Register[*testRepository](registry, "repository", func(context.Context, container.Resolver) (*testRepository, error) {
+		return &testRepository{}, nil
+	}, container.WithDependsOn("service")); err != nil {
+		t.Fatalf("register repository failed: %v", err)
+	}
+	if err := container.Register[*testService](registry, "service", func(context.Context, container.Resolver) (*testService, error) {
+		return &testService{}, nil
+	}, container.WithDependsOn("repository")); err != nil {
+		t.Fatalf("register service failed: %v", err)
+	}
+
+	_, err := container.New(registry, container.WithAllowCircularReferences(true))
+	if err == nil {
+		t.Fatal("expected circular dependency error")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeCircularDependency) {
+		t.Fatalf("expected circular dependency, got %v", err)
+	}
+}
+
+func TestContainer_whenPrototypeInjectionDependencyGraphHasCycle_shouldFailEvenWhenCircularReferencesAllowed(t *testing.T) {
+	registry := circularRegistry(t, true)
+
+	_, err := container.New(registry, container.WithAllowCircularReferences(true))
+	if err == nil {
+		t.Fatal("expected circular dependency error")
+	}
+	if !arkerrors.Is(err, arkerrors.CodeCircularDependency) {
+		t.Fatalf("expected circular dependency, got %v", err)
+	}
+}
+
+func TestContainer_whenOptionalInjectionDependencyIsMissing_shouldCreateContainer(t *testing.T) {
+	registry := container.NewRegistry()
+	if err := container.Register[*testService](registry, "service", func(context.Context, container.Resolver) (*testService, error) {
+		return &testService{}, nil
+	}, container.WithOptionalInjectionDependencies("missingCache")); err != nil {
+		t.Fatalf("register service failed: %v", err)
+	}
+
+	if _, err := container.New(registry); err != nil {
+		t.Fatalf("optional missing dependency should not fail: %v", err)
+	}
+}
+
+func circularRegistry(t *testing.T, prototype bool) *container.Registry {
+	t.Helper()
+	registry := container.NewRegistry()
+	serviceOptions := []container.Option{
+		container.WithInjectionDependencies("repository"),
+		container.WithTypedDependencyInjector(func(ctx context.Context, resolver container.Resolver, service *circularService) error {
+			repository, err := container.Get[*circularRepository](ctx, resolver, "repository")
+			if err != nil {
+				return err
+			}
+			service.Repository = repository
+			return nil
+		}),
+	}
+	repositoryOptions := []container.Option{
+		container.WithInjectionDependencies("service"),
+		container.WithTypedDependencyInjector(func(ctx context.Context, resolver container.Resolver, repository *circularRepository) error {
+			service, err := container.Get[*circularService](ctx, resolver, "service")
+			if err != nil {
+				return err
+			}
+			repository.Service = service
+			return nil
+		}),
+	}
+	if prototype {
+		serviceOptions = append(serviceOptions, container.WithPrototype())
+	}
+	if err := container.Register[*circularService](registry, "service", func(context.Context, container.Resolver) (*circularService, error) {
+		return &circularService{}, nil
+	}, serviceOptions...); err != nil {
+		t.Fatalf("register service failed: %v", err)
+	}
+	if err := container.Register[*circularRepository](registry, "repository", func(context.Context, container.Resolver) (*circularRepository, error) {
+		return &circularRepository{}, nil
+	}, repositoryOptions...); err != nil {
+		t.Fatalf("register repository failed: %v", err)
+	}
+	return registry
+}
+
 func TestContainer_whenProviderPanics_shouldReturnCreationError(t *testing.T) {
 	registry := container.NewRegistry()
 	if err := container.Register[*testRepository](registry, "repo", func(context.Context, container.Resolver) (*testRepository, error) {
@@ -646,7 +888,7 @@ func TestRegistry_whenDefinitionsReturned_shouldReturnDefensiveCopies(t *testing
 	}
 	definitions[0].Name = "mutated"
 	definitions[0].Dependencies[0] = "mutated"
-	definitions[0].DependsOn[0] = "mutated"
+	definitions[0].DependencyDescriptors[0].Name = "mutated"
 
 	definition, ok := registry.Definition("service")
 	if !ok {
@@ -658,8 +900,11 @@ func TestRegistry_whenDefinitionsReturned_shouldReturnDefensiveCopies(t *testing
 	if len(definition.Dependencies) != 1 || definition.Dependencies[0] != "repo" {
 		t.Fatalf("definition dependencies should be immutable, got %#v", definition.Dependencies)
 	}
-	if len(definition.DependsOn) != 1 || definition.DependsOn[0] != "repo" {
-		t.Fatalf("definition depends-on should be immutable, got %#v", definition.DependsOn)
+	if len(definition.DependsOn) != 0 {
+		t.Fatalf("factory dependencies should not populate depends-on, got %#v", definition.DependsOn)
+	}
+	if len(definition.DependencyDescriptors) != 1 || definition.DependencyDescriptors[0].Name != "repo" {
+		t.Fatalf("dependency descriptors should be immutable, got %#v", definition.DependencyDescriptors)
 	}
 }
 
