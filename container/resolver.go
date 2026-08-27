@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"sort"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // Get 按名称解析 Bean。
@@ -43,6 +43,29 @@ func (c *Container) GetByType(ctx context.Context, typ reflect.Type, options ...
 		return nil, err
 	}
 	return c.Get(ctx, name)
+}
+
+// GetAllByType 按类型解析全部匹配 Bean，返回顺序与容器启动拓扑一致。
+func (c *Container) GetAllByType(ctx context.Context, typ reflect.Type) ([]any, error) {
+	if c == nil {
+		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "bean container is nil")
+	}
+	if ctx == nil {
+		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "context is nil")
+	}
+	if typ == nil {
+		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "bean type is nil")
+	}
+	names := c.matchingNamesInStartupOrder(typ)
+	values := make([]any, 0, len(names))
+	for _, name := range names {
+		value, err := c.Get(ctx, name)
+		if err != nil {
+			return nil, err
+		}
+		values = append(values, value)
+	}
+	return values, nil
 }
 
 // InitializeSingletons 初始化所有非延迟单例 Bean。

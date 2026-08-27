@@ -4,10 +4,10 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/goark-projects/goark/container"
-	appcontext "github.com/goark-projects/goark/context"
-	coreenv "github.com/goark-projects/goark/core/env"
-	arkerrors "github.com/goark-projects/goark/errors"
+	"goark.dev/goark/container"
+	appcontext "goark.dev/goark/context"
+	coreenv "goark.dev/goark/core/env"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // ApplicationContext 是 Goark 应用上下文类型别名。
@@ -264,6 +264,11 @@ func Get[T any](ctx context.Context, resolver Resolver, name string) (T, error) 
 // GetByType 按类型解析 Bean。
 func GetByType[T any](ctx context.Context, resolver Resolver, options ...ResolveOption) (T, error) {
 	return container.GetByType[T](ctx, resolver, options...)
+}
+
+// GetAllByType 按类型解析全部 Bean。
+func GetAllByType[T any](ctx context.Context, resolver Resolver) ([]T, error) {
+	return container.GetAllByType[T](ctx, resolver)
 }
 
 // MustGet 是 Get 的 panic 版本。

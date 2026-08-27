@@ -1,4 +1,4 @@
-module github.com/goark-projects/goark
+module goark.dev/goark
 
 go 1.25
 
@@ -8,6 +8,7 @@ require (
 	github.com/knadh/koanf/parsers/yaml v1.1.1
 	github.com/knadh/koanf/providers/rawbytes v1.0.1
 	github.com/knadh/koanf/v2 v2.3.6
+	goark.dev/arkarta v0.0.2-0.20260827074946-37e5948da38d
 )
 
 require (

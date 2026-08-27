@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/goark-projects/goark/core/lang"
-	arkerrors "github.com/goark-projects/goark/errors"
-	"github.com/goark-projects/goark/internal/reflectx"
+	"goark.dev/goark/core/lang"
+	arkerrors "goark.dev/goark/errors"
+	"goark.dev/goark/internal/reflectx"
 )
 
 // Scope 表示 Bean 实例生命周期范围。
@@ -22,6 +22,7 @@ const (
 type Resolver interface {
 	Get(ctx context.Context, name string) (any, error)
 	GetByType(ctx context.Context, typ reflect.Type, options ...ResolveOption) (any, error)
+	GetAllByType(ctx context.Context, typ reflect.Type) ([]any, error)
 }
 
 // Provider 是类型安全的 Bean 工厂函数。

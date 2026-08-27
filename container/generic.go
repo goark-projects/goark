@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	arkerrors "github.com/goark-projects/goark/errors"
-	"github.com/goark-projects/goark/internal/reflectx"
+	arkerrors "goark.dev/goark/errors"
+	"goark.dev/goark/internal/reflectx"
 )
 
 // Get 按名称解析并转换为目标类型。
@@ -38,6 +38,26 @@ func GetByType[T any](ctx context.Context, resolver Resolver, options ...Resolve
 	typed, ok := value.(T)
 	if !ok {
 		return zero, arkerrors.Newf(arkerrors.CodeTypeMismatch, "bean type result is %T, expected %s", value, typeName[T]())
+	}
+	return typed, nil
+}
+
+// GetAllByType 按类型解析全部 Bean，并转换为目标类型切片。
+func GetAllByType[T any](ctx context.Context, resolver Resolver) ([]T, error) {
+	if resolver == nil {
+		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "bean resolver is nil")
+	}
+	values, err := resolver.GetAllByType(ctx, reflectx.TypeOf[T]())
+	if err != nil {
+		return nil, err
+	}
+	typed := make([]T, 0, len(values))
+	for _, value := range values {
+		item, ok := value.(T)
+		if !ok {
+			return nil, arkerrors.Newf(arkerrors.CodeTypeMismatch, "bean type result is %T, expected %s", value, typeName[T]())
+		}
+		typed = append(typed, item)
 	}
 	return typed, nil
 }

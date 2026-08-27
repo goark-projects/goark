@@ -4,10 +4,10 @@ import (
 	stdcontext "context"
 	"reflect"
 
-	"github.com/goark-projects/goark/container"
-	arkerrors "github.com/goark-projects/goark/errors"
-	"github.com/goark-projects/goark/event"
-	"github.com/goark-projects/goark/lifecycle"
+	"goark.dev/goark/container"
+	arkerrors "goark.dev/goark/errors"
+	"goark.dev/goark/event"
+	"goark.dev/goark/lifecycle"
 )
 
 // Get 按名称解析 Bean。
@@ -26,6 +26,15 @@ func (a *ApplicationContext) GetByType(ctx stdcontext.Context, typ reflect.Type,
 		return nil, err
 	}
 	return runtimeContainer.GetByType(ctx, typ, options...)
+}
+
+// GetAllByType 按类型解析全部 Bean。
+func (a *ApplicationContext) GetAllByType(ctx stdcontext.Context, typ reflect.Type) ([]any, error) {
+	runtimeContainer, err := a.runtimeContainer()
+	if err != nil {
+		return nil, err
+	}
+	return runtimeContainer.GetAllByType(ctx, typ)
 }
 
 // Container 返回底层容器。

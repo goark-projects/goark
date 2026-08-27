@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 func (c *Container) selectByType(typ reflect.Type, options resolveOptions) (string, error) {
@@ -88,6 +88,34 @@ func (c *Container) matchingNames(typ reflect.Type) []string {
 	}
 	names := c.scanMatchingNames(typ)
 	return c.cacheTypeIndex(typ, names)
+}
+
+func (c *Container) matchingNamesInStartupOrder(typ reflect.Type) []string {
+	names := c.matchingNames(typ)
+	if len(names) < 2 || len(c.singletonOrder) == 0 {
+		return names
+	}
+	seen := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		seen[name] = struct{}{}
+	}
+	ordered := make([]string, 0, len(names))
+	for _, name := range c.singletonOrder {
+		if _, ok := seen[name]; !ok {
+			continue
+		}
+		ordered = append(ordered, name)
+		delete(seen, name)
+	}
+	if len(seen) == 0 {
+		return ordered
+	}
+	remaining := make([]string, 0, len(seen))
+	for name := range seen {
+		remaining = append(remaining, name)
+	}
+	sort.Strings(remaining)
+	return append(ordered, remaining...)
 }
 
 func (c *Container) rebuildTypeIndex(definitions []Definition) {
