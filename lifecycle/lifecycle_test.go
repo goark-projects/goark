@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	arkerrors "github.com/goark-projects/goark/errors"
-	"github.com/goark-projects/goark/lifecycle"
+	arkerrors "goark.dev/goark/errors"
+	"goark.dev/goark/lifecycle"
 )
 
 type testHook struct {
@@ -230,6 +230,25 @@ func TestManager_whenClosedWithoutStart_shouldCloseRegisteredHooks(t *testing.T)
 	expected := []string{"close:late", "close:early"}
 	if !reflect.DeepEqual(log, expected) {
 		t.Fatalf("unexpected close order: %#v", log)
+	}
+}
+
+func TestManager_whenStartedWithoutHooks_shouldStopAndClose(t *testing.T) {
+	manager := lifecycle.NewManager()
+	if err := manager.Start(context.Background()); err != nil {
+		t.Fatalf("start failed: %v", err)
+	}
+	if !manager.Running() {
+		t.Fatal("manager should be running")
+	}
+	if err := manager.Stop(context.Background()); err != nil {
+		t.Fatalf("stop failed: %v", err)
+	}
+	if manager.Running() {
+		t.Fatal("manager should be stopped")
+	}
+	if err := manager.Close(context.Background()); err != nil {
+		t.Fatalf("close failed: %v", err)
 	}
 }
 

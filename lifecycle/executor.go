@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // Start 启动所有组件；若中途失败，会回滚已启动组件。
@@ -119,7 +119,7 @@ func (m *Manager) beginStop() ([]Hook, error) {
 		return nil, nil
 	case stateRunning:
 		m.state = stateStopping
-		return append([]Hook(nil), m.started...), nil
+		return append([]Hook{}, m.started...), nil
 	case stateClosed:
 		return nil, nil
 	default:
@@ -220,7 +220,7 @@ func closeHooks(hooks []Hook) error {
 }
 
 func sortedHooks(hooks []Hook) ([]Hook, error) {
-	copied := append([]Hook(nil), hooks...)
+	copied := append([]Hook{}, hooks...)
 	sort.SliceStable(copied, func(i, j int) bool {
 		return lessHook(copied[i], copied[j])
 	})
