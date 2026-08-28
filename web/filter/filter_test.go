@@ -1,0 +1,101 @@
+package filter_test
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"goark.dev/arkarta/servlet"
+	servletnethttp "goark.dev/arkarta/servlet/nethttp"
+	"goark.dev/goark/web/filter"
+)
+
+func TestOnceRunsDelegateOnlyOncePerRequest(t *testing.T) {
+	t.Parallel()
+
+	calls := 0
+	delegate, err := filter.Once("trace", servlet.FilterFunc(func(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
+		calls++
+		return chain.Next(ctx, req, res)
+	}))
+	if err != nil {
+		t.Fatalf("Once failed: %v", err)
+	}
+	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, _ *servlet.Request, res servlet.Response) error {
+		_, err := res.WriteString("ok")
+		return err
+	}), delegate, delegate)
+
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(handler).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/once", nil))
+
+	if calls != 1 {
+		t.Fatalf("calls = %d, want 1", calls)
+	}
+	if recorder.Body.String() != "ok" {
+		t.Fatalf("body = %q, want ok", recorder.Body.String())
+	}
+}
+
+func TestForwardedHeadersUpdatesRequestView(t *testing.T) {
+	t.Parallel()
+
+	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, req *servlet.Request, res servlet.Response) error {
+		res.Header().Set("X-Scheme", req.Scheme())
+		res.Header().Set("X-Host", req.Host())
+		res.Header().Set("X-Remote", req.RemoteAddr())
+		res.Header().Set("X-URL", req.RequestURL())
+		_, err := res.WriteString("ok")
+		return err
+	}), filter.ForwardedHeaders())
+
+	request := httptest.NewRequest(http.MethodGet, "http://internal/jobs", nil)
+	request.RemoteAddr = "10.0.0.2:49200"
+	request.Header.Set("X-Forwarded-Proto", "https")
+	request.Header.Set("X-Forwarded-Host", "api.example.com")
+	request.Header.Set("X-Forwarded-For", "203.0.113.9, 10.0.0.2")
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(handler).ServeHTTP(recorder, request)
+
+	if got := recorder.Header().Get("X-Scheme"); got != "https" {
+		t.Fatalf("scheme = %q", got)
+	}
+	if got := recorder.Header().Get("X-Host"); got != "api.example.com" {
+		t.Fatalf("host = %q", got)
+	}
+	if got := recorder.Header().Get("X-Remote"); got != "203.0.113.9" {
+		t.Fatalf("remote = %q", got)
+	}
+	if got := recorder.Header().Get("X-URL"); got != "https://api.example.com/jobs" {
+		t.Fatalf("url = %q", got)
+	}
+}
+
+func TestShallowETagWritesValidatorAndHonorsIfNoneMatch(t *testing.T) {
+	t.Parallel()
+
+	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, _ *servlet.Request, res servlet.Response) error {
+		res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, err := res.WriteString("hello")
+		return err
+	}), filter.ShallowETag())
+
+	first := httptest.NewRecorder()
+	servletnethttp.Handler(handler).ServeHTTP(first, httptest.NewRequest(http.MethodGet, "/etag", nil))
+	etag := first.Header().Get("ETag")
+	if first.Code != http.StatusOK || first.Body.String() != "hello" || etag == "" {
+		t.Fatalf("first response = %d/%q/%q", first.Code, first.Body.String(), etag)
+	}
+
+	second := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/etag", nil)
+	request.Header.Set("If-None-Match", etag)
+	servletnethttp.Handler(handler).ServeHTTP(second, request)
+	if second.Code != http.StatusNotModified {
+		t.Fatalf("status = %d, want %d", second.Code, http.StatusNotModified)
+	}
+	if second.Body.Len() != 0 {
+		t.Fatalf("body len = %d, want 0", second.Body.Len())
+	}
+}
