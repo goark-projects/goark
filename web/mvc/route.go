@@ -27,6 +27,11 @@ func GET(pattern string, handler arkweb.Handler) Route {
 	return Handle(http.MethodGet, pattern, handler)
 }
 
+// HEAD 创建 HEAD 路由描述。
+func HEAD(pattern string, handler arkweb.Handler) Route {
+	return Handle(http.MethodHead, pattern, handler)
+}
+
 // POST 创建 POST 路由描述。
 func POST(pattern string, handler arkweb.Handler) Route {
 	return Handle(http.MethodPost, pattern, handler)
@@ -45,4 +50,9 @@ func PATCH(pattern string, handler arkweb.Handler) Route {
 // DELETE 创建 DELETE 路由描述。
 func DELETE(pattern string, handler arkweb.Handler) Route {
 	return Handle(http.MethodDelete, pattern, handler)
+}
+
+// OPTIONS 创建 OPTIONS 路由描述。
+func OPTIONS(pattern string, handler arkweb.Handler) Route {
+	return Handle(http.MethodOptions, pattern, handler)
 }

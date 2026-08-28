@@ -32,3 +32,22 @@ func TestConfigurerRegistersControllerRoutes(t *testing.T) {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
 }
+
+func TestControllerSupportsHeadAndOptionsRoutes(t *testing.T) {
+	controller := mvc.NewController("system",
+		mvc.HEAD("/healthz", mvc.NoContent(func(_ *arkweb.Context) error {
+			return nil
+		})),
+		mvc.OPTIONS("/healthz", mvc.NoContent(func(_ *arkweb.Context) error {
+			return nil
+		})),
+	)
+
+	routes := controller.Routes()
+	if len(routes) != 2 {
+		t.Fatalf("route count = %d, want 2", len(routes))
+	}
+	if routes[0].Method != http.MethodHead || routes[1].Method != http.MethodOptions {
+		t.Fatalf("methods = %s/%s, want HEAD/OPTIONS", routes[0].Method, routes[1].Method)
+	}
+}

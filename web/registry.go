@@ -39,6 +39,11 @@ func (r *Registry) GET(pattern string, handler arkweb.Handler) error {
 	return r.Handle(http.MethodGet, pattern, handler)
 }
 
+// HEAD 注册 HEAD 路由。
+func (r *Registry) HEAD(pattern string, handler arkweb.Handler) error {
+	return r.Handle(http.MethodHead, pattern, handler)
+}
+
 // POST 注册 POST 路由。
 func (r *Registry) POST(pattern string, handler arkweb.Handler) error {
 	return r.Handle(http.MethodPost, pattern, handler)
@@ -57,6 +62,11 @@ func (r *Registry) PATCH(pattern string, handler arkweb.Handler) error {
 // DELETE 注册 DELETE 路由。
 func (r *Registry) DELETE(pattern string, handler arkweb.Handler) error {
 	return r.Handle(http.MethodDelete, pattern, handler)
+}
+
+// OPTIONS 注册 OPTIONS 路由。
+func (r *Registry) OPTIONS(pattern string, handler arkweb.Handler) error {
+	return r.Handle(http.MethodOptions, pattern, handler)
 }
 
 // Use 注册全局 Web 拦截器。
