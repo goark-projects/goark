@@ -1,6 +1,9 @@
 package mvc
 
-import arkweb "goark.dev/arkarta/web"
+import (
+	arkweb "goark.dev/arkarta/web"
+	goweb "goark.dev/goark/web"
+)
 
 // ResultFunc 表示直接返回 Arkarta Web Result 的处理函数。
 type ResultFunc func(ctx *arkweb.Context) (arkweb.Result, error)
@@ -8,13 +11,30 @@ type ResultFunc func(ctx *arkweb.Context) (arkweb.Result, error)
 // ValueFunc 表示返回普通值并由 MVC 写为 JSON 的处理函数。
 type ValueFunc[T any] func(ctx *arkweb.Context) (T, error)
 
+// EntityFunc 表示返回 Goark 响应实体的处理函数。
+type EntityFunc[T any] func(ctx *arkweb.Context) (goweb.ResponseEntity[T], error)
+
 // BindFunc 表示绑定并校验 JSON 请求体后返回普通值的处理函数。
 type BindFunc[In any, Out any] func(ctx *arkweb.Context, input In) (Out, error)
+
+// BindEntityFunc 表示绑定并校验 JSON 请求体后返回 Goark 响应实体的处理函数。
+type BindEntityFunc[In any, Out any] func(ctx *arkweb.Context, input In) (goweb.ResponseEntity[Out], error)
 
 // Handler 将 ResultFunc 适配为 Arkarta Web Handler。
 func Handler(fn ResultFunc) arkweb.Handler {
 	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
 		return fn(ctx)
+	})
+}
+
+// Entity 将响应实体处理函数适配为 Arkarta Web Handler。
+func Entity[T any](fn EntityFunc[T]) arkweb.Handler {
+	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+		entity, err := fn(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return entity, nil
 	})
 }
 
@@ -41,6 +61,21 @@ func BindJSON[In any, Out any](statusCode int, fn BindFunc[In, Out]) arkweb.Hand
 			return nil, err
 		}
 		return arkweb.JSON(statusCode, value), nil
+	})
+}
+
+// BindEntity 绑定并校验 JSON 请求体，再写出响应实体。
+func BindEntity[In any, Out any](fn BindEntityFunc[In, Out]) arkweb.Handler {
+	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+		var input In
+		if err := ctx.BindAndValidateJSON(&input); err != nil {
+			return nil, err
+		}
+		entity, err := fn(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+		return entity, nil
 	})
 }
 
