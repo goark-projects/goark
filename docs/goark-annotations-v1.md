@@ -1580,6 +1580,14 @@ func (c *SystemController) OptionsHealth() {}
 | `//goark:request-header[requestID]` | `@RequestHeader` | 请求头 |
 | `//goark:cookie-value[theme]` | `@CookieValue` | Cookie 值 |
 
+响应状态注解：
+
+| Goark 注解 | Java/Spring 对照 | 说明 |
+| --- | --- | --- |
+| `//goark:response-status(204)` | `@ResponseStatus` | 覆盖普通返回值写出时使用的 HTTP 状态码 |
+
+`response-status` 只用于 MVC 路由方法，并且不能和映射注解上的显式 `status` / `statusCode` 同时声明。默认状态码仍由 HTTP 方法决定：`POST` 默认为 `201`，其他方法默认为 `200`。
+
 异常映射注解：
 
 | Goark 注解 | Java/Spring 对照 | 说明 |
@@ -1614,7 +1622,17 @@ func (c *AdminController) Detail(ctx *arkweb.Context, id int64, verbose bool) (U
 | `goweb.ResponseEntity[T]` | 直接写 Goark 响应实体，状态码和响应头由实体决定 |
 | `(goweb.ResponseEntity[T], error)` | 无错误时直接写 Goark 响应实体，有错误时进入错误映射链 |
 
-`goweb.ResponseEntity[T]` 对标 Spring `ResponseEntity<T>` 的 Go 化能力。实体响应默认使用 Arkarta JSON Codec 写出响应体，并按 `Accept: application/json` 做内容协商；如果返回 `goweb.NoBody(status)`，只写状态码和响应头。方法级 `status` 只作用于普通 `T` / `(T, error)` 返回值，`ResponseEntity` 的状态码以实体自身为准。
+普通 `T` / `(T, error)` 返回值使用映射注解默认状态码，或者使用 `status` / `statusCode` / `response-status` 指定的状态码：
+
+```go
+//goark:post("/jobs")
+//goark:response-status(200)
+func (c *JobController) Search(input JobSearchRequest) (JobSearchResponse, error) {
+	return c.service.Search(input)
+}
+```
+
+`goweb.ResponseEntity[T]` 对标 Spring `ResponseEntity<T>` 的 Go 化能力。实体响应默认使用 Arkarta JSON Codec 写出响应体，并按 `Accept: application/json` 做内容协商；如果返回 `goweb.NoBody(status)`，只写状态码和响应头。方法级 `status` / `response-status` 只作用于普通 `T` / `(T, error)` 返回值，`ResponseEntity` 的状态码以实体自身为准。
 
 ```go
 //goark:get("/users/{id}")
@@ -1694,6 +1712,7 @@ func (a *AdminAdvice) NotFound(ctx *arkweb.Context, err *UserNotFoundError) arkw
 | `//goark:request-param` | `@RequestParam` | Spring Web MVC | 实现 |
 | `//goark:request-header` | `@RequestHeader` | Spring Web MVC | 实现 |
 | `//goark:cookie-value` | `@CookieValue` | Spring Web MVC | 实现 |
+| `//goark:response-status` | `@ResponseStatus` | Spring Web MVC | 实现 |
 
 ## 核心库边界
 
