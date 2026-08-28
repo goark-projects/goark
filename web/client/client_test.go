@@ -107,6 +107,65 @@ func TestClientPostJSONWithBaseURLAndInterceptor(t *testing.T) {
 	}
 }
 
+func TestBuilderBuildsClientWithoutMutatingBase(t *testing.T) {
+	t.Parallel()
+
+	serverErrors := make(chan error, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Header.Get("X-App") != "goark" || request.Header.Get("X-Derived") != "yes" {
+			failServer(serverErrors, writer, "headers = %#v", request.Header)
+			return
+		}
+		_, _ = io.WriteString(writer, "builder")
+	}))
+	defer server.Close()
+
+	base := webclient.NewBuilder(webclient.WithDefaultHeader("X-App", "goark"))
+	derived := base.BaseURL(server.URL).DefaultHeader("X-Derived", "yes")
+
+	baseClient, err := base.Build()
+	if err != nil {
+		t.Fatalf("base build failed: %v", err)
+	}
+	baseRequest, err := baseClient.NewRequest(t.Context(), http.MethodGet, server.URL)
+	if err != nil {
+		t.Fatalf("base request failed: %v", err)
+	}
+	if baseRequest.Header.Get("X-App") != "goark" || baseRequest.Header.Get("X-Derived") != "" {
+		t.Fatalf("base headers = %#v", baseRequest.Header)
+	}
+
+	derivedClient, err := derived.Build()
+	if err != nil {
+		t.Fatalf("derived build failed: %v", err)
+	}
+	response, err := derivedClient.Get(t.Context(), "/jobs")
+	if err != nil {
+		t.Fatalf("derived get failed: %v", err)
+	}
+	assertNoServerError(t, serverErrors)
+	if response.BodyString() != "builder" {
+		t.Fatalf("body = %q, want builder", response.BodyString())
+	}
+}
+
+func TestNilBuilderBuildsDefaultClient(t *testing.T) {
+	t.Parallel()
+
+	var builder *webclient.Builder
+	client, err := builder.Build()
+	if err != nil {
+		t.Fatalf("nil builder build failed: %v", err)
+	}
+	request, err := client.NewRequest(t.Context(), http.MethodGet, "http://example.com")
+	if err != nil {
+		t.Fatalf("new request failed: %v", err)
+	}
+	if request.URL.String() != "http://example.com" {
+		t.Fatalf("url = %q", request.URL.String())
+	}
+}
+
 func TestClientInterceptorChainOrder(t *testing.T) {
 	t.Parallel()
 
