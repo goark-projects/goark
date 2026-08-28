@@ -75,6 +75,33 @@ func TestConfigurerServesWelcomeFile(t *testing.T) {
 	}
 }
 
+func TestConfigurerAppliesCacheControlToStaticResource(t *testing.T) {
+	t.Parallel()
+
+	configurer, err := static.New("/assets/*", fstest.MapFS{
+		"app.js": &fstest.MapFile{
+			Data:    []byte("console.log('goark')"),
+			Mode:    0o644,
+			ModTime: time.Unix(10, 0),
+		},
+	}, static.WithCacheMaxAge(time.Hour))
+	if err != nil {
+		t.Fatalf("static.New failed: %v", err)
+	}
+	registry := web.NewRegistry()
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+
+	recorder := serveStaticRegistry(t, registry, http.MethodGet, "/assets/app.js")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if got := recorder.Header().Get("Cache-Control"); got != "public, max-age=3600" {
+		t.Fatalf("Cache-Control = %q, want public max-age", got)
+	}
+}
+
 func TestConfigurerAppliesGlobalFiltersToStaticResource(t *testing.T) {
 	t.Parallel()
 

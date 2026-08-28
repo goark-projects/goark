@@ -47,7 +47,7 @@ func New(pattern string, root fs.FS, options ...Option) (Configurer, error) {
 	return Configurer{
 		pattern:     pattern,
 		servletName: cfg.servletName,
-		servlet:     handler,
+		servlet:     newCacheControlServlet(handler, cfg.cacheControl),
 	}, nil
 }
 
