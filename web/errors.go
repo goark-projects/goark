@@ -15,4 +15,6 @@ var (
 	ErrNilInterceptor = errors.New("goark/web: interceptor is nil")
 	// ErrNilFilter 表示 Servlet 过滤器为空。
 	ErrNilFilter = errors.New("goark/web: filter is nil")
+	// ErrNilServlet 表示 Servlet 为空。
+	ErrNilServlet = errors.New("goark/web: servlet is nil")
 )

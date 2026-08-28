@@ -58,6 +58,15 @@ func BuildDeployment(registry *Registry, spec DeploymentSpec) (*servletcontainer
 	deploymentOptions := []servletcontainer.DeploymentOption{
 		servletcontainer.WithMapping(mappingPattern, router, registry.Filters()...),
 	}
+	globalFilters := registry.Filters()
+	for _, mapping := range registry.servletMappings() {
+		deploymentOptions = append(deploymentOptions, servletcontainer.WithServlet(
+			mapping.pattern,
+			mapping.name,
+			mapping.handler,
+			servletMappingFilters(globalFilters, mapping.filters)...,
+		))
+	}
 	for _, profile := range registry.Profiles() {
 		deploymentOptions = append(deploymentOptions, servletcontainer.WithProfile(profile))
 	}

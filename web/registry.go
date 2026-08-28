@@ -17,6 +17,7 @@ type Registry struct {
 	errorMappers      []arkweb.ErrorMapper
 	filters           []servlet.Filter
 	profiles          []servletcontainer.Profile
+	servlets          []servletMapping
 	deploymentOptions []servletcontainer.DeploymentOption
 }
 
