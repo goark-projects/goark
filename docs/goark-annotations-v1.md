@@ -1546,6 +1546,8 @@ Web MVC 注解属于 `goark/web` 与 `goark/web/mvc` 的框架能力，对标 Sp
 | `//goark:controller` | `@Controller` | struct type | 实现 |
 | `//goark:rest-controller` | `@RestController` | struct type | 实现 |
 | `//goark:mvc-controller` | MVC 控制器构造型注解 | struct type | 实现 |
+| `//goark:controller-advice` | `@ControllerAdvice` | struct type | 实现 |
+| `//goark:rest-controller-advice` | `@RestControllerAdvice` | struct type | 实现 |
 | `//goark:request-mapping` | `@RequestMapping` | struct type / method | 实现 |
 
 HTTP 方法映射：
@@ -1578,6 +1580,12 @@ func (c *SystemController) OptionsHealth() {}
 | `//goark:request-header[requestID]` | `@RequestHeader` | 请求头 |
 | `//goark:cookie-value[theme]` | `@CookieValue` | Cookie 值 |
 
+异常映射注解：
+
+| Goark 注解 | Java/Spring 对照 | 说明 |
+| --- | --- | --- |
+| `//goark:exception-handler` | `@ExceptionHandler` | 标记 `controller-advice` 上的方法，使用 `errors.As` 按错误类型匹配 |
+
 示例：
 
 ```go
@@ -1588,10 +1596,29 @@ type AdminController struct{}
 //goark:get("/users/{id}")
 //goark:path-variable[id]("id")
 //goark:request-param[verbose](defaultValue="false")
-func (c *AdminController) Detail(ctx *web.Context, id int64, verbose bool) (User, error) {
+func (c *AdminController) Detail(ctx *arkweb.Context, id int64, verbose bool) (User, error) {
 	return c.service.Detail(ctx.Context(), id, verbose)
 }
 ```
+
+异常处理示例：
+
+```go
+//goark:controller-advice("adminAdvice")
+type AdminAdvice struct{}
+
+//goark:exception-handler
+func (a *AdminAdvice) NotFound(ctx *arkweb.Context, err *UserNotFoundError) arkweb.Result {
+	return arkweb.JSON(404, map[string]any{
+		"error": map[string]any{
+			"code": "USER_NOT_FOUND",
+			"id":   err.ID,
+		},
+	})
+}
+```
+
+异常处理方法必须返回 `arkarta/web.Result`，参数必须包含一个错误类型参数，可选包含一个 `*arkarta/web.Context` 参数。生成器会生成 `mvc.ExceptionHandlerAs[T]`，并通过 `goweb.Configurer` 把异常处理器贡献给 `goark/web.Registry` 的错误映射链。错误映射器按注册顺序匹配；没有匹配时回退到 Arkarta Web 默认错误响应。
 
 生成器会生成 `GoarkWebMVCConfiguration`，并注册 `goweb.Configurer` Bean。业务启动层仍需要显式把生成的配置单元交给 `goark.ApplicationContext` 或 `boot.Run`。
 
@@ -1622,6 +1649,9 @@ func (c *AdminController) Detail(ctx *web.Context, id int64, verbose bool) (User
 | `//goark:resource` | `@Resource` | JSR-250 / Jakarta Annotations | 实现 |
 | `//goark:controller` | `@Controller` | Spring Web MVC | 实现 |
 | `//goark:rest-controller` | `@RestController` | Spring Web MVC | 实现 |
+| `//goark:controller-advice` | `@ControllerAdvice` | Spring Web MVC | 实现 |
+| `//goark:rest-controller-advice` | `@RestControllerAdvice` | Spring Web MVC | 实现 |
+| `//goark:exception-handler` | `@ExceptionHandler` | Spring Web MVC | 实现 |
 | `//goark:request-mapping` | `@RequestMapping` | Spring Web MVC | 实现 |
 | `//goark:get` | `@GetMapping` | Spring Web MVC | 实现 |
 | `//goark:head` | `@RequestMapping(method = HEAD)` | Spring Web MVC | 实现 |
