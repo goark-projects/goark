@@ -225,7 +225,7 @@ func (c *Container) computeStartupOrder(graph map[string][]dependencyEdge) []str
 			ready = append(ready, index)
 		}
 	}
-	sortComponentsByName(ready, components)
+	c.sortComponents(ready, components)
 
 	order := make([]string, 0, len(c.definitions))
 	for len(ready) > 0 {
@@ -243,13 +243,31 @@ func (c *Container) computeStartupOrder(graph map[string][]dependencyEdge) []str
 				ready = append(ready, dependent)
 			}
 		}
-		sortComponentsByName(ready, components)
+		c.sortComponents(ready, components)
 	}
 	return order
 }
 
-func sortComponentsByName(indices []int, components [][]string) {
+func (c *Container) sortComponents(indices []int, components [][]string) {
 	sort.Slice(indices, func(i, j int) bool {
+		left := c.componentOrder(components[indices[i]])
+		right := c.componentOrder(components[indices[j]])
+		if left != right {
+			return left < right
+		}
 		return components[indices[i]][0] < components[indices[j]][0]
 	})
+}
+
+func (c *Container) componentOrder(component []string) int {
+	if len(component) == 0 {
+		return 0
+	}
+	order := c.definitions[component[0]].normalized().Order
+	for _, name := range component[1:] {
+		if current := c.definitions[name].normalized().Order; current < order {
+			order = current
+		}
+	}
+	return order
 }

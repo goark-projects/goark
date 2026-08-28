@@ -479,6 +479,48 @@ func TestContainer_whenResolvingByTypeWithPriority_shouldSelectHighestPriority(t
 	}
 }
 
+func TestContainer_whenGetAllByType_shouldUseBeanOrder(t *testing.T) {
+	registry := container.NewRegistry()
+	if err := container.Register[testWorker](registry, "zLast", func(context.Context, container.Resolver) (testWorker, error) {
+		return namedWorker("last"), nil
+	}, container.WithOrder(100)); err != nil {
+		t.Fatalf("register zLast failed: %v", err)
+	}
+	if err := container.Register[testWorker](registry, "middle", func(context.Context, container.Resolver) (testWorker, error) {
+		return namedWorker("middle"), nil
+	}); err != nil {
+		t.Fatalf("register middle failed: %v", err)
+	}
+	if err := container.Register[testWorker](registry, "aFirst", func(context.Context, container.Resolver) (testWorker, error) {
+		return namedWorker("first"), nil
+	}, container.WithOrder(-100)); err != nil {
+		t.Fatalf("register aFirst failed: %v", err)
+	}
+	runtimeContainer, err := container.New(registry)
+	if err != nil {
+		t.Fatalf("create container failed: %v", err)
+	}
+
+	workers, err := container.GetAllByType[testWorker](context.Background(), runtimeContainer)
+	if err != nil {
+		t.Fatalf("get all workers failed: %v", err)
+	}
+	got := make([]string, 0, len(workers))
+	for _, worker := range workers {
+		got = append(got, worker.Work())
+	}
+	expected := []string{"first", "middle", "last"}
+	if !reflect.DeepEqual(got, expected) {
+		t.Fatalf("workers = %#v, want %#v", got, expected)
+	}
+}
+
+type namedWorker string
+
+func (w namedWorker) Work() string {
+	return string(w)
+}
+
 func TestContainer_whenPrimaryAndPriorityBothExist_shouldSelectPrimary(t *testing.T) {
 	registry := container.NewRegistry()
 	if err := container.Register[testWorker](registry, "priority", func(context.Context, container.Resolver) (testWorker, error) {
