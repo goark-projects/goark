@@ -1,7 +1,6 @@
 package web_test
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -40,7 +39,7 @@ func TestResponseEntityWritesStatusHeadersAndJSONBody(t *testing.T) {
 		t.Fatalf("Content-Type = %q, want %s", got, arkjson.ContentType)
 	}
 	var body map[string]string
-	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &body); err != nil {
 		t.Fatalf("response json invalid: %v", err)
 	}
 	if body["state"] != "queued" {

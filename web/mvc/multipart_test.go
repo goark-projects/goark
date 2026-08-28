@@ -1,7 +1,6 @@
 package mvc_test
 
 import (
-	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -59,7 +58,7 @@ func TestBindMultipartBindsValuesAndParts(t *testing.T) {
 		t.Fatalf("status = %d, want %d, body = %q", recorder.Code, http.StatusCreated, recorder.Body.String())
 	}
 	var payload map[string]any
-	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("response json invalid: %v", err)
 	}
 	if payload["title"] != "avatar" || payload["filename"] != "profile.txt" || payload["body"] != "hello" {

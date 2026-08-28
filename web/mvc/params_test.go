@@ -1,12 +1,12 @@
 package mvc_test
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	arkjson "goark.dev/arkarta/json"
 	servletnethttp "goark.dev/arkarta/servlet/nethttp"
 	arkweb "goark.dev/arkarta/web"
 	"goark.dev/goark/web/mvc"
@@ -59,7 +59,7 @@ func TestParameterHelpersBindRequestSources(t *testing.T) {
 		RequestID string `json:"requestID"`
 		Theme     string `json:"theme"`
 	}
-	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("response json invalid: %v", err)
 	}
 	if payload.ID != 42 || payload.Page != 1 || payload.RequestID != "req-1" || payload.Theme != "dark" {
@@ -126,7 +126,7 @@ func TestModelAttributeBindsQueryAndFormValues(t *testing.T) {
 		Page            int    `json:"page"`
 		IncludeDisabled bool   `json:"includeDisabled"`
 	}
-	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("response json invalid: %v", err)
 	}
 	if payload.Username != "ad" || payload.Page != 2 || !payload.IncludeDisabled {

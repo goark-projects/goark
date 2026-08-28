@@ -1,7 +1,6 @@
 package mvc_test
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -46,7 +45,7 @@ func TestEntityHandlerWritesResponseEntity(t *testing.T) {
 		t.Fatalf("X-MVC = %q, want entity", got)
 	}
 	var body map[string]string
-	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &body); err != nil {
 		t.Fatalf("response json invalid: %v", err)
 	}
 	if body["state"] != "queued" {
@@ -83,7 +82,7 @@ func TestBindEntityBindsJSONAndWritesResponseEntity(t *testing.T) {
 		t.Fatalf("Location = %q, want /jobs/1", got)
 	}
 	var body map[string]string
-	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &body); err != nil {
 		t.Fatalf("response json invalid: %v", err)
 	}
 	if body["name"] != "sync" {

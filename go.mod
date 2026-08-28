@@ -8,7 +8,7 @@ require (
 	github.com/knadh/koanf/parsers/yaml v1.1.1
 	github.com/knadh/koanf/providers/rawbytes v1.0.1
 	github.com/knadh/koanf/v2 v2.3.6
-	goark.dev/arkarta v0.0.2-0.20260828054204-eeabe4196e78
+	goark.dev/arkarta v0.0.2-0.20260828065207-898b68862c6c
 )
 
 require (
