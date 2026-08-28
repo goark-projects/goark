@@ -7,9 +7,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/goark-projects/goark/core/convert"
-	"github.com/goark-projects/goark/core/util"
-	arkerrors "github.com/goark-projects/goark/errors"
+	"goark.dev/goark/core/convert"
+	"goark.dev/goark/core/util"
+	arkerrors "goark.dev/goark/errors"
 )
 
 const (

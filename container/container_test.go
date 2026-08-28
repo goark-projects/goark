@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goark-projects/goark/container"
-	arkerrors "github.com/goark-projects/goark/errors"
+	"goark.dev/goark/container"
+	arkerrors "goark.dev/goark/errors"
 )
 
 type testRepository struct {

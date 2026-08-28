@@ -7,9 +7,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/goark-projects/goark/core/util"
-	arkerrors "github.com/goark-projects/goark/errors"
-	"github.com/goark-projects/goark/internal/reflectx"
+	"goark.dev/goark/core/util"
+	arkerrors "goark.dev/goark/errors"
+	"goark.dev/goark/internal/reflectx"
 )
 
 // Handler 处理同步事件。

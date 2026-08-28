@@ -4,7 +4,7 @@ import (
 	"strings"
 	"unicode"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // MatchProfileExpression 判断 profile 表达式是否匹配当前环境。

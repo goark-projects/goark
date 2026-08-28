@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // ProtocolResolver 支持自定义资源协议。

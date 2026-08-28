@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/goark-projects/goark"
+	"goark.dev/goark"
 )
 
 type facadeRepository struct {

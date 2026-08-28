@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/goark-projects/goark/container"
-	appcontext "github.com/goark-projects/goark/context"
-	arkerrors "github.com/goark-projects/goark/errors"
+	"goark.dev/goark/container"
+	appcontext "goark.dev/goark/context"
+	arkerrors "goark.dev/goark/errors"
 )
 
 type runtimeComponent struct {

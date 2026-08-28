@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/goark-projects/goark/core/util"
+	"goark.dev/goark/core/util"
 )
 
 type orderedValue struct {

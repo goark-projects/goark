@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // FileResource 表示本地文件系统资源。

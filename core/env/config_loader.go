@@ -7,13 +7,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/goark-projects/goark/core/resource"
-	arkerrors "github.com/goark-projects/goark/errors"
 	"github.com/knadh/koanf/maps"
 	koanftoml "github.com/knadh/koanf/parsers/toml"
 	koanfyaml "github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/rawbytes"
 	koanf "github.com/knadh/koanf/v2"
+	"goark.dev/goark/core/resource"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // ConfigFormat 表示配置文件格式。

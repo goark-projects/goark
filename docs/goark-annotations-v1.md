@@ -1387,7 +1387,7 @@ package config
 import (
 	"database/sql"
 
-	"github.com/goark-projects/example/internal/admin"
+	"example.com/goark-example/internal/admin"
 	_ "github.com/lib/pq"
 )
 

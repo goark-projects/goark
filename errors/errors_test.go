@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 func TestError_whenWrapped_shouldExposeCodeAndCause(t *testing.T) {

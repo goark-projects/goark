@@ -4,7 +4,7 @@ import (
 	"sort"
 	"sync"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // Registry 保存 Bean 定义，通常由编译期生成代码写入。

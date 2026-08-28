@@ -3,7 +3,7 @@ package lang_test
 import (
 	"testing"
 
-	"github.com/goark-projects/goark/core/lang"
+	"goark.dev/goark/core/lang"
 )
 
 func TestOptional_whenValueIsPresent_shouldReturnValue(t *testing.T) {

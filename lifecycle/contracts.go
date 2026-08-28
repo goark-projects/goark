@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/goark-projects/goark/core/lang"
+	"goark.dev/goark/core/lang"
 )
 
 // Starter 表示可启动组件。

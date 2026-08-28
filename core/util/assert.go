@@ -3,7 +3,7 @@ package util
 import (
 	"strings"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // AssertTrue 校验表达式必须为 true。

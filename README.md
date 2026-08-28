@@ -10,7 +10,7 @@ This module provides the core runtime contracts: bean registration, dependency r
 
 - Provide a production-oriented Go framework for service applications.
 - Keep core contracts small, explicit, and testable.
-- Separate runtime bootstrap concerns into [`goark-projects/boot`](https://github.com/goark-projects/boot).
+- Separate runtime bootstrap concerns into [`goark.dev/boot`](https://goark.dev/boot).
 - Favor Go-native design over Java-style reflection-heavy abstractions.
 - Use compile-time generated registration code instead of classpath scanning.
 - Build clear extension points for configuration, lifecycle, web, data, messaging, and observability extensions.
@@ -48,7 +48,7 @@ package main
 import (
 	"context"
 
-	"github.com/goark-projects/goark"
+	"goark.dev/goark"
 )
 
 type UserRepository struct{}
@@ -95,8 +95,8 @@ package main
 import (
 	"context"
 
-	"github.com/goark-projects/goark"
-	"github.com/goark-projects/goark/container"
+	"goark.dev/goark"
+	"goark.dev/goark/container"
 )
 
 type UserConfiguration struct{}
@@ -138,7 +138,7 @@ func run(ctx context.Context) error {
 ## Installation
 
 ```bash
-go get github.com/goark-projects/goark
+go get goark.dev/goark
 ```
 
 ## Repository Status
@@ -177,9 +177,9 @@ go test ./...
 
 ## Related Repositories
 
-- [`goark-projects/goark`](https://github.com/goark-projects/goark): core framework contracts.
-- [`goark-projects/boot`](https://github.com/goark-projects/boot): application bootstrap and convention layer.
-- [`goark-projects/cli`](https://github.com/goark-projects/cli): scaffolding and compile-time code generation.
+- [`goark.dev/goark`](https://goark.dev/goark): core framework contracts.
+- [`goark.dev/boot`](https://goark.dev/boot): application bootstrap and convention layer.
+- [`goark.dev/cli`](https://goark.dev/cli): scaffolding and compile-time code generation.
 
 ## License
 

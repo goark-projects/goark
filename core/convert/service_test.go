@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goark-projects/goark/core/convert"
+	"goark.dev/goark/core/convert"
 )
 
 func TestService_whenUsingBuiltinConverters_shouldConvertCommonTypes(t *testing.T) {

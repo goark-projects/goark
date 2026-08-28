@@ -4,7 +4,7 @@ import (
 	"context"
 	"sort"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 type singletonCall struct {

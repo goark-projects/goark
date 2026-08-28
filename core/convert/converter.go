@@ -3,8 +3,8 @@ package convert
 import (
 	"reflect"
 
-	"github.com/goark-projects/goark/core/lang"
-	arkerrors "github.com/goark-projects/goark/errors"
+	"goark.dev/goark/core/lang"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // Converter 描述一个源类型到目标类型的转换器。

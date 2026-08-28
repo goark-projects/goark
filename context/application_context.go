@@ -3,10 +3,10 @@ package context
 import (
 	"sync"
 
-	"github.com/goark-projects/goark/container"
-	coreenv "github.com/goark-projects/goark/core/env"
-	"github.com/goark-projects/goark/event"
-	"github.com/goark-projects/goark/lifecycle"
+	"goark.dev/goark/container"
+	coreenv "goark.dev/goark/core/env"
+	"goark.dev/goark/event"
+	"goark.dev/goark/lifecycle"
 )
 
 // ApplicationContext 是 Goark 核心运行时上下文。

@@ -3,7 +3,7 @@ package container
 import (
 	"strings"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // ResolveOption 调整按类型解析 Bean 时的候选选择规则。

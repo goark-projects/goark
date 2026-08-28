@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/goark-projects/goark/core/convert"
-	"github.com/goark-projects/goark/core/lang"
-	arkerrors "github.com/goark-projects/goark/errors"
+	"goark.dev/goark/core/convert"
+	"goark.dev/goark/core/lang"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // ResolveValue 解析 goark:value 表达式，并转换为目标 Go 类型。

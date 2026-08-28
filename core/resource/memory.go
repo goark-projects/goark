@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // MemoryResource 表示内存中的不可变资源。

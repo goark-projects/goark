@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"path"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // FSResource 表示 fs.FS 中的资源，适合 embed 场景。

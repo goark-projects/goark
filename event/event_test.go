@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	arkerrors "github.com/goark-projects/goark/errors"
-	"github.com/goark-projects/goark/event"
+	arkerrors "goark.dev/goark/errors"
+	"goark.dev/goark/event"
 )
 
 type createdEvent struct {

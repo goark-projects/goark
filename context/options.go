@@ -1,9 +1,9 @@
 package context
 
 import (
-	coreenv "github.com/goark-projects/goark/core/env"
-	arkerrors "github.com/goark-projects/goark/errors"
-	"github.com/goark-projects/goark/event"
+	coreenv "goark.dev/goark/core/env"
+	arkerrors "goark.dev/goark/errors"
+	"goark.dev/goark/event"
 )
 
 // Option 调整应用上下文初始化参数。

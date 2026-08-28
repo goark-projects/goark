@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // Info 描述资源元数据。

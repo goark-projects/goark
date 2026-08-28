@@ -6,7 +6,7 @@ import (
 	"unicode"
 	"unicode/utf16"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // ParseProperties 解析 Java .properties 风格键值文本。

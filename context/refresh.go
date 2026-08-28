@@ -4,13 +4,13 @@ import (
 	stdcontext "context"
 	"sort"
 
-	"github.com/goark-projects/goark/container"
-	coreenv "github.com/goark-projects/goark/core/env"
-	"github.com/goark-projects/goark/core/util"
-	arkerrors "github.com/goark-projects/goark/errors"
-	"github.com/goark-projects/goark/event"
-	"github.com/goark-projects/goark/internal/reflectx"
-	"github.com/goark-projects/goark/lifecycle"
+	"goark.dev/goark/container"
+	coreenv "goark.dev/goark/core/env"
+	"goark.dev/goark/core/util"
+	arkerrors "goark.dev/goark/errors"
+	"goark.dev/goark/event"
+	"goark.dev/goark/internal/reflectx"
+	"goark.dev/goark/lifecycle"
 )
 
 type refreshPlan struct {

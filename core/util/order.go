@@ -3,7 +3,7 @@ package util
 import (
 	"sort"
 
-	"github.com/goark-projects/goark/core/lang"
+	"goark.dev/goark/core/lang"
 )
 
 // OrderOf 返回对象声明的排序值；未实现 Ordered 时返回最低优先级。

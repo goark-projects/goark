@@ -1,8 +1,8 @@
 package context
 
 import (
-	"github.com/goark-projects/goark/container"
-	arkerrors "github.com/goark-projects/goark/errors"
+	"goark.dev/goark/container"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // RegisterDefinition 注册 Bean 定义，必须在 Refresh 前调用。

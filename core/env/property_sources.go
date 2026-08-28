@@ -4,8 +4,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/goark-projects/goark/core/util"
-	arkerrors "github.com/goark-projects/goark/errors"
+	"goark.dev/goark/core/util"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // PropertySources 表示只读配置源集合。

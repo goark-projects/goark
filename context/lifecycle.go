@@ -4,9 +4,9 @@ import (
 	stdcontext "context"
 	stderrors "errors"
 
-	arkerrors "github.com/goark-projects/goark/errors"
-	"github.com/goark-projects/goark/event"
-	"github.com/goark-projects/goark/lifecycle"
+	arkerrors "goark.dev/goark/errors"
+	"goark.dev/goark/event"
+	"goark.dev/goark/lifecycle"
 )
 
 // Start 启动应用上下文生命周期；未 Refresh 时会先 Refresh。

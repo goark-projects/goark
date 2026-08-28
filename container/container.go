@@ -5,7 +5,7 @@ import (
 	"sort"
 	"sync"
 
-	arkerrors "github.com/goark-projects/goark/errors"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // Container 是不可变定义、并发安全实例缓存的 Bean 容器。

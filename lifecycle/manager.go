@@ -3,9 +3,9 @@ package lifecycle
 import (
 	"sync"
 
-	"github.com/goark-projects/goark/core/util"
-	arkerrors "github.com/goark-projects/goark/errors"
-	"github.com/goark-projects/goark/internal/reflectx"
+	"goark.dev/goark/core/util"
+	arkerrors "goark.dev/goark/errors"
+	"goark.dev/goark/internal/reflectx"
 )
 
 type managerState uint8

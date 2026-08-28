@@ -3,9 +3,9 @@ package context
 import (
 	"reflect"
 
-	"github.com/goark-projects/goark/container"
-	coreenv "github.com/goark-projects/goark/core/env"
-	arkerrors "github.com/goark-projects/goark/errors"
+	"goark.dev/goark/container"
+	coreenv "goark.dev/goark/core/env"
+	arkerrors "goark.dev/goark/errors"
 )
 
 // ConfigurationContext 暴露配置注册期可用的核心上下文。

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/goark-projects/goark/core/resource"
+	"goark.dev/goark/core/resource"
 )
 
 func TestMemoryResource_whenReadAllCalled_shouldReturnCopiedBytes(t *testing.T) {

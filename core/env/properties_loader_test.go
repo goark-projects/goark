@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/goark-projects/goark/core/env"
-	"github.com/goark-projects/goark/core/resource"
-	arkerrors "github.com/goark-projects/goark/errors"
+	"goark.dev/goark/core/env"
+	"goark.dev/goark/core/resource"
+	arkerrors "goark.dev/goark/errors"
 )
 
 func TestLoadPropertiesPropertySource_whenResourceExists_shouldParseProperties(t *testing.T) {
