@@ -14,6 +14,7 @@ type Registry struct {
 	routes            []Route
 	interceptors      []arkweb.Interceptor
 	advice            []arkweb.ResponseAdvice
+	errorMappers      []arkweb.ErrorMapper
 	filters           []servlet.Filter
 	profiles          []servletcontainer.Profile
 	deploymentOptions []servletcontainer.DeploymentOption
@@ -83,6 +84,13 @@ func (r *Registry) UseResponseAdvice(advice arkweb.ResponseAdvice) {
 	}
 }
 
+// UseErrorMapper 注册全局错误映射器。
+func (r *Registry) UseErrorMapper(mapper arkweb.ErrorMapper) {
+	if !isNilErrorMapper(mapper) {
+		r.errorMappers = append(r.errorMappers, mapper)
+	}
+}
+
 // AddFilter 添加 Servlet 过滤器。
 func (r *Registry) AddFilter(filter servlet.Filter) {
 	if filter != nil {
@@ -110,7 +118,8 @@ func (r *Registry) Router(options ...arkweb.Option) (*arkweb.Router, error) {
 	if r == nil {
 		return nil, ErrNilRegistry
 	}
-	router := arkweb.NewRouter(options...)
+	routerOptions := appendRouterOptions(r.errorMappers, options)
+	router := arkweb.NewRouter(routerOptions...)
 	for _, interceptor := range r.interceptors {
 		router.Use(interceptor)
 	}
@@ -131,6 +140,14 @@ func (r *Registry) Routes() []Route {
 		return nil
 	}
 	return append([]Route(nil), r.routes...)
+}
+
+// ErrorMappers 返回错误映射器快照。
+func (r *Registry) ErrorMappers() []arkweb.ErrorMapper {
+	if r == nil {
+		return nil
+	}
+	return append([]arkweb.ErrorMapper(nil), r.errorMappers...)
 }
 
 // Filters 返回 Servlet 过滤器快照。
@@ -164,6 +181,16 @@ func hasProfile(profiles []servletcontainer.Profile, target servletcontainer.Pro
 		}
 	}
 	return false
+}
+
+func appendRouterOptions(mappers []arkweb.ErrorMapper, options []arkweb.Option) []arkweb.Option {
+	if len(mappers) == 0 {
+		return options
+	}
+	routerOptions := make([]arkweb.Option, 0, len(options)+1)
+	routerOptions = append(routerOptions, arkweb.WithErrorMapper(NewErrorMapperChain(mappers...)))
+	routerOptions = append(routerOptions, options...)
+	return routerOptions
 }
 
 func normalizeMethod(method string) string {

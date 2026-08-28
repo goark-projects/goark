@@ -9,4 +9,6 @@ var (
 	ErrNilRegistry = errors.New("goark/web: registry is nil")
 	// ErrInvalidRoute 表示路由描述非法。
 	ErrInvalidRoute = errors.New("goark/web: invalid route")
+	// ErrNilErrorMapper 表示错误映射器为空。
+	ErrNilErrorMapper = errors.New("goark/web: error mapper is nil")
 )

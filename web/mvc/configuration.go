@@ -10,9 +10,10 @@ import (
 
 // Configuration 将 MVC 控制器注册为 Goark 配置单元。
 type Configuration struct {
-	name        string
-	order       int
-	controllers []Controller
+	name              string
+	order             int
+	controllers       []Controller
+	exceptionHandlers []goweb.ErrorMapper
 }
 
 // NewConfiguration 创建 MVC 配置单元。
@@ -26,6 +27,12 @@ func NewConfiguration(name string, controllers ...Controller) Configuration {
 // WithOrder 设置配置单元顺序。
 func (c Configuration) WithOrder(order int) Configuration {
 	c.order = order
+	return c
+}
+
+// WithExceptionHandlers 添加 MVC 全局异常处理器。
+func (c Configuration) WithExceptionHandlers(handlers ...goweb.ErrorMapper) Configuration {
+	c.exceptionHandlers = append(c.exceptionHandlers, handlers...)
 	return c
 }
 
@@ -52,7 +59,7 @@ func (c Configuration) RegisterWithContext(_ context.Context, config appcontext.
 	return goweb.RegisterConfigurer(
 		config.Registry(),
 		c.Name()+".configurer",
-		NewConfigurer(c.controllers...),
+		NewConfigurer(c.controllers...).WithExceptionHandlers(c.exceptionHandlers...),
 		container.WithOrder(c.order),
 	)
 }
