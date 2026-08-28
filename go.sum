@@ -32,6 +32,8 @@ goark.dev/arkarta v0.0.2-0.20260828054204-eeabe4196e78 h1:LUn/AqpG8UoP+unrhfLP/7
 goark.dev/arkarta v0.0.2-0.20260828054204-eeabe4196e78/go.mod h1:/ZMTyLm/iknACNnC1vr8paU7PbG63UH8x9fQtcoyIys=
 goark.dev/arkarta v0.0.2-0.20260828065207-898b68862c6c h1:4zBNaFU+12WVOiMmqWS7I8tkLdFGWOdMchjcmkpiqxo=
 goark.dev/arkarta v0.0.2-0.20260828065207-898b68862c6c/go.mod h1:/ZMTyLm/iknACNnC1vr8paU7PbG63UH8x9fQtcoyIys=
+goark.dev/arkarta v0.0.2-0.20260828090226-399469182f3b h1:Ofy2LjWjxuwXn3qctiMBm3LkeUdzWKGiA0qUksntuUU=
+goark.dev/arkarta v0.0.2-0.20260828090226-399469182f3b/go.mod h1:/ZMTyLm/iknACNnC1vr8paU7PbG63UH8x9fQtcoyIys=
 gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 h1:YR8cESwS4TdDjEe65xsg0ogRM/Nc3DYOhEAlW+xobZo=
 gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
