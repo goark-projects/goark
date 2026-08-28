@@ -9,6 +9,7 @@ import (
 	servletnethttp "goark.dev/arkarta/servlet/nethttp"
 	arkweb "goark.dev/arkarta/web"
 	"goark.dev/goark/web"
+	"goark.dev/goark/web/message"
 )
 
 func TestResponseEntityWritesStatusHeadersAndJSONBody(t *testing.T) {
@@ -70,5 +71,35 @@ func TestResponseEntityNoBodyWritesOnlyStatusAndHeaders(t *testing.T) {
 	}
 	if recorder.Body.Len() != 0 {
 		t.Fatalf("body = %q, want empty", recorder.Body.String())
+	}
+}
+
+func TestResponseEntityWritesConfiguredMediaType(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	if err := registry.GET("/entity", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+		return web.Status(http.StatusOK, "plain").WithContentType(message.MediaTypeTextPlain), nil
+	})); err != nil {
+		t.Fatalf("GET failed: %v", err)
+	}
+
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/entity", nil)
+	request.Header.Set("Accept", "text/plain")
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", recorder.Code)
+	}
+	if recorder.Header().Get("Content-Type") != message.MediaTypeTextPlain {
+		t.Fatalf("content type = %q, want text/plain", recorder.Header().Get("Content-Type"))
+	}
+	if recorder.Body.String() != "plain" {
+		t.Fatalf("body = %q, want plain", recorder.Body.String())
 	}
 }

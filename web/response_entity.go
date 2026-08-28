@@ -6,12 +6,14 @@ import (
 	arkjson "goark.dev/arkarta/json"
 	"goark.dev/arkarta/servlet"
 	arkweb "goark.dev/arkarta/web"
+	"goark.dev/goark/web/message"
 )
 
 // ResponseEntity 表示携带状态码、响应头和可选 JSON 响应体的 Web 结果。
 type ResponseEntity[T any] struct {
 	statusCode int
 	headers    http.Header
+	mediaTypes []string
 	body       T
 	hasBody    bool
 }
@@ -81,6 +83,18 @@ func (e ResponseEntity[T]) WithHeaders(headers http.Header) ResponseEntity[T] {
 	return e
 }
 
+// WithContentType 设置实体响应体的首选媒体类型。
+func (e ResponseEntity[T]) WithContentType(mediaType string) ResponseEntity[T] {
+	e.mediaTypes = []string{mediaType}
+	return e
+}
+
+// WithMediaTypes 设置实体响应体可写出的媒体类型集合。
+func (e ResponseEntity[T]) WithMediaTypes(mediaTypes ...string) ResponseEntity[T] {
+	e.mediaTypes = append([]string(nil), mediaTypes...)
+	return e
+}
+
 // Write 将实体响应写入 Arkarta Web 上下文。
 func (e ResponseEntity[T]) Write(ctx *arkweb.Context) error {
 	if ctx == nil || ctx.Response() == nil {
@@ -88,7 +102,7 @@ func (e ResponseEntity[T]) Write(ctx *arkweb.Context) error {
 	}
 	statusCode := e.StatusCode()
 	writeBody := e.hasBody && entityStatusAllowsBody(statusCode)
-	if writeBody {
+	if writeBody && len(e.mediaTypes) == 0 {
 		if err := ensureEntityAccepted(ctx); err != nil {
 			return err
 		}
@@ -98,6 +112,9 @@ func (e ResponseEntity[T]) Write(ctx *arkweb.Context) error {
 	response.SetStatus(statusCode)
 	if !writeBody {
 		return nil
+	}
+	if len(e.mediaTypes) > 0 {
+		return message.NewWriter().Write(ctx, statusCode, e.body, e.mediaTypes...)
 	}
 	if response.Header().Get("Content-Type") == "" {
 		if err := servlet.SetContentType(response, arkjson.ContentType); err != nil {
