@@ -1601,6 +1601,34 @@ func (c *AdminController) Detail(ctx *arkweb.Context, id int64, verbose bool) (U
 }
 ```
 
+控制器方法支持的返回签名：
+
+| 签名 | 生成行为 |
+| --- | --- |
+| `void` | 执行业务方法后返回 `204 No Content` |
+| `error` | 无错误时返回 `204 No Content`，有错误时进入错误映射链 |
+| `T` | 使用映射注解状态码写 JSON |
+| `(T, error)` | 无错误时使用映射注解状态码写 JSON，有错误时进入错误映射链 |
+| `arkweb.Result` | 直接写 Arkarta Web Result |
+| `(arkweb.Result, error)` | 无错误时直接写 Arkarta Web Result，有错误时进入错误映射链 |
+| `goweb.ResponseEntity[T]` | 直接写 Goark 响应实体，状态码和响应头由实体决定 |
+| `(goweb.ResponseEntity[T], error)` | 无错误时直接写 Goark 响应实体，有错误时进入错误映射链 |
+
+`goweb.ResponseEntity[T]` 对标 Spring `ResponseEntity<T>` 的 Go 化能力。实体响应默认使用 Arkarta JSON Codec 写出响应体，并按 `Accept: application/json` 做内容协商；如果返回 `goweb.NoBody(status)`，只写状态码和响应头。方法级 `status` 只作用于普通 `T` / `(T, error)` 返回值，`ResponseEntity` 的状态码以实体自身为准。
+
+```go
+//goark:get("/users/{id}")
+//goark:path-variable[id]("id")
+func (c *AdminController) Detail(ctx *arkweb.Context, id int64) (goweb.ResponseEntity[UserDetailResponse], error) {
+	user, err := c.service.Detail(ctx.Context(), id)
+	if err != nil {
+		return goweb.ResponseEntity[UserDetailResponse]{}, err
+	}
+	return goweb.OK(UserDetailResponse{User: user}).
+		WithHeader("X-Admin-User-ID", strconv.FormatInt(user.ID, 10)), nil
+}
+```
+
 异常处理示例：
 
 ```go
