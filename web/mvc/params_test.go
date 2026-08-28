@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	servletnethttp "goark.dev/arkarta/servlet/nethttp"
@@ -85,5 +86,75 @@ func TestParameterHelpersRejectMissingRequiredParameter(t *testing.T) {
 	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/users", nil))
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400, body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestModelAttributeBindsQueryAndFormValues(t *testing.T) {
+	t.Parallel()
+
+	type userSearchCriteria struct {
+		Username        string `form:"username" json:"username" arkarta:"required,min=2"`
+		Page            int    `form:"page" json:"page"`
+		IncludeDisabled bool   `form:"includeDisabled" json:"includeDisabled"`
+	}
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodPost, "/users/search", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]any, error) {
+		criteria, err := mvc.ModelAttribute[userSearchCriteria](ctx)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{
+			"username":        criteria.Username,
+			"page":            criteria.Page,
+			"includeDisabled": criteria.IncludeDisabled,
+		}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/users/search?username=ad", strings.NewReader("page=2&includeDisabled=true"))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	var payload struct {
+		Username        string `json:"username"`
+		Page            int    `json:"page"`
+		IncludeDisabled bool   `json:"includeDisabled"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if payload.Username != "ad" || payload.Page != 2 || !payload.IncludeDisabled {
+		t.Fatalf("payload = %#v", payload)
+	}
+}
+
+func TestModelAttributeMapsValidationErrors(t *testing.T) {
+	t.Parallel()
+
+	type userSearchCriteria struct {
+		Username string `form:"username" json:"username" arkarta:"required"`
+	}
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/users/search", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]string, error) {
+		criteria, err := mvc.ModelAttribute[userSearchCriteria](ctx)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]string{"username": criteria.Username}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/users/search", nil))
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want 422, body=%s", recorder.Code, recorder.Body.String())
 	}
 }
