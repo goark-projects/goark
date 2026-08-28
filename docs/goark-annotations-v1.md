@@ -2,9 +2,9 @@
 
 ## 状态
 
-本文档定义 Goark 第一版注解系统的落地规范。V1 只覆盖 `goark` 核心库：DI/IoC、Bean 装配、Environment/PropertyResolver、Configuration/ApplicationContext、条件装配、排序和 Scope。不包含 `boot`、Web MVC、事务、SQL ORM、OpenAPI、安全权限等扩展能力。
+本文档定义 Goark 第一版注解系统的落地规范。V1 覆盖 `goark` 核心库的 DI/IoC、Bean 装配、Environment/PropertyResolver、Configuration/ApplicationContext、条件装配、排序和 Scope，并覆盖 `goark/web` 与 `goark/web/mvc` 当前已实现的 Web MVC 注解切片。不包含 `boot` 自动配置、starter、事务、SQL ORM、OpenAPI、安全权限等扩展能力。
 
-Goark 注解是写在 Go 注释中的编译期元数据，由 `goark` CLI 扫描 Go AST 后生成普通 Go 代码。生成代码只依赖 `goark` 核心库。运行时不做 classpath scan、不做反射扫描、不依赖全局 `init()` 自动注册。
+Goark 注解是写在 Go 注释中的编译期元数据，由 `goark` CLI 扫描 Go AST 后生成普通 Go 代码。核心 DI 生成代码只依赖 `goark` 核心库；Web MVC 生成代码依赖 `goark/web`、`goark/web/mvc` 和 Arkarta Web 请求上下文。运行时不做 classpath scan、不做反射扫描、不依赖全局 `init()` 自动注册。
 
 ## 设计目标
 
@@ -13,7 +13,7 @@ Goark 注解是写在 Go 注释中的编译期元数据，由 `goark` CLI 扫描
 - 生成代码确定、显式、可提交。
 - 支持私有字段注入，生成代码放在同一个 Go package 内。
 - 依赖关系默认由生成器基于注入点自动推导，不要求业务代码重复书写初始化依赖。
-- 让生成器产出的代码只依赖 `goark` 核心库，不依赖 `boot` 或其他扩展模块。
+- 让生成器产出的代码保持显式依赖边界，不依赖 `boot` 或 starter 模块。
 
 ## 非目标
 
@@ -21,7 +21,7 @@ Goark 注解是写在 Go 注释中的编译期元数据，由 `goark` CLI 扫描
 - 不支持运行时扫描包、类型或方法。
 - 不支持隐藏式全局 Bean 注册。
 - V1 不实现 `boot` 自动配置、`ConfigurationProperties`、项目启动约定或 starter 机制。
-- V1 不实现 Web 路由注解、HTTP 参数绑定、校验、事务、SQL、OpenAPI、权限元数据。
+- V1 不实现事务、SQL、OpenAPI、权限元数据。
 - V1 不实现 SpEL 表达式执行，`value` 只支持属性占位符和字面量转换。
 
 ## 基础语法
@@ -1535,6 +1535,66 @@ PropertySource 资源不存在：
 goark: property source "classpath:missing.properties" not found
 ```
 
+## Web MVC 注解
+
+Web MVC 注解属于 `goark/web` 与 `goark/web/mvc` 的框架能力，对标 Spring Framework 的 `spring-web` 与 `spring-webmvc`，不属于 `boot` 或 starter。生成代码通过 `goweb.Configurer` 把 MVC 控制器贡献给 Web 注册表，再由 `gbc-web` 这类 starter 负责自动装配和启动容器。
+
+控制器注解：
+
+| Goark 注解 | Java/Spring 对照 | 目标 | V1 状态 |
+| --- | --- | --- | --- |
+| `//goark:controller` | `@Controller` | struct type | 实现 |
+| `//goark:rest-controller` | `@RestController` | struct type | 实现 |
+| `//goark:mvc-controller` | MVC 控制器构造型注解 | struct type | 实现 |
+| `//goark:request-mapping` | `@RequestMapping` | struct type / method | 实现 |
+
+HTTP 方法映射：
+
+| Goark 注解 | Java/Spring 对照 | 默认状态码 |
+| --- | --- | --- |
+| `//goark:get` | `@GetMapping` | `200` |
+| `//goark:head` | `@RequestMapping(method = HEAD)` | `200` |
+| `//goark:post` | `@PostMapping` | `201` |
+| `//goark:put` | `@PutMapping` | `200` |
+| `//goark:patch` | `@PatchMapping` | `200` |
+| `//goark:delete` | `@DeleteMapping` | `200` |
+| `//goark:options` | `@RequestMapping(method = OPTIONS)` | `200` |
+
+`request-mapping` 在方法上必须显式指定 `method`，支持 `GET`、`HEAD`、`POST`、`PUT`、`PATCH`、`DELETE`、`OPTIONS`：
+
+```go
+//goark:request-mapping("/healthz", method="OPTIONS")
+func (c *SystemController) OptionsHealth() {}
+```
+
+参数绑定注解：
+
+| Goark 注解 | Java/Spring 对照 | 说明 |
+| --- | --- | --- |
+| `//goark:request-body[input]` | `@RequestBody` | JSON 请求体绑定并校验 |
+| `//goark:model-attribute[criteria]` | `@ModelAttribute` | query/form 聚合绑定并校验 |
+| `//goark:path-variable[id]` | `@PathVariable` | 路径变量 |
+| `//goark:request-param[query]` | `@RequestParam` | query 与 urlencoded form 参数 |
+| `//goark:request-header[requestID]` | `@RequestHeader` | 请求头 |
+| `//goark:cookie-value[theme]` | `@CookieValue` | Cookie 值 |
+
+示例：
+
+```go
+//goark:rest-controller("adminController")
+//goark:request-mapping("/admin")
+type AdminController struct{}
+
+//goark:get("/users/{id}")
+//goark:path-variable[id]("id")
+//goark:request-param[verbose](defaultValue="false")
+func (c *AdminController) Detail(ctx *web.Context, id int64, verbose bool) (User, error) {
+	return c.service.Detail(ctx.Context(), id, verbose)
+}
+```
+
+生成器会生成 `GoarkWebMVCConfiguration`，并注册 `goweb.Configurer` Bean。业务启动层仍需要显式把生成的配置单元交给 `goark.ApplicationContext` 或 `boot.Run`。
+
 ## Java/Spring 注解对照
 
 | Goark 注解 | Java/Spring 对照 | 来源 | V1 状态 |
@@ -1560,7 +1620,23 @@ goark: property source "classpath:missing.properties" not found
 | `//goark:inject` | `@Inject` | JSR-330 / Jakarta Inject | 实现 |
 | `//goark:named` | `@Named` | JSR-330 / Jakarta Inject | 实现 |
 | `//goark:resource` | `@Resource` | JSR-250 / Jakarta Annotations | 实现 |
+| `//goark:controller` | `@Controller` | Spring Web MVC | 实现 |
+| `//goark:rest-controller` | `@RestController` | Spring Web MVC | 实现 |
+| `//goark:request-mapping` | `@RequestMapping` | Spring Web MVC | 实现 |
+| `//goark:get` | `@GetMapping` | Spring Web MVC | 实现 |
+| `//goark:head` | `@RequestMapping(method = HEAD)` | Spring Web MVC | 实现 |
+| `//goark:post` | `@PostMapping` | Spring Web MVC | 实现 |
+| `//goark:put` | `@PutMapping` | Spring Web MVC | 实现 |
+| `//goark:patch` | `@PatchMapping` | Spring Web MVC | 实现 |
+| `//goark:delete` | `@DeleteMapping` | Spring Web MVC | 实现 |
+| `//goark:options` | `@RequestMapping(method = OPTIONS)` | Spring Web MVC | 实现 |
+| `//goark:request-body` | `@RequestBody` | Spring Web MVC | 实现 |
+| `//goark:model-attribute` | `@ModelAttribute` | Spring Web MVC | 实现 |
+| `//goark:path-variable` | `@PathVariable` | Spring Web MVC | 实现 |
+| `//goark:request-param` | `@RequestParam` | Spring Web MVC | 实现 |
+| `//goark:request-header` | `@RequestHeader` | Spring Web MVC | 实现 |
+| `//goark:cookie-value` | `@CookieValue` | Spring Web MVC | 实现 |
 
 ## 核心库边界
 
-本规范只要求 `goark` 核心库提供这些注解对应的运行时契约、容器元数据和生成代码依赖面。`boot` 后续可以基于这些能力提供配置文件约定、自动注册和 starter 体验，但不能把新的核心语义反向塞进 `boot`。
+本规范只要求 `goark`、`goark/web` 与 `goark/web/mvc` 提供这些注解对应的运行时契约、容器元数据和生成代码依赖面。`boot` 可以基于这些能力提供配置文件约定、自动注册和 starter 体验，但不能把新的框架语义反向塞进 `boot`。
