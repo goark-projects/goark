@@ -1,6 +1,7 @@
 package mvc
 
 import (
+	servletmultipart "goark.dev/arkarta/servlet/multipart"
 	arkweb "goark.dev/arkarta/web"
 	goweb "goark.dev/goark/web"
 )
@@ -69,6 +70,36 @@ func BindEntity[In any, Out any](fn BindEntityFunc[In, Out]) arkweb.Handler {
 	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
 		var input In
 		if err := ctx.BindAndValidateJSON(&input); err != nil {
+			return nil, err
+		}
+		entity, err := fn(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+		return entity, nil
+	})
+}
+
+// BindMultipart 绑定并校验 multipart/form-data 请求体，再将返回值写为 JSON 响应。
+func BindMultipart[In any, Out any](statusCode int, fn BindFunc[In, Out], options ...servletmultipart.Option) arkweb.Handler {
+	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+		input, err := Multipart[In](ctx, options...)
+		if err != nil {
+			return nil, err
+		}
+		value, err := fn(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+		return arkweb.JSON(statusCode, value), nil
+	})
+}
+
+// BindMultipartEntity 绑定并校验 multipart/form-data 请求体，再写出响应实体。
+func BindMultipartEntity[In any, Out any](fn BindEntityFunc[In, Out], options ...servletmultipart.Option) arkweb.Handler {
+	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+		input, err := Multipart[In](ctx, options...)
+		if err != nil {
 			return nil, err
 		}
 		entity, err := fn(ctx, input)

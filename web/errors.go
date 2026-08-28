@@ -17,4 +17,6 @@ var (
 	ErrNilFilter = errors.New("goark/web: filter is nil")
 	// ErrNilServlet 表示 Servlet 为空。
 	ErrNilServlet = errors.New("goark/web: servlet is nil")
+	// ErrNilDownloadReader 表示下载响应体为空。
+	ErrNilDownloadReader = errors.New("goark/web: download reader is nil")
 )
