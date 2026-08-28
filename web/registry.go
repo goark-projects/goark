@@ -72,7 +72,7 @@ func (r *Registry) OPTIONS(pattern string, handler arkweb.Handler) error {
 
 // Use 注册全局 Web 拦截器。
 func (r *Registry) Use(interceptor arkweb.Interceptor) {
-	if interceptor != nil {
+	if !isNilInterceptor(interceptor) {
 		r.interceptors = append(r.interceptors, interceptor)
 	}
 }
@@ -93,7 +93,7 @@ func (r *Registry) UseErrorMapper(mapper arkweb.ErrorMapper) {
 
 // AddFilter 添加 Servlet 过滤器。
 func (r *Registry) AddFilter(filter servlet.Filter) {
-	if filter != nil {
+	if !isNilFilter(filter) {
 		r.filters = append(r.filters, filter)
 	}
 }

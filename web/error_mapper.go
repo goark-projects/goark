@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"reflect"
 
 	arkweb "goark.dev/arkarta/web"
 	"goark.dev/goark/container"
@@ -67,14 +66,5 @@ func RegisterErrorMapper(registry *container.Registry, name string, mapper arkwe
 }
 
 func isNilErrorMapper(mapper arkweb.ErrorMapper) bool {
-	if mapper == nil {
-		return true
-	}
-	value := reflect.ValueOf(mapper)
-	switch value.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
-		return value.IsNil()
-	default:
-		return false
-	}
+	return isNilWebValue(mapper)
 }
