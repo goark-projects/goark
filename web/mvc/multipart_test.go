@@ -96,6 +96,52 @@ func TestBindMultipartEntityWritesResponseEntity(t *testing.T) {
 	}
 }
 
+func TestRequestPartReturnsNamedMultipartPart(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	configurer := mvc.NewConfigurer(mvc.NewController("uploads",
+		mvc.POST("/uploads/part", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]string, error) {
+			part, err := mvc.RequestPart(ctx, "file")
+			if err != nil {
+				return nil, err
+			}
+			file, err := part.Open()
+			if err != nil {
+				return nil, err
+			}
+			defer file.Close()
+			data, err := io.ReadAll(file)
+			if err != nil {
+				return nil, err
+			}
+			return map[string]string{
+				"filename": part.SubmittedFileName(),
+				"body":     string(data),
+			}, nil
+		})),
+	))
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+
+	request := multipartRequest(t)
+	request.URL.Path = "/uploads/part"
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"filename":"profile.txt"`) ||
+		!strings.Contains(recorder.Body.String(), `"body":"hello"`) {
+		t.Fatalf("body = %s, want part payload", recorder.Body.String())
+	}
+}
+
 func multipartRequest(t *testing.T) *http.Request {
 	t.Helper()
 	var body strings.Builder

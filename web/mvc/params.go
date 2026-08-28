@@ -40,6 +40,7 @@ func PathString(ctx *arkweb.Context, name string, options ...ParamOption) (strin
 		return "", arkweb.ErrNilContext
 	}
 	value, ok := ctx.Param(name)
+	value = stripMatrixSegment(value)
 	return resolveStringParameter("路径变量", name, value, ok, nil, newParamOptions(options))
 }
 
@@ -49,6 +50,7 @@ func PathInt(ctx *arkweb.Context, name string, options ...ParamOption) (int, err
 		return 0, arkweb.ErrNilContext
 	}
 	value, ok := ctx.Param(name)
+	value = stripMatrixSegment(value)
 	return resolveIntParameter("路径变量", name, value, ok, nil, newParamOptions(options))
 }
 
@@ -58,6 +60,7 @@ func PathInt64(ctx *arkweb.Context, name string, options ...ParamOption) (int64,
 		return 0, arkweb.ErrNilContext
 	}
 	value, ok := ctx.Param(name)
+	value = stripMatrixSegment(value)
 	return resolveInt64Parameter("路径变量", name, value, ok, nil, newParamOptions(options))
 }
 
@@ -67,6 +70,7 @@ func PathBool(ctx *arkweb.Context, name string, options ...ParamOption) (bool, e
 		return false, arkweb.ErrNilContext
 	}
 	value, ok := ctx.Param(name)
+	value = stripMatrixSegment(value)
 	return resolveBoolParameter("路径变量", name, value, ok, nil, newParamOptions(options))
 }
 

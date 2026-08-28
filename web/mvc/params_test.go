@@ -1,13 +1,16 @@
 package mvc_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	arkjson "goark.dev/arkarta/json"
+	"goark.dev/arkarta/servlet"
 	servletnethttp "goark.dev/arkarta/servlet/nethttp"
+	"goark.dev/arkarta/servlet/session"
 	arkweb "goark.dev/arkarta/web"
 	"goark.dev/goark/web/mvc"
 )
@@ -86,6 +89,93 @@ func TestParameterHelpersRejectMissingRequiredParameter(t *testing.T) {
 	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/users", nil))
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400, body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestParameterHelpersBindRequestAndSessionAttributes(t *testing.T) {
+	t.Parallel()
+
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/attributes", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]any, error) {
+		traceID, err := mvc.RequestAttributeString(ctx, "traceID")
+		if err != nil {
+			return nil, err
+		}
+		attempt, err := mvc.RequestAttributeInt(ctx, "attempt")
+		if err != nil {
+			return nil, err
+		}
+		principal, err := mvc.SessionAttributeString(ctx, "principal")
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{
+			"traceID":   traceID,
+			"attempt":   attempt,
+			"principal": principal,
+		}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+	handler := servlet.ChainFilters(router, servlet.FilterFunc(func(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
+		req.SetAttribute("traceID", "trace-1")
+		req.SetAttribute("attempt", 2)
+		current, err := session.NewMemoryManager().Create(ctx)
+		if err != nil {
+			return err
+		}
+		if err := current.SetAttribute("principal", "alice"); err != nil {
+			return err
+		}
+		req.SetAttribute(session.AttributeCurrentSession, current)
+		return chain.Next(ctx, req, res)
+	}))
+
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(handler).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/attributes", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"traceID":"trace-1"`) ||
+		!strings.Contains(recorder.Body.String(), `"attempt":2`) ||
+		!strings.Contains(recorder.Body.String(), `"principal":"alice"`) {
+		t.Fatalf("body = %s, want attributes", recorder.Body.String())
+	}
+}
+
+func TestParameterHelpersBindMatrixVariables(t *testing.T) {
+	t.Parallel()
+
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/cars/{id}", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]any, error) {
+		id, err := mvc.PathInt64(ctx, "id")
+		if err != nil {
+			return nil, err
+		}
+		color, err := mvc.MatrixVariableString(ctx, "color")
+		if err != nil {
+			return nil, err
+		}
+		year, err := mvc.MatrixVariableInt(ctx, "year")
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"id": id, "color": color, "year": year}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/cars/42;color=red;year=2026", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"id":42`) ||
+		!strings.Contains(recorder.Body.String(), `"color":"red"`) ||
+		!strings.Contains(recorder.Body.String(), `"year":2026`) {
+		t.Fatalf("body = %s, want matrix variables", recorder.Body.String())
 	}
 }
 

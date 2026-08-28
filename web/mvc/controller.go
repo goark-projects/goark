@@ -32,7 +32,7 @@ func (c Controller) Register(registry *goweb.Registry) error {
 		return goweb.ErrNilRegistry
 	}
 	for _, route := range c.routes {
-		if err := registry.Handle(route.Method, route.Pattern, route.Handler); err != nil {
+		if err := registry.Handle(route.Method, route.Pattern, route.Conditions.wrap(route.Handler)); err != nil {
 			return err
 		}
 	}
