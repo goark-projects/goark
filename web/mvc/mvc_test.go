@@ -124,3 +124,43 @@ func TestRequestMappingMethodsNormalizesAndDeduplicatesMethods(t *testing.T) {
 		}
 	}
 }
+
+func TestControllerRequestMethodsNarrowRegisteredRoutes(t *testing.T) {
+	controller := mvc.NewRestController("probe",
+		mvc.GET("/probe", mvc.NoContent(func(_ *arkweb.Context) error {
+			return nil
+		})),
+		mvc.POST("/probe", mvc.NoContent(func(_ *arkweb.Context) error {
+			return nil
+		})),
+		mvc.TRACE("/probe", mvc.NoContent(func(_ *arkweb.Context) error {
+			return nil
+		})),
+	).WithRequestMethods("post", "POST", " trace ")
+
+	methods := controller.Methods()
+	wantMethods := []string{http.MethodPost, http.MethodTrace}
+	if len(methods) != len(wantMethods) {
+		t.Fatalf("controller method count = %d, want %d", len(methods), len(wantMethods))
+	}
+	for i, method := range methods {
+		if method != wantMethods[i] {
+			t.Fatalf("controller method[%d] = %s, want %s", i, method, wantMethods[i])
+		}
+	}
+
+	registry := web.NewRegistry()
+	configurer := mvc.NewConfigurer(controller)
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+	routes := registry.Routes()
+	if len(routes) != len(wantMethods) {
+		t.Fatalf("registered route count = %d, want %d", len(routes), len(wantMethods))
+	}
+	for i, route := range routes {
+		if route.Method != wantMethods[i] {
+			t.Fatalf("registered route[%d] method = %s, want %s", i, route.Method, wantMethods[i])
+		}
+	}
+}

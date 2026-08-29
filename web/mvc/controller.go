@@ -26,6 +26,7 @@ type Controller struct {
 	name        string
 	routes      []Route
 	kind        ControllerKind
+	methods     []string
 	conditions  Conditions
 	crossOrigin *cors.Config
 }
@@ -61,6 +62,11 @@ func (c Controller) Routes() []Route {
 	return append([]Route(nil), c.routes...)
 }
 
+// Methods 返回控制器级 HTTP method 限定快照。
+func (c Controller) Methods() []string {
+	return append([]string(nil), c.methods...)
+}
+
 // WithCrossOrigin 设置控制器级 CORS 策略，对齐 Spring 类级 @CrossOrigin。
 func (c Controller) WithCrossOrigin(config cors.Config) Controller {
 	c.crossOrigin = cloneCrossOriginConfig(config)
@@ -73,6 +79,9 @@ func (c Controller) Register(registry *goweb.Registry) error {
 		return goweb.ErrNilRegistry
 	}
 	for _, route := range c.routes {
+		if !c.allowsRouteMethod(route.Method) {
+			continue
+		}
 		if config, ok := c.crossOriginFor(route); ok {
 			if err := registry.AddCORSMapping(route.Pattern, crossOriginMethods(route.Method), *config); err != nil {
 				return err

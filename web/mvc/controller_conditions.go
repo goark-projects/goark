@@ -1,5 +1,11 @@
 package mvc
 
+// WithRequestMethods 设置控制器级 HTTP method 条件。
+func (c Controller) WithRequestMethods(methods ...string) Controller {
+	c.methods = normalizeExplicitRequestMethods(methods)
+	return c
+}
+
 // WithConditions 设置控制器级请求映射条件。
 func (c Controller) WithConditions(conditions Conditions) Controller {
 	c.conditions = cloneConditions(conditions)
@@ -45,6 +51,13 @@ func mergeControllerRouteConditions(controller Conditions, route Conditions) Con
 		out.Headers = append(append([]string(nil), controller.Headers...), out.Headers...)
 	}
 	return out
+}
+
+func (c Controller) allowsRouteMethod(method string) bool {
+	if len(c.methods) == 0 {
+		return true
+	}
+	return hasRequestMethod(c.methods, method)
 }
 
 func cloneConditions(conditions Conditions) Conditions {

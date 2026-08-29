@@ -36,6 +36,10 @@ func normalizeRequestMappingMethods(methods []string) []string {
 	if len(methods) == 0 {
 		return defaultRequestMappingMethods[:]
 	}
+	return normalizeExplicitRequestMethods(methods)
+}
+
+func normalizeExplicitRequestMethods(methods []string) []string {
 	out := make([]string, 0, len(methods))
 	seen := make(map[string]struct{}, len(methods))
 	for _, method := range methods {
@@ -47,4 +51,14 @@ func normalizeRequestMappingMethods(methods []string) []string {
 		out = append(out, method)
 	}
 	return out
+}
+
+func hasRequestMethod(methods []string, method string) bool {
+	method = strings.ToUpper(strings.TrimSpace(method))
+	for _, item := range methods {
+		if item == method {
+			return true
+		}
+	}
+	return false
 }
