@@ -45,6 +45,11 @@ func BindMultipartGroups[In any, Out any](statusCode int, fn BindFunc[In, Out], 
 	return bindMultipart(statusCode, fn, groups, options...)
 }
 
+// BindMultipartResultGroups 绑定 multipart/form-data 请求体，并按显式校验分组传入 BindingResult。
+func BindMultipartResultGroups[In any, Out any](statusCode int, fn BindResultFunc[In, Out], groups []string, options ...servletmultipart.Option) arkweb.Handler {
+	return bindMultipartResult(statusCode, fn, groups, options...)
+}
+
 // BindMultipartEntityGroups 绑定 multipart/form-data 请求体，并按显式校验分组写出响应实体。
 func BindMultipartEntityGroups[In any, Out any](fn BindEntityFunc[In, Out], groups []string, options ...servletmultipart.Option) arkweb.Handler {
 	return bindMultipartEntity(fn, groups, options...)

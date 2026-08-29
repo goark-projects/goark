@@ -21,10 +21,21 @@ type uploadRequest struct {
 	File  servletmultipart.Part `multipart:"file"`
 }
 
+type uploadValidatedRequest struct {
+	Title string                `form:"title" arkarta:"required"`
+	File  servletmultipart.Part `multipart:"file"`
+}
+
 type uploadPartsPayload struct {
 	Names  []string `json:"names"`
 	Bodies []string `json:"bodies"`
 	Count  int      `json:"count"`
+}
+
+type uploadBindingPayload struct {
+	Valid    bool   `json:"valid"`
+	Field    string `json:"field"`
+	Filename string `json:"filename"`
 }
 
 func TestBindMultipartBindsValuesAndParts(t *testing.T) {
@@ -72,6 +83,45 @@ func TestBindMultipartBindsValuesAndParts(t *testing.T) {
 	}
 }
 
+func TestBindMultipartResultPassesValidationErrorsToHandler(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	configurer := mvc.NewConfigurer(mvc.NewController("uploads",
+		mvc.POST("/uploads/result", mvc.BindMultipartResult(http.StatusOK, func(_ *arkweb.Context, input uploadValidatedRequest, result mvc.BindingResult) (uploadBindingPayload, error) {
+			field, ok := result.FieldError("title")
+			if !ok {
+				return uploadBindingPayload{Valid: result.Valid()}, nil
+			}
+			return uploadBindingPayload{
+				Valid:    result.Valid(),
+				Field:    field.Path(),
+				Filename: input.File.SubmittedFileName(),
+			}, nil
+		})),
+	))
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, multipartFileOnlyRequest(t, "/uploads/result"))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	var payload uploadBindingPayload
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if payload.Valid || payload.Field != "title" || payload.Filename != "profile.txt" {
+		t.Fatalf("payload = %#v, want multipart binding result", payload)
+	}
+}
+
 func TestBindMultipartEntityWritesResponseEntity(t *testing.T) {
 	t.Parallel()
 
@@ -99,6 +149,49 @@ func TestBindMultipartEntityWritesResponseEntity(t *testing.T) {
 	}
 	if got := recorder.Header().Get("X-Upload"); got != "profile.txt" {
 		t.Fatalf("X-Upload = %q, want profile.txt", got)
+	}
+}
+
+func TestMultipartResultPassesValidationErrorsToHandler(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	configurer := mvc.NewConfigurer(mvc.NewController("uploads",
+		mvc.POST("/uploads/helper", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (uploadBindingPayload, error) {
+			input, result, err := mvc.MultipartResult[uploadValidatedRequest](ctx)
+			if err != nil {
+				return uploadBindingPayload{}, err
+			}
+			field, ok := result.FieldError("title")
+			if !ok {
+				return uploadBindingPayload{Valid: result.Valid()}, nil
+			}
+			return uploadBindingPayload{
+				Valid:    result.Valid(),
+				Field:    field.Path(),
+				Filename: input.File.SubmittedFileName(),
+			}, nil
+		})),
+	))
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, multipartFileOnlyRequest(t, "/uploads/helper"))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	var payload uploadBindingPayload
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if payload.Valid || payload.Field != "title" || payload.Filename != "profile.txt" {
+		t.Fatalf("payload = %#v, want helper multipart binding result", payload)
 	}
 }
 
@@ -233,6 +326,25 @@ func multipartRequest(t *testing.T) *http.Request {
 		t.Fatalf("writer close failed: %v", err)
 	}
 	request := httptest.NewRequest(http.MethodPost, "/uploads", strings.NewReader(body.String()))
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	return request
+}
+
+func multipartFileOnlyRequest(t *testing.T, target string) *http.Request {
+	t.Helper()
+	var body strings.Builder
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "profile.txt")
+	if err != nil {
+		t.Fatalf("CreateFormFile failed: %v", err)
+	}
+	if _, err := io.WriteString(part, "hello"); err != nil {
+		t.Fatalf("write part failed: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("writer close failed: %v", err)
+	}
+	request := httptest.NewRequest(http.MethodPost, target, strings.NewReader(body.String()))
 	request.Header.Set("Content-Type", writer.FormDataContentType())
 	return request
 }
