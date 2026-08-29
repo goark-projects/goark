@@ -66,6 +66,9 @@ func (v ModelAndView) Write(ctx *arkweb.Context) error {
 	if viewName == "" {
 		viewName = DefaultViewName(ctx)
 	}
+	if result, ok := redirectResultFromViewName(ctx, v.status, viewName); ok {
+		return result.Write(ctx)
+	}
 	return view.Using(
 		v.resolver,
 		viewName,
