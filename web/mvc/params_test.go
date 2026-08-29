@@ -4,8 +4,10 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	arkjson "goark.dev/arkarta/json"
 	"goark.dev/arkarta/servlet"
@@ -67,6 +69,102 @@ func TestParameterHelpersBindRequestSources(t *testing.T) {
 	}
 	if payload.ID != 42 || payload.Page != 1 || payload.RequestID != "req-1" || payload.Theme != "dark" {
 		t.Fatalf("payload = %#v", payload)
+	}
+}
+
+func TestParameterHelpersBindExtendedConversions(t *testing.T) {
+	t.Parallel()
+
+	type payload struct {
+		Score     float64   `json:"score"`
+		Tags      []string  `json:"tags"`
+		IDs       []int64   `json:"ids"`
+		Enabled   []bool    `json:"enabled"`
+		Ratios    []float64 `json:"ratios"`
+		HeaderAt  string    `json:"headerAt"`
+		Roles     []string  `json:"roles"`
+		Threshold float64   `json:"threshold"`
+		Day       string    `json:"day"`
+	}
+
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/reports/{date}", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (payload, error) {
+		score, err := mvc.RequestParamFloat64(ctx, "score")
+		if err != nil {
+			return payload{}, err
+		}
+		tags, err := mvc.RequestParamStrings(ctx, "tag")
+		if err != nil {
+			return payload{}, err
+		}
+		ids, err := mvc.RequestParamInt64s(ctx, "ids")
+		if err != nil {
+			return payload{}, err
+		}
+		enabled, err := mvc.RequestParamBools(ctx, "enabled")
+		if err != nil {
+			return payload{}, err
+		}
+		ratios, err := mvc.RequestParamFloat64s(ctx, "ratio")
+		if err != nil {
+			return payload{}, err
+		}
+		headerAt, err := mvc.RequestHeaderTime(ctx, "X-At")
+		if err != nil {
+			return payload{}, err
+		}
+		roles, err := mvc.RequestHeaderStrings(ctx, "X-Role")
+		if err != nil {
+			return payload{}, err
+		}
+		threshold, err := mvc.CookieValueFloat64(ctx, "threshold")
+		if err != nil {
+			return payload{}, err
+		}
+		day, err := mvc.PathTime(ctx, "date", mvc.WithTimeLayout("20060102"))
+		if err != nil {
+			return payload{}, err
+		}
+		return payload{
+			Score:     score,
+			Tags:      tags,
+			IDs:       ids,
+			Enabled:   enabled,
+			Ratios:    ratios,
+			HeaderAt:  headerAt.UTC().Format(time.RFC3339),
+			Roles:     roles,
+			Threshold: threshold,
+			Day:       day.Format("2006-01-02"),
+		}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/reports/20260829?score=98.5&tag=ops&tag=web,api&ids=1,2&enabled=true,false&ratio=1.5&ratio=2.5", nil)
+	request.Header.Set("X-At", "2026-08-29T02:30:00Z")
+	request.Header.Add("X-Role", "admin,ops")
+	request.AddCookie(&http.Cookie{Name: "threshold", Value: "0.75"})
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	var got payload
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &got); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if got.Score != 98.5 ||
+		!reflect.DeepEqual(got.Tags, []string{"ops", "web", "api"}) ||
+		!reflect.DeepEqual(got.IDs, []int64{1, 2}) ||
+		!reflect.DeepEqual(got.Enabled, []bool{true, false}) ||
+		!reflect.DeepEqual(got.Ratios, []float64{1.5, 2.5}) ||
+		got.HeaderAt != "2026-08-29T02:30:00Z" ||
+		!reflect.DeepEqual(got.Roles, []string{"admin", "ops"}) ||
+		got.Threshold != 0.75 ||
+		got.Day != "2026-08-29" {
+		t.Fatalf("payload = %#v", got)
 	}
 }
 

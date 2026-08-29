@@ -16,6 +16,7 @@ type paramOptions struct {
 	required     bool
 	hasDefault   bool
 	defaultValue string
+	timeLayouts  []string
 }
 
 // WithRequired 设置参数是否必须存在。
