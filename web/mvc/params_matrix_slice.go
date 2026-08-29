@@ -49,9 +49,13 @@ func MatrixVariableTimes(ctx *arkweb.Context, name string, options ...ParamOptio
 }
 
 func matrixValuesFor(ctx *arkweb.Context, name string, pathVariable string) ([]string, bool, error) {
-	value, ok, err := matrixValue(ctx, name, pathVariable)
-	if err != nil || !ok {
+	values, err := matrixValueListsForContext(ctx, pathVariable)
+	if err != nil {
+		return nil, false, err
+	}
+	list, ok := values[name]
+	if !ok || len(list) == 0 {
 		return nil, ok, err
 	}
-	return []string{value}, true, nil
+	return append([]string(nil), list...), true, nil
 }

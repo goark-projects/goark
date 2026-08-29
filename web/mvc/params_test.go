@@ -384,6 +384,41 @@ func TestParameterHelpersBindMatrixVariables(t *testing.T) {
 	}
 }
 
+func TestMatrixVariableSlicesBindRepeatedValues(t *testing.T) {
+	t.Parallel()
+
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/cars/{id}/owners/{ownerId}", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]any, error) {
+		colors, err := mvc.MatrixVariableStrings(ctx, "color")
+		if err != nil {
+			return nil, err
+		}
+		codes, err := mvc.MatrixVariableInts(ctx, "code")
+		if err != nil {
+			return nil, err
+		}
+		ownerColors, err := mvc.MatrixVariableStrings(ctx, "color", mvc.WithMatrixPathVariable("ownerId"))
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"colors": colors, "codes": codes, "ownerColors": ownerColors}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/cars/42;color=red;color=blue;code=1,2;code=3/owners/7;color=black;color=white", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"colors":["red","blue","black","white"]`) ||
+		!strings.Contains(recorder.Body.String(), `"codes":[1,2,3]`) ||
+		!strings.Contains(recorder.Body.String(), `"ownerColors":["black","white"]`) {
+		t.Fatalf("body = %s, want repeated matrix values", recorder.Body.String())
+	}
+}
+
 func TestMatrixVariableCanBindFromNamedPathVariable(t *testing.T) {
 	t.Parallel()
 

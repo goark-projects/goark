@@ -100,3 +100,62 @@ func TestParameterHelpersBindRequestHeaderMaps(t *testing.T) {
 		t.Fatalf("header values = %#v", got.Values)
 	}
 }
+
+func TestParameterHelpersBindMatrixVariableMaps(t *testing.T) {
+	t.Parallel()
+
+	type payload struct {
+		Matrix      map[string]string   `json:"matrix"`
+		Values      map[string][]string `json:"values"`
+		OwnerMatrix map[string]string   `json:"ownerMatrix"`
+		OwnerValues map[string][]string `json:"ownerValues"`
+	}
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/cars/{id}/owners/{ownerId}", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (payload, error) {
+		matrix, err := mvc.MatrixVariableMap(ctx)
+		if err != nil {
+			return payload{}, err
+		}
+		values, err := mvc.MatrixVariableValuesMap(ctx)
+		if err != nil {
+			return payload{}, err
+		}
+		ownerMatrix, err := mvc.MatrixVariableMap(ctx, mvc.WithMatrixPathVariable("ownerId"))
+		if err != nil {
+			return payload{}, err
+		}
+		ownerValues, err := mvc.MatrixVariableValuesMap(ctx, mvc.WithMatrixPathVariable("ownerId"))
+		if err != nil {
+			return payload{}, err
+		}
+		return payload{Matrix: matrix, Values: values, OwnerMatrix: ownerMatrix, OwnerValues: ownerValues}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/cars/42;color=red;color=blue;year=2026/owners/7;color=black;color=white;q=owner", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	var got payload
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &got); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if !reflect.DeepEqual(got.Matrix, map[string]string{"color": "red", "year": "2026", "q": "owner"}) {
+		t.Fatalf("matrix = %#v", got.Matrix)
+	}
+	if !reflect.DeepEqual(got.Values["color"], []string{"red", "blue", "black", "white"}) ||
+		!reflect.DeepEqual(got.Values["year"], []string{"2026"}) ||
+		!reflect.DeepEqual(got.Values["q"], []string{"owner"}) {
+		t.Fatalf("values = %#v", got.Values)
+	}
+	if !reflect.DeepEqual(got.OwnerMatrix, map[string]string{"color": "black", "q": "owner"}) {
+		t.Fatalf("owner matrix = %#v", got.OwnerMatrix)
+	}
+	if !reflect.DeepEqual(got.OwnerValues["color"], []string{"black", "white"}) ||
+		!reflect.DeepEqual(got.OwnerValues["q"], []string{"owner"}) {
+		t.Fatalf("owner values = %#v", got.OwnerValues)
+	}
+}

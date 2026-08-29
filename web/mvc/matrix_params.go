@@ -42,36 +42,65 @@ func MatrixVariableBool(ctx *arkweb.Context, name string, options ...ParamOption
 	return resolveBoolParameter("矩阵变量", name, value, ok, err, paramOptions)
 }
 
+// MatrixVariableMap 绑定全部矩阵变量，每个名称取第一个值。
+func MatrixVariableMap(ctx *arkweb.Context, options ...ParamOption) (map[string]string, error) {
+	paramOptions := newParamOptions(ctx, options)
+	values, err := matrixValueListsForContext(ctx, paramOptions.matrixPathVariable)
+	if err != nil {
+		return nil, err
+	}
+	return firstStringValueMap(values), nil
+}
+
+// MatrixVariableValuesMap 绑定全部矩阵变量，保留每个名称的全部值。
+func MatrixVariableValuesMap(ctx *arkweb.Context, options ...ParamOption) (map[string][]string, error) {
+	paramOptions := newParamOptions(ctx, options)
+	values, err := matrixValueListsForContext(ctx, paramOptions.matrixPathVariable)
+	if err != nil {
+		return nil, err
+	}
+	return cloneStringValuesMap(values), nil
+}
+
 func matrixValue(ctx *arkweb.Context, name string, pathVariable string) (string, bool, error) {
 	if ctx == nil || ctx.Request() == nil {
 		return "", false, arkweb.ErrNilContext
 	}
-	values := matrixValues(ctx, pathVariable)
+	values := firstStringValueMap(matrixValueLists(ctx, pathVariable))
 	value, ok := values[name]
 	return value, ok, nil
 }
 
-func matrixValues(ctx *arkweb.Context, pathVariable string) map[string]string {
+func matrixValueListsForContext(ctx *arkweb.Context, pathVariable string) (map[string][]string, error) {
+	if ctx == nil || ctx.Request() == nil {
+		return nil, arkweb.ErrNilContext
+	}
+	return matrixValueLists(ctx, pathVariable), nil
+}
+
+func matrixValueLists(ctx *arkweb.Context, pathVariable string) map[string][]string {
 	if pathVariable != "" {
 		segment, ok := ctx.Param(pathVariable)
 		if !ok {
-			return map[string]string{}
+			return map[string][]string{}
 		}
-		return matrixSegmentValues(segment)
+		return matrixSegmentValueLists(segment)
 	}
-	out := make(map[string]string)
+	out := make(map[string][]string)
 	for _, segment := range strings.Split(strings.Trim(ctx.Request().Path(), "/"), "/") {
-		for name, value := range matrixSegmentValues(segment) {
-			if _, exists := out[name]; !exists {
-				out[name] = value
-			}
+		for name, values := range matrixSegmentValueLists(segment) {
+			out[name] = append(out[name], values...)
 		}
 	}
 	return out
 }
 
 func matrixSegmentValues(segment string) map[string]string {
-	out := make(map[string]string)
+	return firstStringValueMap(matrixSegmentValueLists(segment))
+}
+
+func matrixSegmentValueLists(segment string) map[string][]string {
+	out := make(map[string][]string)
 	parts := strings.Split(segment, ";")
 	if len(parts) < 2 {
 		return out
@@ -85,10 +114,7 @@ func matrixSegmentValues(segment string) map[string]string {
 		if name == "" {
 			continue
 		}
-		if _, exists := out[name]; exists {
-			continue
-		}
-		out[name] = pathUnescape(strings.TrimSpace(value))
+		out[name] = append(out[name], pathUnescape(strings.TrimSpace(value)))
 	}
 	return out
 }
