@@ -52,6 +52,71 @@ func TestRouteConditionsAllowMatchingRequest(t *testing.T) {
 	}
 }
 
+func TestRouteProducesControlsMVCJSONContentType(t *testing.T) {
+	t.Parallel()
+
+	const mediaType = "application/vnd.goark.job+json"
+	registry := web.NewRegistry()
+	configurer := mvc.NewConfigurer(mvc.NewController("jobs",
+		mvc.GET("/jobs/1", mvc.JSON(http.StatusOK, func(*arkweb.Context) (map[string]string, error) {
+			return map[string]string{"state": "queued"}, nil
+		}), mvc.WithProduces(mediaType)),
+	))
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/jobs/1", nil)
+	request.Header.Set("Accept", mediaType)
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if got := recorder.Header().Get("Content-Type"); got != mediaType {
+		t.Fatalf("Content-Type = %q, want %s", got, mediaType)
+	}
+	if !strings.Contains(recorder.Body.String(), `"state":"queued"`) {
+		t.Fatalf("body = %s, want JSON payload", recorder.Body.String())
+	}
+}
+
+func TestRouteProducesControlsMVCEntityContentType(t *testing.T) {
+	t.Parallel()
+
+	const mediaType = "application/vnd.goark.job+json"
+	registry := web.NewRegistry()
+	configurer := mvc.NewConfigurer(mvc.NewController("jobs",
+		mvc.GET("/jobs/1", mvc.Entity(func(*arkweb.Context) (web.ResponseEntity[map[string]string], error) {
+			return web.OK(map[string]string{"state": "queued"}), nil
+		}), mvc.WithProduces(mediaType)),
+	))
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/jobs/1", nil)
+	request.Header.Set("Accept", mediaType)
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if got := recorder.Header().Get("Content-Type"); got != mediaType {
+		t.Fatalf("Content-Type = %q, want %s", got, mediaType)
+	}
+}
+
 func TestRouteConditionsRejectMismatches(t *testing.T) {
 	t.Parallel()
 

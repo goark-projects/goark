@@ -35,7 +35,7 @@ func Entity[T any](fn EntityFunc[T]) arkweb.Handler {
 		if err != nil {
 			return nil, err
 		}
-		return entity, nil
+		return entityResult(ctx, entity), nil
 	})
 }
 
@@ -46,7 +46,7 @@ func JSON[T any](statusCode int, fn ValueFunc[T]) arkweb.Handler {
 		if err != nil {
 			return nil, err
 		}
-		return arkweb.JSON(statusCode, value), nil
+		return jsonResult(ctx, statusCode, value), nil
 	})
 }
 
@@ -66,7 +66,7 @@ func bindJSON[In any, Out any](statusCode int, fn BindFunc[In, Out], groups []st
 		if err != nil {
 			return nil, err
 		}
-		return arkweb.JSON(statusCode, value), nil
+		return jsonResult(ctx, statusCode, value), nil
 	})
 }
 
@@ -86,7 +86,7 @@ func bindEntity[In any, Out any](fn BindEntityFunc[In, Out], groups []string) ar
 		if err != nil {
 			return nil, err
 		}
-		return entity, nil
+		return entityResult(ctx, entity), nil
 	})
 }
 
@@ -106,7 +106,7 @@ func bindMultipart[In any, Out any](statusCode int, fn BindFunc[In, Out], groups
 		if err != nil {
 			return nil, err
 		}
-		return arkweb.JSON(statusCode, value), nil
+		return jsonResult(ctx, statusCode, value), nil
 	})
 }
 
@@ -126,7 +126,7 @@ func bindMultipartEntity[In any, Out any](fn BindEntityFunc[In, Out], groups []s
 		if err != nil {
 			return nil, err
 		}
-		return entity, nil
+		return entityResult(ctx, entity), nil
 	})
 }
 

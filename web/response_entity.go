@@ -95,6 +95,11 @@ func (e ResponseEntity[T]) WithMediaTypes(mediaTypes ...string) ResponseEntity[T
 	return e
 }
 
+// HasMediaTypes 返回实体是否显式设置了响应媒体类型。
+func (e ResponseEntity[T]) HasMediaTypes() bool {
+	return len(e.mediaTypes) > 0
+}
+
 // Write 将实体响应写入 Arkarta Web 上下文。
 func (e ResponseEntity[T]) Write(ctx *arkweb.Context) error {
 	if ctx == nil || ctx.Response() == nil {
