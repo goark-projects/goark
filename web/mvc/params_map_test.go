@@ -101,6 +101,38 @@ func TestParameterHelpersBindRequestHeaderMaps(t *testing.T) {
 	}
 }
 
+func TestParameterHelpersBindPathVariableMap(t *testing.T) {
+	t.Parallel()
+
+	type payload struct {
+		Path map[string]string `json:"path"`
+	}
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/teams/{teamId}/users/{userId}", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (payload, error) {
+		path, err := mvc.PathVariableMap(ctx)
+		if err != nil {
+			return payload{}, err
+		}
+		return payload{Path: path}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/teams/core;ignored=true/users/42;role=admin", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	var got payload
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &got); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if !reflect.DeepEqual(got.Path, map[string]string{"teamId": "core", "userId": "42"}) {
+		t.Fatalf("path = %#v", got.Path)
+	}
+}
+
 func TestParameterHelpersBindMatrixVariableMaps(t *testing.T) {
 	t.Parallel()
 

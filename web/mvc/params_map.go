@@ -4,6 +4,22 @@ import (
 	arkweb "goark.dev/arkarta/web"
 )
 
+// PathVariableMap 绑定全部路径变量。
+func PathVariableMap(ctx *arkweb.Context) (map[string]string, error) {
+	if ctx == nil {
+		return nil, arkweb.ErrNilContext
+	}
+	values := ctx.PathValues()
+	if len(values) == 0 {
+		return map[string]string{}, nil
+	}
+	out := make(map[string]string, len(values))
+	for name, value := range values {
+		out[name] = stripMatrixSegment(value)
+	}
+	return out, nil
+}
+
 // RequestParamMap 绑定全部请求参数，每个名称取第一个值。
 func RequestParamMap(ctx *arkweb.Context) (map[string]string, error) {
 	values, err := requestParameters(ctx)
