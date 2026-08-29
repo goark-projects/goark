@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -52,6 +53,16 @@ func (b *Builder) JSONCodec(codec arkjson.Codec) *Builder {
 // Interceptor 追加请求拦截器。
 func (b *Builder) Interceptor(interceptor Interceptor) *Builder {
 	return b.Apply(WithInterceptor(interceptor))
+}
+
+// StatusHandler 追加默认响应状态处理器。
+func (b *Builder) StatusHandler(predicate StatusPredicate, handler StatusHandler) *Builder {
+	return b.Apply(WithStatusHandler(predicate, handler))
+}
+
+// StatusHandlerFunc 追加函数型默认响应状态处理器。
+func (b *Builder) StatusHandlerFunc(predicate StatusPredicate, handler func(context.Context, *Response) error) *Builder {
+	return b.Apply(WithStatusHandlerFunc(predicate, handler))
 }
 
 // MaxResponseBytes 设置响应体快照最大读取字节数。

@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strings"
@@ -24,6 +25,7 @@ type Client struct {
 	defaultHeaders   http.Header
 	codec            arkjson.Codec
 	interceptors     []Interceptor
+	statusHandlers   []statusHandler
 	maxResponseBytes int64
 }
 
@@ -120,6 +122,23 @@ func WithInterceptor(interceptor Interceptor) Option {
 		}
 		return nil
 	}
+}
+
+// WithStatusHandler 追加默认响应状态处理器。
+func WithStatusHandler(predicate StatusPredicate, handler StatusHandler) Option {
+	statusHandler, err := newStatusHandler(predicate, handler)
+	return func(client *Client) error {
+		if err != nil {
+			return err
+		}
+		client.statusHandlers = append(client.statusHandlers, statusHandler)
+		return nil
+	}
+}
+
+// WithStatusHandlerFunc 追加函数型默认响应状态处理器。
+func WithStatusHandlerFunc(predicate StatusPredicate, handler func(context.Context, *Response) error) Option {
+	return WithStatusHandler(predicate, StatusHandlerFunc(handler))
 }
 
 // WithMaxResponseBytes 设置响应体快照最大读取字节数；负数表示不限制。

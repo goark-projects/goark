@@ -248,6 +248,79 @@ func TestClientRetrieveRejectsNilResponse(t *testing.T) {
 	}
 }
 
+func TestClientStatusHandlerCanRaiseStatusError(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		http.Error(writer, "missing", http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	client, err := webclient.New(webclient.WithStatusHandlerFunc(webclient.IsErrorStatus, webclient.RaiseStatusError))
+	if err != nil {
+		t.Fatalf("client new failed: %v", err)
+	}
+	response, err := client.Get(t.Context(), server.URL)
+	var statusErr *webclient.StatusError
+	if !errors.As(err, &statusErr) {
+		t.Fatalf("err = %v, want StatusError", err)
+	}
+	if response == nil || response.StatusCode() != http.StatusNotFound {
+		t.Fatalf("response = %#v, want 404 response", response)
+	}
+	if !strings.Contains(string(statusErr.Body), "missing") {
+		t.Fatalf("status error body = %q, want missing", string(statusErr.Body))
+	}
+}
+
+func TestClientStatusHandlersRunInDefaultThenRequestOrder(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusCreated)
+		_, _ = io.WriteString(writer, "created")
+	}))
+	defer server.Close()
+
+	order := make([]string, 0, 2)
+	client, err := webclient.New(webclient.WithStatusHandlerFunc(webclient.StatusRange(200, 300), func(context.Context, *webclient.Response) error {
+		order = append(order, "default")
+		return nil
+	}))
+	if err != nil {
+		t.Fatalf("client new failed: %v", err)
+	}
+	response, err := client.Get(t.Context(), server.URL, webclient.OnStatusFunc(webclient.StatusCode(http.StatusCreated), func(context.Context, *webclient.Response) error {
+		order = append(order, "request")
+		return nil
+	}))
+	if err != nil {
+		t.Fatalf("get failed: %v", err)
+	}
+	if response.BodyString() != "created" {
+		t.Fatalf("body = %q, want created", response.BodyString())
+	}
+	want := []string{"default", "request"}
+	if !reflect.DeepEqual(order, want) {
+		t.Fatalf("order = %#v, want %#v", order, want)
+	}
+}
+
+func TestClientRejectsInvalidStatusHandlers(t *testing.T) {
+	t.Parallel()
+
+	if _, err := webclient.New(webclient.WithStatusHandler(nil, webclient.StatusHandlerFunc(webclient.RaiseStatusError))); !errors.Is(err, webclient.ErrInvalidStatusHandler) {
+		t.Fatalf("new err = %v, want ErrInvalidStatusHandler", err)
+	}
+	client, err := webclient.New()
+	if err != nil {
+		t.Fatalf("client new failed: %v", err)
+	}
+	if _, err := client.Get(t.Context(), "http://example.com", webclient.OnStatusFunc(nil, webclient.RaiseStatusError)); !errors.Is(err, webclient.ErrInvalidStatusHandler) {
+		t.Fatalf("request err = %v, want ErrInvalidStatusHandler", err)
+	}
+}
+
 func TestResponseEnsureSuccessReturnsStatusError(t *testing.T) {
 	t.Parallel()
 

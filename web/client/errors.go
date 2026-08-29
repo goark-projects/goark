@@ -14,6 +14,8 @@ var (
 	ErrInvalidHeader = errors.New("goark/web/client: invalid header")
 	// ErrInvalidRequest 表示请求构造失败。
 	ErrInvalidRequest = errors.New("goark/web/client: invalid request")
+	// ErrInvalidStatusHandler 表示状态处理器配置非法。
+	ErrInvalidStatusHandler = errors.New("goark/web/client: invalid status handler")
 	// ErrNilJSONTarget 表示 JSON 解码目标为空。
 	ErrNilJSONTarget = errors.New("goark/web/client: json target is nil")
 	// ErrNilHTTPResponse 表示底层传输返回了空响应。

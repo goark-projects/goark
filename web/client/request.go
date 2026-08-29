@@ -15,11 +15,12 @@ import (
 type RequestOption func(*requestConfig) error
 
 type requestConfig struct {
-	codec         arkjson.Codec
-	headers       http.Header
-	query         url.Values
-	pathVariables map[string]string
-	body          io.Reader
+	codec          arkjson.Codec
+	headers        http.Header
+	query          url.Values
+	pathVariables  map[string]string
+	body           io.Reader
+	statusHandlers []statusHandler
 }
 
 func newRequestConfig(codec arkjson.Codec) requestConfig {
@@ -36,7 +37,7 @@ func newRequestConfig(codec arkjson.Codec) requestConfig {
 
 // Exchange 执行请求并返回原始 HTTP 响应，调用方负责关闭响应体。
 func (c *Client) Exchange(ctx context.Context, method string, target string, options ...RequestOption) (*http.Response, error) {
-	request, err := c.NewRequest(ctx, method, target, options...)
+	request, _, err := c.newRequest(ctx, method, target, options...)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +46,11 @@ func (c *Client) Exchange(ctx context.Context, method string, target string, opt
 
 // Retrieve 执行请求并读取响应体快照。
 func (c *Client) Retrieve(ctx context.Context, method string, target string, options ...RequestOption) (*Response, error) {
-	raw, err := c.Exchange(ctx, method, target, options...)
+	request, config, err := c.newRequest(ctx, method, target, options...)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := c.exchangeFunc()(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -59,13 +64,22 @@ func (c *Client) Retrieve(ctx context.Context, method string, target string, opt
 	if err != nil {
 		return nil, err
 	}
-	return newResponse(raw, body, c.codec), nil
+	response := newResponse(raw, body, c.codec)
+	if err := applyStatusHandlers(ctx, response, c.statusHandlers, config.statusHandlers); err != nil {
+		return response, err
+	}
+	return response, nil
 }
 
 // NewRequest 构造 HTTP 请求但不发送。
 func (c *Client) NewRequest(ctx context.Context, method string, target string, options ...RequestOption) (*http.Request, error) {
+	request, _, err := c.newRequest(ctx, method, target, options...)
+	return request, err
+}
+
+func (c *Client) newRequest(ctx context.Context, method string, target string, options ...RequestOption) (*http.Request, requestConfig, error) {
 	if c == nil || c.httpClient == nil {
-		return nil, ErrNilHTTPClient
+		return nil, requestConfig{}, ErrNilHTTPClient
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -76,20 +90,20 @@ func (c *Client) NewRequest(ctx context.Context, method string, target string, o
 			continue
 		}
 		if err := option(&config); err != nil {
-			return nil, err
+			return nil, requestConfig{}, err
 		}
 	}
 	resolved, err := resolveURL(c.baseURL, target, config.pathVariables, config.query)
 	if err != nil {
-		return nil, err
+		return nil, requestConfig{}, err
 	}
 	request, err := http.NewRequestWithContext(ctx, strings.ToUpper(strings.TrimSpace(method)), resolved, config.body)
 	if err != nil {
-		return nil, err
+		return nil, requestConfig{}, err
 	}
 	request.Header = cloneHeader(c.defaultHeaders)
 	appendHeaders(request.Header, config.headers)
-	return request, nil
+	return request, config, nil
 }
 
 // Get 执行 GET 请求并读取响应体快照。
@@ -209,6 +223,23 @@ func WithFormBody(values url.Values) RequestOption {
 		}
 		return nil
 	}
+}
+
+// OnStatus 追加单次请求响应状态处理器。
+func OnStatus(predicate StatusPredicate, handler StatusHandler) RequestOption {
+	statusHandler, err := newStatusHandler(predicate, handler)
+	return func(config *requestConfig) error {
+		if err != nil {
+			return err
+		}
+		config.statusHandlers = append(config.statusHandlers, statusHandler)
+		return nil
+	}
+}
+
+// OnStatusFunc 追加函数型单次请求响应状态处理器。
+func OnStatusFunc(predicate StatusPredicate, handler func(context.Context, *Response) error) RequestOption {
+	return OnStatus(predicate, StatusHandlerFunc(handler))
 }
 
 func cleanHeader(name string, values []string) (string, []string, error) {
