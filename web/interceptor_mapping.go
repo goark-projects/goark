@@ -38,7 +38,7 @@ func NewInterceptorMapping(options ...InterceptorMappingOption) (InterceptorMapp
 	}, nil
 }
 
-// WithInterceptorPathPatterns 设置需要拦截的路径模式，支持字面量、* 和 /** 后缀。
+// WithInterceptorPathPatterns 设置需要拦截的路径模式，支持字面量、*、? 和 Ant 风格 ** 路径段。
 func WithInterceptorPathPatterns(patterns ...string) InterceptorMappingOption {
 	return func(config *interceptorMappingConfig) error {
 		cleaned, err := cleanInterceptorPatterns(patterns)
@@ -50,7 +50,7 @@ func WithInterceptorPathPatterns(patterns ...string) InterceptorMappingOption {
 	}
 }
 
-// WithInterceptorExcludePathPatterns 设置需要跳过的路径模式，支持字面量、* 和 /** 后缀。
+// WithInterceptorExcludePathPatterns 设置需要跳过的路径模式，支持字面量、*、? 和 Ant 风格 ** 路径段。
 func WithInterceptorExcludePathPatterns(patterns ...string) InterceptorMappingOption {
 	return func(config *interceptorMappingConfig) error {
 		cleaned, err := cleanInterceptorPatterns(patterns)
@@ -139,25 +139,79 @@ func validInterceptorPattern(pattern string) bool {
 	if strings.ContainsAny(pattern, "\x00\r\n") {
 		return false
 	}
-	if strings.Contains(pattern, "**") && !strings.HasSuffix(pattern, "/**") {
-		return false
+	for _, segment := range interceptorPathSegments(pattern) {
+		if strings.Contains(segment, "**") && segment != "**" {
+			return false
+		}
+		if segment == "**" {
+			continue
+		}
+		if _, err := path.Match(segment, segment); err != nil {
+			return false
+		}
 	}
-	if strings.HasSuffix(pattern, "/**") {
-		prefix := strings.TrimSuffix(pattern, "/**")
-		return prefix == "" || !strings.ContainsAny(prefix, "*?[")
-	}
-	_, err := path.Match(pattern, pattern)
-	return err == nil
+	return true
 }
 
 func matchInterceptorPathPattern(pattern, requestPath string) bool {
 	if pattern == "/**" {
 		return true
 	}
-	if strings.HasSuffix(pattern, "/**") {
+	if strings.HasSuffix(pattern, "/**") && strings.Count(pattern, "**") == 1 {
 		prefix := strings.TrimSuffix(pattern, "/**")
 		return requestPath == prefix || strings.HasPrefix(requestPath, prefix+"/")
 	}
-	matched, err := path.Match(pattern, requestPath)
-	return err == nil && matched
+	if !strings.Contains(pattern, "**") {
+		matched, err := path.Match(pattern, requestPath)
+		return err == nil && matched
+	}
+	return matchInterceptorPathSegments(interceptorPathSegments(pattern), interceptorPathSegments(requestPath))
+}
+
+func interceptorPathSegments(value string) []string {
+	value = strings.Trim(value, "/")
+	if value == "" {
+		return nil
+	}
+	return strings.Split(value, "/")
+}
+
+func matchInterceptorPathSegments(pattern []string, request []string) bool {
+	type state struct {
+		pattern int
+		request int
+	}
+	memo := make(map[state]bool)
+	var walk func(int, int) bool
+	walk = func(patternIndex int, requestIndex int) bool {
+		key := state{pattern: patternIndex, request: requestIndex}
+		if failed := memo[key]; failed {
+			return false
+		}
+		if patternIndex == len(pattern) {
+			return requestIndex == len(request)
+		}
+		segment := pattern[patternIndex]
+		if segment == "**" {
+			if walk(patternIndex+1, requestIndex) {
+				return true
+			}
+			if requestIndex < len(request) && walk(patternIndex, requestIndex+1) {
+				return true
+			}
+			memo[key] = true
+			return false
+		}
+		if requestIndex >= len(request) {
+			memo[key] = true
+			return false
+		}
+		matched, err := path.Match(segment, request[requestIndex])
+		if err != nil || !matched || !walk(patternIndex+1, requestIndex+1) {
+			memo[key] = true
+			return false
+		}
+		return true
+	}
+	return walk(0, 0)
 }

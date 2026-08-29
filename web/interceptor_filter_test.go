@@ -198,6 +198,35 @@ func TestRegisterMappedFilterContributesScopedConfigurer(t *testing.T) {
 	}
 }
 
+func TestInterceptorMappingSupportsAntStyleDoubleWildcard(t *testing.T) {
+	t.Parallel()
+
+	mapping, err := web.NewInterceptorMapping(
+		web.WithInterceptorPathPatterns("/api/**/admin", "/files/*/meta"),
+		web.WithInterceptorExcludePathPatterns("/api/**/internal"),
+	)
+	if err != nil {
+		t.Fatalf("NewInterceptorMapping failed: %v", err)
+	}
+
+	cases := []struct {
+		path  string
+		match bool
+	}{
+		{path: "/api/admin", match: true},
+		{path: "/api/v1/users/admin", match: true},
+		{path: "/api/v1/internal", match: false},
+		{path: "/files/42/meta", match: true},
+		{path: "/files/42/detail/meta", match: false},
+		{path: "/health", match: false},
+	}
+	for _, tc := range cases {
+		if got := mapping.Matches(tc.path); got != tc.match {
+			t.Fatalf("Matches(%q) = %t, want %t", tc.path, got, tc.match)
+		}
+	}
+}
+
 func TestRegisterInterceptorAndFilterRejectNil(t *testing.T) {
 	t.Parallel()
 
@@ -207,7 +236,7 @@ func TestRegisterInterceptorAndFilterRejectNil(t *testing.T) {
 	if err := web.RegisterFilter(container.NewRegistry(), "nilFilter", nil); !errors.Is(err, web.ErrNilFilter) {
 		t.Fatalf("filter err = %v, want ErrNilFilter", err)
 	}
-	if _, err := web.NewInterceptorMapping(web.WithInterceptorPathPatterns("/api/**/bad")); !errors.Is(err, web.ErrInvalidInterceptorMapping) {
+	if _, err := web.NewInterceptorMapping(web.WithInterceptorPathPatterns("/api/**suffix/bad")); !errors.Is(err, web.ErrInvalidInterceptorMapping) {
 		t.Fatalf("mapping err = %v, want ErrInvalidInterceptorMapping", err)
 	}
 }

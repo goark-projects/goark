@@ -14,12 +14,12 @@ func NewFilterMapping(options ...InterceptorMappingOption) (FilterMapping, error
 	return NewInterceptorMapping(options...)
 }
 
-// WithFilterPathPatterns 设置需要过滤的路径模式，支持字面量、* 和 /** 后缀。
+// WithFilterPathPatterns 设置需要过滤的路径模式，支持字面量、*、? 和 Ant 风格 ** 路径段。
 func WithFilterPathPatterns(patterns ...string) InterceptorMappingOption {
 	return WithInterceptorPathPatterns(patterns...)
 }
 
-// WithFilterExcludePathPatterns 设置需要跳过的路径模式，支持字面量、* 和 /** 后缀。
+// WithFilterExcludePathPatterns 设置需要跳过的路径模式，支持字面量、*、? 和 Ant 风格 ** 路径段。
 func WithFilterExcludePathPatterns(patterns ...string) InterceptorMappingOption {
 	return WithInterceptorExcludePathPatterns(patterns...)
 }
