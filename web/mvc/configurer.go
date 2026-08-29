@@ -9,6 +9,7 @@ import (
 // Configurer 将 MVC 控制器注册到 Web 注册表。
 type Configurer struct {
 	controllers       []Controller
+	advices           []ControllerAdvice
 	exceptionHandlers []goweb.ErrorMapper
 }
 
@@ -23,6 +24,12 @@ func (c Configurer) WithExceptionHandlers(handlers ...goweb.ErrorMapper) Configu
 	return c
 }
 
+// WithControllerAdvices 添加 MVC 全局 advice。
+func (c Configurer) WithControllerAdvices(advices ...ControllerAdvice) Configurer {
+	c.advices = append(c.advices, advices...)
+	return c
+}
+
 // ConfigureWeb 注册控制器路由。
 func (c Configurer) ConfigureWeb(ctx context.Context, registry *goweb.Registry) error {
 	if err := ctx.Err(); err != nil {
@@ -33,6 +40,11 @@ func (c Configurer) ConfigureWeb(ctx context.Context, registry *goweb.Registry) 
 	}
 	for _, handler := range c.exceptionHandlers {
 		registry.UseErrorMapper(handler)
+	}
+	for _, advice := range c.advices {
+		if err := advice.ConfigureWeb(ctx, registry); err != nil {
+			return err
+		}
 	}
 	for _, controller := range c.controllers {
 		if err := controller.Register(registry); err != nil {

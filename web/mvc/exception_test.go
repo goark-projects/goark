@@ -6,11 +6,13 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	servletnethttp "goark.dev/arkarta/servlet/nethttp"
 	arkweb "goark.dev/arkarta/web"
 	"goark.dev/goark/web"
 	"goark.dev/goark/web/mvc"
+	mvcview "goark.dev/goark/web/mvc/view"
 )
 
 type resourceNotFoundError struct {
@@ -47,6 +49,89 @@ func TestExceptionHandlerAsMapsTypedErrors(t *testing.T) {
 	body := recorder.Body.String()
 	if !strings.Contains(body, `"resource":"user"`) || !strings.Contains(body, `"id":"42"`) {
 		t.Fatalf("body = %s, want typed error payload", body)
+	}
+}
+
+func TestRestControllerAdviceReturnAsWritesResponseBody(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	advice := mvc.NewRestControllerAdvice("api-errors",
+		mvc.ExceptionReturnAs[*resourceNotFoundError](http.StatusNotFound, func(_ *arkweb.Context, err *resourceNotFoundError) map[string]string {
+			return map[string]string{
+				"resource": err.resource,
+				"id":       err.id,
+			}
+		}),
+	)
+	if advice.Kind() != mvc.ControllerKindREST {
+		t.Fatalf("advice kind = %d, want REST", advice.Kind())
+	}
+	if err := advice.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb advice failed: %v", err)
+	}
+	configurer := mvc.NewConfigurer(mvc.NewRestController("users",
+		mvc.GET("/users/{id}", mvc.JSON(http.StatusOK, func(_ *arkweb.Context) (map[string]string, error) {
+			return nil, &resourceNotFoundError{resource: "user", id: "42"}
+		})),
+	))
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb controller failed: %v", err)
+	}
+
+	recorder := serveMVCRegistry(t, registry, http.MethodGet, "/users/42")
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if got := recorder.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", got)
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, `"resource":"user"`) || !strings.Contains(body, `"id":"42"`) {
+		t.Fatalf("body = %s, want REST advice body", body)
+	}
+}
+
+func TestControllerAdviceReturnAsRendersLogicalView(t *testing.T) {
+	t.Parallel()
+
+	resolver, err := mvcview.NewTemplateResolver(fstest.MapFS{
+		"missing.html": {Data: []byte("<h1>missing</h1>")},
+	})
+	if err != nil {
+		t.Fatalf("NewTemplateResolver failed: %v", err)
+	}
+	registry := web.NewRegistry()
+	registry.Use(mvcview.Interceptor(resolver))
+	advice := mvc.NewControllerAdvice("page-errors",
+		mvc.ExceptionReturnAs[*resourceNotFoundError](http.StatusNotFound, func(_ *arkweb.Context, _ *resourceNotFoundError) string {
+			return "missing"
+		}),
+	)
+	if advice.Kind() != mvc.ControllerKindView {
+		t.Fatalf("advice kind = %d, want view", advice.Kind())
+	}
+	if err := advice.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb advice failed: %v", err)
+	}
+	configurer := mvc.NewConfigurer(mvc.NewController("pages",
+		mvc.GET("/users/{id}", mvc.JSON(http.StatusOK, func(_ *arkweb.Context) (map[string]string, error) {
+			return nil, &resourceNotFoundError{resource: "user", id: "42"}
+		})),
+	))
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb controller failed: %v", err)
+	}
+
+	recorder := serveMVCRegistry(t, registry, http.MethodGet, "/users/42")
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if got := recorder.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want html", got)
+	}
+	if recorder.Body.String() != "<h1>missing</h1>" {
+		t.Fatalf("body = %q, want rendered view", recorder.Body.String())
 	}
 }
 

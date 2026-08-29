@@ -13,6 +13,7 @@ type Configuration struct {
 	name              string
 	order             int
 	controllers       []Controller
+	advices           []ControllerAdvice
 	exceptionHandlers []goweb.ErrorMapper
 }
 
@@ -33,6 +34,12 @@ func (c Configuration) WithOrder(order int) Configuration {
 // WithExceptionHandlers 添加 MVC 全局异常处理器。
 func (c Configuration) WithExceptionHandlers(handlers ...goweb.ErrorMapper) Configuration {
 	c.exceptionHandlers = append(c.exceptionHandlers, handlers...)
+	return c
+}
+
+// WithControllerAdvices 添加 MVC 全局 advice。
+func (c Configuration) WithControllerAdvices(advices ...ControllerAdvice) Configuration {
+	c.advices = append(c.advices, advices...)
 	return c
 }
 
@@ -59,7 +66,7 @@ func (c Configuration) RegisterWithContext(_ context.Context, config appcontext.
 	return goweb.RegisterConfigurer(
 		config.Registry(),
 		c.Name()+".configurer",
-		NewConfigurer(c.controllers...).WithExceptionHandlers(c.exceptionHandlers...),
+		NewConfigurer(c.controllers...).WithExceptionHandlers(c.exceptionHandlers...).WithControllerAdvices(c.advices...),
 		container.WithOrder(c.order),
 	)
 }

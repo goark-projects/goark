@@ -31,7 +31,15 @@ func ResponseBody[T any](statusCode int, fn ValueFunc[T]) arkweb.Handler {
 }
 
 func controllerReturnValue(ctx *arkweb.Context, statusCode int, value any) arkweb.Result {
-	if ControllerKindFromContext(ctx) == ControllerKindREST {
+	return returnValueByKind(ctx, statusCode, value, ControllerKindFromContext(ctx))
+}
+
+func adviceReturnValue(ctx *arkweb.Context, statusCode int, value any) arkweb.Result {
+	return returnValueByKind(ctx, statusCode, value, ControllerAdviceKindFromContext(ctx))
+}
+
+func returnValueByKind(ctx *arkweb.Context, statusCode int, value any, kind ControllerKind) arkweb.Result {
+	if kind == ControllerKindREST {
 		return responseBodyResult(ctx, statusCode, value)
 	}
 	if name, ok := value.(string); ok {
