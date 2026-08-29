@@ -65,6 +65,25 @@ func (r *Response) Header() http.Header {
 	return r.recorder.Header()
 }
 
+// Cookies 返回响应 Set-Cookie 头解析结果。
+func (r *Response) Cookies() []*http.Cookie {
+	result := r.Result()
+	if result == nil {
+		return nil
+	}
+	return result.Cookies()
+}
+
+// Cookie 返回指定名称的响应 Cookie。
+func (r *Response) Cookie(name string) (*http.Cookie, bool) {
+	for _, cookie := range r.Cookies() {
+		if cookie != nil && cookie.Name == name {
+			return cookie, true
+		}
+	}
+	return nil, false
+}
+
 // BodyBytes 返回响应体副本。
 func (r *Response) BodyBytes() []byte {
 	if r == nil || r.recorder == nil || r.recorder.Body == nil {

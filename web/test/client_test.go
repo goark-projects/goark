@@ -98,6 +98,39 @@ func TestRegistryClientRunsFiltersAndStaticServlet(t *testing.T) {
 		ExpectBody(t, "hello static")
 }
 
+func TestResponseCookieAssertions(t *testing.T) {
+	t.Parallel()
+
+	registry := goweb.NewRegistry()
+	configurer := mvc.NewConfigurer(mvc.NewController("cookies",
+		mvc.POST("/sessions", mvc.Handler(func(_ *arkweb.Context) (arkweb.Result, error) {
+			return goweb.NoBody(http.StatusCreated).WithCookie(&http.Cookie{
+				Name:     "sid",
+				Value:    "abc",
+				Path:     "/",
+				HttpOnly: true,
+				Secure:   true,
+			}), nil
+		})),
+	))
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+
+	client, err := webtest.NewRouter(router)
+	client = webtest.Must(t, client, err)
+	client.Perform(t, http.MethodPost, "/sessions").
+		ExpectStatus(t, http.StatusCreated).
+		ExpectCookie(t, "sid", "abc").
+		ExpectCookieHTTPOnly(t, "sid", true).
+		ExpectCookieSecure(t, "sid", true).
+		ExpectNoCookie(t, "missing")
+}
+
 func TestMultipartRequestOptionBuildsUpload(t *testing.T) {
 	t.Parallel()
 

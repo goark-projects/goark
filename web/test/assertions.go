@@ -1,6 +1,7 @@
 package webtest
 
 import (
+	"net/http"
 	"reflect"
 	"strings"
 	"testing"
@@ -43,6 +44,50 @@ func (r *Response) ExpectHeaderContains(t testing.TB, name string, fragment stri
 	r.ExpectNoError(t)
 	if got := r.Header().Get(name); !strings.Contains(got, fragment) {
 		t.Fatalf("%s header = %q, want fragment %q", name, got, fragment)
+	}
+	return r
+}
+
+// ExpectCookie 断言响应 Cookie 存在且值匹配。
+func (r *Response) ExpectCookie(t testing.TB, name string, value string) *Response {
+	t.Helper()
+	r.ExpectNoError(t)
+	cookie, ok := r.Cookie(name)
+	if !ok {
+		t.Fatalf("cookie %q missing", name)
+	}
+	if cookie.Value != value {
+		t.Fatalf("cookie %q = %q, want %q", name, cookie.Value, value)
+	}
+	return r
+}
+
+// ExpectNoCookie 断言响应 Cookie 不存在。
+func (r *Response) ExpectNoCookie(t testing.TB, name string) *Response {
+	t.Helper()
+	r.ExpectNoError(t)
+	if cookie, ok := r.Cookie(name); ok {
+		t.Fatalf("cookie %q exists: %#v", name, cookie)
+	}
+	return r
+}
+
+// ExpectCookieHTTPOnly 断言响应 Cookie 的 HttpOnly 标记。
+func (r *Response) ExpectCookieHTTPOnly(t testing.TB, name string, httpOnly bool) *Response {
+	t.Helper()
+	cookie := r.expectCookieNamed(t, name)
+	if cookie.HttpOnly != httpOnly {
+		t.Fatalf("cookie %q HttpOnly = %v, want %v", name, cookie.HttpOnly, httpOnly)
+	}
+	return r
+}
+
+// ExpectCookieSecure 断言响应 Cookie 的 Secure 标记。
+func (r *Response) ExpectCookieSecure(t testing.TB, name string, secure bool) *Response {
+	t.Helper()
+	cookie := r.expectCookieNamed(t, name)
+	if cookie.Secure != secure {
+		t.Fatalf("cookie %q Secure = %v, want %v", name, cookie.Secure, secure)
 	}
 	return r
 }
@@ -100,4 +145,14 @@ func DecodeJSON[T any](t testing.TB, response *Response) T {
 		t.Fatalf("decode json failed: %v, body = %q", err, response.BodyString())
 	}
 	return target
+}
+
+func (r *Response) expectCookieNamed(t testing.TB, name string) *http.Cookie {
+	t.Helper()
+	r.ExpectNoError(t)
+	cookie, ok := r.Cookie(name)
+	if !ok {
+		t.Fatalf("cookie %q missing", name)
+	}
+	return cookie
 }
