@@ -15,14 +15,15 @@ const (
 	AttributeControllerAdviceKind = "goark.web.mvc.controller_advice.kind"
 )
 
-// ControllerAdvice 描述一组全局 MVC 异常处理器、模型初始化器和绑定器初始化器。
+// ControllerAdvice 描述一组全局 MVC 异常处理器、响应增强器、模型初始化器和绑定器初始化器。
 type ControllerAdvice struct {
-	name     string
-	order    int
-	kind     ControllerKind
-	handlers []goweb.ErrorMapper
-	binders  []BinderInitializer
-	models   []ModelAttributeInitializer
+	name           string
+	order          int
+	kind           ControllerKind
+	handlers       []goweb.ErrorMapper
+	responseAdvice []goweb.ResponseAdvice
+	binders        []BinderInitializer
+	models         []ModelAttributeInitializer
 }
 
 // NewControllerAdvice 创建普通 MVC advice，字符串返回值默认解析为逻辑视图名。
@@ -50,6 +51,12 @@ func (a ControllerAdvice) WithOrder(order int) ControllerAdvice {
 // WithExceptionHandlers 追加全局异常处理器。
 func (a ControllerAdvice) WithExceptionHandlers(handlers ...goweb.ErrorMapper) ControllerAdvice {
 	a.handlers = append(a.handlers, handlers...)
+	return a
+}
+
+// WithResponseAdvice 追加响应写出前增强器，对齐 Spring ControllerAdvice ResponseBodyAdvice。
+func (a ControllerAdvice) WithResponseAdvice(advice ...goweb.ResponseAdvice) ControllerAdvice {
+	a.responseAdvice = append(a.responseAdvice, advice...)
 	return a
 }
 
@@ -86,6 +93,11 @@ func (a ControllerAdvice) Kind() ControllerKind {
 // ExceptionHandlers 返回异常处理器快照。
 func (a ControllerAdvice) ExceptionHandlers() []goweb.ErrorMapper {
 	return append([]goweb.ErrorMapper(nil), a.handlers...)
+}
+
+// ResponseAdvice 返回响应增强器快照。
+func (a ControllerAdvice) ResponseAdvice() []goweb.ResponseAdvice {
+	return append([]goweb.ResponseAdvice(nil), a.responseAdvice...)
 }
 
 // InitBinders 返回全局绑定器初始化器快照。
@@ -126,6 +138,12 @@ func (a ControllerAdvice) ConfigureWeb(ctx context.Context, registry *goweb.Regi
 	}
 	if len(a.models) > 0 {
 		registry.Use(modelAttributeInterceptor(a.models))
+	}
+	for _, advice := range a.responseAdvice {
+		if util.IsNil(advice) {
+			continue
+		}
+		registry.UseResponseAdvice(advice)
 	}
 	for _, handler := range a.handlers {
 		if util.IsNil(handler) {

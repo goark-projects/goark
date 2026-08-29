@@ -104,7 +104,7 @@ func (r *Registry) UseMapped(interceptor arkweb.Interceptor, mapping Interceptor
 
 // UseResponseAdvice 注册全局响应增强器。
 func (r *Registry) UseResponseAdvice(advice arkweb.ResponseAdvice) {
-	if advice != nil {
+	if !isNilResponseAdvice(advice) {
 		r.advice = append(r.advice, advice)
 	}
 }
