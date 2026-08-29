@@ -25,6 +25,16 @@ func BindBodyEntityGroups[In any, Out any](fn BindEntityFunc[In, Out], groups ..
 	return bindBodyEntity(fn, groups, nil)
 }
 
+// BindRequestEntityGroups 绑定请求实体，并按显式校验分组写出 JSON 响应。
+func BindRequestEntityGroups[In any, Out any](statusCode int, fn BindRequestEntityFunc[In, Out], groups ...string) arkweb.Handler {
+	return bindRequestEntity(statusCode, fn, groups, nil)
+}
+
+// BindRequestEntityEntityGroups 绑定请求实体，并按显式校验分组写出响应实体。
+func BindRequestEntityEntityGroups[In any, Out any](fn BindRequestEntityResponseFunc[In, Out], groups ...string) arkweb.Handler {
+	return bindRequestEntityEntity(fn, groups, nil)
+}
+
 // BindMultipartGroups 绑定 multipart/form-data 请求体，并按显式校验分组写出 JSON 响应。
 func BindMultipartGroups[In any, Out any](statusCode int, fn BindFunc[In, Out], groups []string, options ...servletmultipart.Option) arkweb.Handler {
 	return bindMultipart(statusCode, fn, groups, options...)
