@@ -49,6 +49,12 @@ func SessionAttributeFloat64(ctx *arkweb.Context, name string, options ...ParamO
 	return resolveFloat64Parameter("Session属性", name, value, ok, err, newParamOptions(ctx, options))
 }
 
+// FlashAttributeFloat64 绑定 float64 Flash 属性。
+func FlashAttributeFloat64(ctx *arkweb.Context, name string, options ...ParamOption) (float64, error) {
+	value, ok, err := flashAttributeValue(ctx, name)
+	return resolveFloat64Parameter("Flash属性", name, value, ok, err, newParamOptions(ctx, options))
+}
+
 func resolveFloat64Parameter(kind, name, value string, ok bool, err error, options paramOptions) (float64, error) {
 	return resolveConvertedParameter(kind, name, value, ok, err, options, "float64", convertParamValue[float64](options))
 }

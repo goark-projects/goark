@@ -55,6 +55,30 @@ func SessionAttributeBool(ctx *arkweb.Context, name string, options ...ParamOpti
 	return resolveBoolParameter("Session属性", name, value, ok, err, newParamOptions(ctx, options))
 }
 
+// FlashAttributeString 绑定字符串 Flash 属性。
+func FlashAttributeString(ctx *arkweb.Context, name string, options ...ParamOption) (string, error) {
+	value, ok, err := flashAttributeValue(ctx, name)
+	return resolveStringParameter("Flash属性", name, value, ok, err, newParamOptions(ctx, options))
+}
+
+// FlashAttributeInt 绑定 int Flash 属性。
+func FlashAttributeInt(ctx *arkweb.Context, name string, options ...ParamOption) (int, error) {
+	value, ok, err := flashAttributeValue(ctx, name)
+	return resolveIntParameter("Flash属性", name, value, ok, err, newParamOptions(ctx, options))
+}
+
+// FlashAttributeInt64 绑定 int64 Flash 属性。
+func FlashAttributeInt64(ctx *arkweb.Context, name string, options ...ParamOption) (int64, error) {
+	value, ok, err := flashAttributeValue(ctx, name)
+	return resolveInt64Parameter("Flash属性", name, value, ok, err, newParamOptions(ctx, options))
+}
+
+// FlashAttributeBool 绑定 bool Flash 属性。
+func FlashAttributeBool(ctx *arkweb.Context, name string, options ...ParamOption) (bool, error) {
+	value, ok, err := flashAttributeValue(ctx, name)
+	return resolveBoolParameter("Flash属性", name, value, ok, err, newParamOptions(ctx, options))
+}
+
 func requestAttributeValue(ctx *arkweb.Context, name string) (string, bool, error) {
 	value, ok, err := rawRequestAttributeValue(ctx, name)
 	if err != nil || !ok {

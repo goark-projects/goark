@@ -15,6 +15,7 @@ const defaultViewName = "index"
 type ModelAndView struct {
 	viewName string
 	model    Model
+	flash    Model
 	status   int
 	resolver view.Resolver
 }
@@ -27,6 +28,7 @@ func NewModelAndView(viewName string, model any, options ...ModelAndViewOption) 
 	out := ModelAndView{
 		viewName: strings.TrimSpace(viewName),
 		model:    normalizeModel(model),
+		flash:    flashModelFrom(model),
 	}
 	for _, option := range options {
 		if option != nil {
@@ -69,9 +71,12 @@ func (v ModelAndView) Write(ctx *arkweb.Context) error {
 	if result, ok := forwardResultFromViewName(viewName); ok {
 		return result.Write(ctx)
 	}
-	if result, ok, err := redirectResultFromViewNameWithModel(ctx, v.status, viewName, v.model); err != nil {
+	if result, location, ok, err := redirectResultAndLocationFromViewNameWithModel(ctx, v.status, viewName, v.model); err != nil {
 		return err
 	} else if ok {
+		if err := saveRedirectFlash(ctx, location, v.flash); err != nil {
+			return err
+		}
 		return result.Write(ctx)
 	}
 	return view.Using(

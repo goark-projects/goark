@@ -73,6 +73,12 @@ func SessionAttributeTime(ctx *arkweb.Context, name string, options ...ParamOpti
 	return resolveTimeParameter("Session属性", name, value, ok, err, newParamOptions(ctx, options))
 }
 
+// FlashAttributeTime 绑定 time.Time Flash 属性。
+func FlashAttributeTime(ctx *arkweb.Context, name string, options ...ParamOption) (time.Time, error) {
+	value, ok, err := flashAttributeValue(ctx, name)
+	return resolveTimeParameter("Flash属性", name, value, ok, err, newParamOptions(ctx, options))
+}
+
 func resolveTimeParameter(kind, name, value string, ok bool, err error, options paramOptions) (time.Time, error) {
 	return resolveConvertedParameter(kind, name, value, ok, err, options, "time.Time", func(value string) (time.Time, error) {
 		return parseParamTime(value, options)

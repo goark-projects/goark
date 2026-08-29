@@ -1,6 +1,9 @@
 package mvc
 
-import arkweb "goark.dev/arkarta/web"
+import (
+	arkweb "goark.dev/arkarta/web"
+	mvcflash "goark.dev/goark/web/mvc/flash"
+)
 
 const (
 	// AttributeModel 保存当前 MVC 请求的视图模型。
@@ -13,7 +16,8 @@ func CurrentModel(ctx *arkweb.Context) Model {
 	if ok {
 		return model
 	}
-	model = NewModel()
+	input := mvcflash.Input(ctx)
+	model = NewModel().AddAllAttributes((&input).Values())
 	setCurrentModel(ctx, model)
 	return model
 }

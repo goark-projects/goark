@@ -55,3 +55,10 @@ func SessionAttributeAs[T any](ctx *arkweb.Context, name string, options ...Para
 	paramOptions := newParamOptions(ctx, options)
 	return resolveConvertedParameter("Session属性", name, value, ok, err, paramOptions, paramTargetType[T](), convertParamValue[T](paramOptions))
 }
+
+// FlashAttributeAs 将 Flash 属性转换为目标类型。
+func FlashAttributeAs[T any](ctx *arkweb.Context, name string, options ...ParamOption) (T, error) {
+	value, ok, err := flashAttributeValue(ctx, name)
+	paramOptions := newParamOptions(ctx, options)
+	return resolveConvertedParameter("Flash属性", name, value, ok, err, paramOptions, paramTargetType[T](), convertParamValue[T](paramOptions))
+}

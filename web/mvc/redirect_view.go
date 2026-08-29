@@ -14,23 +14,33 @@ const (
 )
 
 func redirectResultFromViewName(ctx *arkweb.Context, statusCode int, viewName string) (arkweb.Result, bool) {
-	result, ok, _ := redirectResultFromViewNameWithModel(ctx, statusCode, viewName, NewModel())
+	result, _, ok, _ := redirectResultAndLocationFromViewNameWithModel(ctx, statusCode, viewName, NewModel())
 	return result, ok
 }
 
 func redirectResultFromViewNameWithModel(ctx *arkweb.Context, statusCode int, viewName string, model Model) (arkweb.Result, bool, error) {
+	result, _, ok, err := redirectResultAndLocationFromViewNameWithModel(ctx, statusCode, viewName, model)
+	return result, ok, err
+}
+
+func redirectResultAndLocationFromViewNameWithModel(
+	ctx *arkweb.Context,
+	statusCode int,
+	viewName string,
+	model Model,
+) (arkweb.Result, string, bool, error) {
 	location, ok := redirectLocationFromViewName(viewName)
 	if !ok {
-		return nil, false, nil
+		return nil, "", false, nil
 	}
 	location, err := redirectLocationWithModel(location, model)
 	if err != nil {
-		return nil, true, err
+		return nil, "", true, err
 	}
 	if status, ok := redirectStatus(ctx, statusCode); ok {
-		return goweb.Redirect(location, goweb.WithRedirectStatus(status)), true, nil
+		return goweb.Redirect(location, goweb.WithRedirectStatus(status)), location, true, nil
 	}
-	return goweb.Redirect(location), true, nil
+	return goweb.Redirect(location), location, true, nil
 }
 
 func redirectLocationFromViewName(viewName string) (string, bool) {

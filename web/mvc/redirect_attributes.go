@@ -5,17 +5,19 @@ import (
 	"reflect"
 	"strings"
 
+	mvcflash "goark.dev/goark/web/mvc/flash"
 	"goark.dev/goark/web/uri"
 )
 
-// RedirectAttributes 表示重定向 URI 展开和查询参数使用的非 Flash 属性。
+// RedirectAttributes 表示重定向 URI 属性和一次性 Flash 属性。
 type RedirectAttributes struct {
-	model Model
+	model      Model
+	flashModel Model
 }
 
 // NewRedirectAttributes 创建空重定向属性集合。
 func NewRedirectAttributes() RedirectAttributes {
-	return RedirectAttributes{model: NewModel()}
+	return RedirectAttributes{model: NewModel(), flashModel: NewModel()}
 }
 
 // AddAttribute 添加一个重定向属性。
@@ -36,6 +38,24 @@ func (a RedirectAttributes) AddAllAttributes(attributes map[string]any) Redirect
 	return a
 }
 
+// AddFlashAttribute 添加一次性 Flash 属性。
+func (a RedirectAttributes) AddFlashAttribute(name string, value any) RedirectAttributes {
+	a.flashModel = a.FlashModel().AddAttribute(name, value)
+	return a
+}
+
+// AddFlashAttributeValue 添加 Flash 属性，并按值类型推导属性名。
+func (a RedirectAttributes) AddFlashAttributeValue(value any) RedirectAttributes {
+	a.flashModel = a.FlashModel().AddAttributeValue(value)
+	return a
+}
+
+// AddAllFlashAttributes 添加多个 Flash 属性。
+func (a RedirectAttributes) AddAllFlashAttributes(attributes map[string]any) RedirectAttributes {
+	a.flashModel = a.FlashModel().AddAllAttributes(attributes)
+	return a
+}
+
 // Model 返回可用于 ModelAndView 的模型副本。
 func (a RedirectAttributes) Model() Model {
 	return NewModel().AddAllAttributes(a.model.Values())
@@ -46,9 +66,40 @@ func (a RedirectAttributes) Values() map[string]any {
 	return a.model.Values()
 }
 
+// FlashModel 返回 Flash 属性模型副本。
+func (a RedirectAttributes) FlashModel() Model {
+	return NewModel().AddAllAttributes(a.flashModel.Values())
+}
+
+// FlashValues 返回 Flash 属性副本。
+func (a RedirectAttributes) FlashValues() map[string]any {
+	return a.flashModel.Values()
+}
+
 // Redirect 创建 redirect: ModelAndView，并使用属性展开路径变量和查询参数。
 func Redirect(location string, attributes RedirectAttributes, options ...ModelAndViewOption) ModelAndView {
 	return NewModelAndView(prefixedViewControllerName(RedirectViewNamePrefix, location), attributes, options...)
+}
+
+func flashModelFrom(model any) Model {
+	switch value := model.(type) {
+	case RedirectAttributes:
+		return value.FlashModel()
+	case *RedirectAttributes:
+		if value == nil {
+			return NewModel()
+		}
+		return value.FlashModel()
+	case *mvcflash.Map:
+		if value == nil {
+			return NewModel()
+		}
+		return NewModel().AddAllAttributes(value.Values())
+	case mvcflash.Map:
+		return NewModel().AddAllAttributes((&value).Values())
+	default:
+		return NewModel()
+	}
 }
 
 func redirectLocationWithModel(location string, model Model) (string, error) {
