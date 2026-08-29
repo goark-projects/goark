@@ -30,6 +30,23 @@ func RegisterFilter(registry *container.Registry, name string, filter servlet.Fi
 	}), options...)
 }
 
+// RegisterMappedFilter 注册带路径映射的 Servlet 过滤器贡献点。
+func RegisterMappedFilter(registry *container.Registry, name string, filter servlet.Filter, mapping FilterMapping, options ...container.Option) error {
+	if isNilFilter(filter) {
+		return ErrNilFilter
+	}
+	return RegisterConfigurer(registry, name, ConfigurerFunc(func(ctx context.Context, webRegistry *Registry) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if webRegistry == nil {
+			return ErrNilRegistry
+		}
+		webRegistry.AddMappedFilter(filter, mapping)
+		return nil
+	}), options...)
+}
+
 func isNilFilter(filter servlet.Filter) bool {
 	return isNilWebValue(filter)
 }

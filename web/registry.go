@@ -15,7 +15,7 @@ type Registry struct {
 	interceptors      []interceptorRegistration
 	advice            []arkweb.ResponseAdvice
 	errorMappers      []arkweb.ErrorMapper
-	filters           []servlet.Filter
+	filters           []filterRegistration
 	profiles          []servletcontainer.Profile
 	servlets          []servletMapping
 	deploymentOptions []servletcontainer.DeploymentOption
@@ -105,7 +105,17 @@ func (r *Registry) UseErrorMapper(mapper arkweb.ErrorMapper) {
 // AddFilter 添加 Servlet 过滤器。
 func (r *Registry) AddFilter(filter servlet.Filter) {
 	if !isNilFilter(filter) {
-		r.filters = append(r.filters, filter)
+		r.filters = append(r.filters, filterRegistration{filter: filter})
+	}
+}
+
+// AddMappedFilter 添加带路径映射的 Servlet 过滤器。
+func (r *Registry) AddMappedFilter(filter servlet.Filter, mapping FilterMapping) {
+	if !isNilFilter(filter) {
+		r.filters = append(r.filters, filterRegistration{
+			filter:  filter,
+			mapping: mapping,
+		})
 	}
 }
 
@@ -166,7 +176,11 @@ func (r *Registry) Filters() []servlet.Filter {
 	if r == nil {
 		return nil
 	}
-	return append([]servlet.Filter(nil), r.filters...)
+	filters := make([]servlet.Filter, 0, len(r.filters))
+	for _, registration := range r.filters {
+		filters = append(filters, registration.Filter())
+	}
+	return filters
 }
 
 // Profiles 返回 Arkarta Servlet Profile 快照。

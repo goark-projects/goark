@@ -139,6 +139,65 @@ func TestRegisterMappedInterceptorContributesScopedConfigurer(t *testing.T) {
 	}
 }
 
+func TestRegisterMappedFilterContributesScopedConfigurer(t *testing.T) {
+	t.Parallel()
+
+	mapping, err := web.NewFilterMapping(
+		web.WithFilterPathPatterns("/secure/**"),
+		web.WithFilterExcludePathPatterns("/secure/public/**"),
+	)
+	if err != nil {
+		t.Fatalf("NewFilterMapping failed: %v", err)
+	}
+	beanRegistry := container.NewRegistry()
+	if err := web.RegisterMappedFilter(beanRegistry, "secureFilter", servlet.FilterFunc(func(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
+		res.Header().Set("X-Scoped-Filter", "hit")
+		return chain.Next(ctx, req, res)
+	}), mapping); err != nil {
+		t.Fatalf("RegisterMappedFilter failed: %v", err)
+	}
+	resolver, err := container.New(beanRegistry)
+	if err != nil {
+		t.Fatalf("container.New failed: %v", err)
+	}
+
+	registry := web.NewRegistry()
+	if err := web.ApplyConfigurers(t.Context(), resolver, registry); err != nil {
+		t.Fatalf("ApplyConfigurers failed: %v", err)
+	}
+	for _, target := range []string{"/secure/data", "/secure/public/info", "/health"} {
+		if err := registry.GET(target, arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+			return arkweb.Text(http.StatusOK, "ok"), nil
+		})); err != nil {
+			t.Fatalf("GET %s failed: %v", target, err)
+		}
+	}
+	deployment, err := web.BuildDeployment(registry, web.DeploymentSpec{})
+	if err != nil {
+		t.Fatalf("BuildDeployment failed: %v", err)
+	}
+	handler, err := deployment.Handler()
+	if err != nil {
+		t.Fatalf("Deployment Handler failed: %v", err)
+	}
+
+	matched := httptest.NewRecorder()
+	servletnethttp.Handler(handler).ServeHTTP(matched, httptest.NewRequest(http.MethodGet, "/secure/data", nil))
+	if got := matched.Header().Get("X-Scoped-Filter"); got != "hit" {
+		t.Fatalf("matched header = %q, want hit", got)
+	}
+	excluded := httptest.NewRecorder()
+	servletnethttp.Handler(handler).ServeHTTP(excluded, httptest.NewRequest(http.MethodGet, "/secure/public/info", nil))
+	if got := excluded.Header().Get("X-Scoped-Filter"); got != "" {
+		t.Fatalf("excluded header = %q, want empty", got)
+	}
+	unmatched := httptest.NewRecorder()
+	servletnethttp.Handler(handler).ServeHTTP(unmatched, httptest.NewRequest(http.MethodGet, "/health", nil))
+	if got := unmatched.Header().Get("X-Scoped-Filter"); got != "" {
+		t.Fatalf("unmatched header = %q, want empty", got)
+	}
+}
+
 func TestRegisterInterceptorAndFilterRejectNil(t *testing.T) {
 	t.Parallel()
 
