@@ -101,6 +101,51 @@ func TestParameterHelpersBindRequestHeaderMaps(t *testing.T) {
 	}
 }
 
+func TestParameterHelpersBindCookieValueMaps(t *testing.T) {
+	t.Parallel()
+
+	type payload struct {
+		Cookies map[string]string   `json:"cookies"`
+		Values  map[string][]string `json:"values"`
+	}
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/cookies", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (payload, error) {
+		cookies, err := mvc.CookieValueMap(ctx)
+		if err != nil {
+			return payload{}, err
+		}
+		values, err := mvc.CookieValueValuesMap(ctx)
+		if err != nil {
+			return payload{}, err
+		}
+		return payload{Cookies: cookies, Values: values}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/cookies", nil)
+	request.AddCookie(&http.Cookie{Name: "theme", Value: "dark"})
+	request.AddCookie(&http.Cookie{Name: "role", Value: "admin"})
+	request.AddCookie(&http.Cookie{Name: "role", Value: "ops"})
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	var got payload
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &got); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if !reflect.DeepEqual(got.Cookies, map[string]string{"theme": "dark", "role": "admin"}) {
+		t.Fatalf("cookies = %#v", got.Cookies)
+	}
+	if !reflect.DeepEqual(got.Values["role"], []string{"admin", "ops"}) ||
+		!reflect.DeepEqual(got.Values["theme"], []string{"dark"}) {
+		t.Fatalf("values = %#v", got.Values)
+	}
+}
+
 func TestParameterHelpersBindPathVariableMap(t *testing.T) {
 	t.Parallel()
 
