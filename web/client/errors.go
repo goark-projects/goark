@@ -12,6 +12,8 @@ var (
 	ErrInvalidBaseURL = errors.New("goark/web/client: invalid base url")
 	// ErrInvalidHeader 表示请求头名称或值非法。
 	ErrInvalidHeader = errors.New("goark/web/client: invalid header")
+	// ErrInvalidCookie 表示请求 Cookie 配置非法。
+	ErrInvalidCookie = errors.New("goark/web/client: invalid cookie")
 	// ErrInvalidRequest 表示请求构造失败。
 	ErrInvalidRequest = errors.New("goark/web/client: invalid request")
 	// ErrInvalidStatusHandler 表示状态处理器配置非法。

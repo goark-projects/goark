@@ -17,6 +17,7 @@ type RequestOption func(*requestConfig) error
 type requestConfig struct {
 	codec          arkjson.Codec
 	headers        http.Header
+	cookies        []*http.Cookie
 	query          url.Values
 	pathVariables  map[string]string
 	body           io.Reader
@@ -103,6 +104,8 @@ func (c *Client) newRequest(ctx context.Context, method string, target string, o
 	}
 	request.Header = cloneHeader(c.defaultHeaders)
 	appendHeaders(request.Header, config.headers)
+	addCookies(request, c.defaultCookies)
+	addCookies(request, config.cookies)
 	return request, config, nil
 }
 

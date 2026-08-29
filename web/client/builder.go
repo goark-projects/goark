@@ -45,6 +45,16 @@ func (b *Builder) DefaultHeader(name string, values ...string) *Builder {
 	return b.Apply(WithDefaultHeader(name, values...))
 }
 
+// DefaultCookie 设置每次请求都携带的 Cookie。
+func (b *Builder) DefaultCookie(cookie *http.Cookie) *Builder {
+	return b.Apply(WithDefaultCookie(cookie))
+}
+
+// DefaultCookieValue 设置每次请求都携带的简单 Cookie。
+func (b *Builder) DefaultCookieValue(name, value string) *Builder {
+	return b.Apply(WithDefaultCookieValue(name, value))
+}
+
 // JSONCodec 设置请求和响应 JSON 编解码器。
 func (b *Builder) JSONCodec(codec arkjson.Codec) *Builder {
 	return b.Apply(WithJSONCodec(codec))

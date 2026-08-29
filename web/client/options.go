@@ -23,6 +23,7 @@ type Client struct {
 	httpClient       *http.Client
 	baseURL          *url.URL
 	defaultHeaders   http.Header
+	defaultCookies   []*http.Cookie
 	codec            arkjson.Codec
 	interceptors     []Interceptor
 	statusHandlers   []statusHandler

@@ -149,6 +149,46 @@ func TestBuilderBuildsClientWithoutMutatingBase(t *testing.T) {
 	}
 }
 
+func TestClientSendsDefaultAndRequestCookies(t *testing.T) {
+	t.Parallel()
+
+	serverErrors := make(chan error, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		tenant, err := request.Cookie("tenant")
+		if err != nil || tenant.Value != "core" {
+			failServer(serverErrors, writer, "tenant cookie = %#v err %v", tenant, err)
+			return
+		}
+		session, err := request.Cookie("sid")
+		if err != nil || session.Value != "abc" {
+			failServer(serverErrors, writer, "sid cookie = %#v err %v", session, err)
+			return
+		}
+		if request.Header.Get("Cookie") != "tenant=core; sid=abc" {
+			failServer(serverErrors, writer, "cookie header = %q", request.Header.Get("Cookie"))
+			return
+		}
+		_, _ = io.WriteString(writer, "cookies")
+	}))
+	defer server.Close()
+
+	client, err := webclient.NewBuilder().
+		BaseURL(server.URL).
+		DefaultCookieValue("tenant", "core").
+		Build()
+	if err != nil {
+		t.Fatalf("client build failed: %v", err)
+	}
+	response, err := client.Get(t.Context(), "/profile", webclient.WithCookieValue("sid", "abc"))
+	if err != nil {
+		t.Fatalf("get failed: %v", err)
+	}
+	assertNoServerError(t, serverErrors)
+	if response.BodyString() != "cookies" {
+		t.Fatalf("body = %q, want cookies", response.BodyString())
+	}
+}
+
 func TestNilBuilderBuildsDefaultClient(t *testing.T) {
 	t.Parallel()
 
@@ -434,6 +474,12 @@ func TestClientRejectsInvalidRequestConfiguration(t *testing.T) {
 	}
 	if _, err := client.Get(t.Context(), "http://example.com", webclient.WithHeader("X-Bad", "a\r\nb")); !errors.Is(err, webclient.ErrInvalidHeader) {
 		t.Fatalf("header err = %v, want ErrInvalidHeader", err)
+	}
+	if _, err := webclient.New(webclient.WithDefaultCookieValue("", "x")); !errors.Is(err, webclient.ErrInvalidCookie) {
+		t.Fatalf("default cookie err = %v, want ErrInvalidCookie", err)
+	}
+	if _, err := client.Get(t.Context(), "http://example.com", webclient.WithCookieValue("bad name", "x")); !errors.Is(err, webclient.ErrInvalidCookie) {
+		t.Fatalf("request cookie err = %v, want ErrInvalidCookie", err)
 	}
 }
 
