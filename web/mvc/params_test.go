@@ -428,6 +428,48 @@ func TestModelAttributeBindsQueryAndFormValues(t *testing.T) {
 	}
 }
 
+func TestModelAttributeBindsNestedProperties(t *testing.T) {
+	t.Parallel()
+
+	type owner struct {
+		Name string `form:"name" json:"name"`
+		Age  int    `form:"age" json:"age"`
+	}
+	type userSearchCriteria struct {
+		Owner *owner `form:"owner" json:"owner"`
+		Page  int    `form:"page" json:"page"`
+	}
+
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/users/search", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]any, error) {
+		criteria, err := mvc.ModelAttribute[userSearchCriteria](ctx)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{
+			"ownerName": criteria.Owner.Name,
+			"ownerAge":  criteria.Owner.Age,
+			"page":      criteria.Page,
+		}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/users/search?owner.name=ada&owner.age=37&page=2", nil)
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"ownerName":"ada"`) ||
+		!strings.Contains(recorder.Body.String(), `"ownerAge":37`) ||
+		!strings.Contains(recorder.Body.String(), `"page":2`) {
+		t.Fatalf("body = %s, want nested model attribute values", recorder.Body.String())
+	}
+}
+
 func TestModelAttributeReadsFormContentFilterValues(t *testing.T) {
 	t.Parallel()
 

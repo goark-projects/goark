@@ -84,10 +84,10 @@ func newModelAttributeBinder(target any, converter *convert.Service) (modelAttri
 }
 
 func (b modelAttributeBinder) bind(values url.Values) error {
-	return b.bindStruct(b.value, values)
+	return b.bindStruct(b.value, values, "")
 }
 
-func (b modelAttributeBinder) bindStruct(value reflect.Value, values url.Values) error {
+func (b modelAttributeBinder) bindStruct(value reflect.Value, values url.Values, prefix string) error {
 	valueType := value.Type()
 	for i := 0; i < value.NumField(); i++ {
 		field := valueType.Field(i)
@@ -98,7 +98,7 @@ func (b modelAttributeBinder) bindStruct(value reflect.Value, values url.Values)
 		if shouldRecurseModelAttributeField(field, fieldValue) {
 			nested := indirectModelAttributeStruct(fieldValue)
 			if nested.IsValid() {
-				if err := b.bindStruct(nested, values); err != nil {
+				if err := b.bindStruct(nested, values, prefix); err != nil {
 					return err
 				}
 			}
@@ -106,6 +106,16 @@ func (b modelAttributeBinder) bindStruct(value reflect.Value, values url.Values)
 		}
 		name, ok := modelAttributeFieldName(field)
 		if !ok {
+			continue
+		}
+		name = prefixedModelAttributeName(prefix, name)
+		if shouldBindNestedModelAttributeField(fieldValue, values, name) {
+			nested := indirectModelAttributeStruct(fieldValue)
+			if nested.IsValid() {
+				if err := b.bindStruct(nested, values, name); err != nil {
+					return err
+				}
+			}
 			continue
 		}
 		list, exists := values[name]
