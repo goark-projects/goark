@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	arkweb "goark.dev/arkarta/web"
+	"goark.dev/goark/container"
 	"goark.dev/goark/web"
 	"goark.dev/goark/web/mvc"
 )
@@ -113,5 +114,88 @@ func TestHandlerInterceptorAdapterRunsAfterCompletionOnHandlerError(t *testing.T
 	}
 	if !errors.Is(completedErr, boom) {
 		t.Fatalf("afterCompletion err = %v, want handler error", completedErr)
+	}
+}
+
+func TestRegisterHandlerInterceptorContributesConfigurer(t *testing.T) {
+	t.Parallel()
+
+	beanRegistry := container.NewRegistry()
+	if err := mvc.RegisterHandlerInterceptor(beanRegistry, "traceHandlerInterceptor", mvc.HandlerInterceptorFuncs{
+		PreHandleFunc: func(ctx *arkweb.Context) (bool, error) {
+			ctx.Response().Header().Set("X-Handler-Interceptor", "hit")
+			return true, nil
+		},
+	}); err != nil {
+		t.Fatalf("RegisterHandlerInterceptor failed: %v", err)
+	}
+	resolver, err := container.New(beanRegistry)
+	if err != nil {
+		t.Fatalf("container.New failed: %v", err)
+	}
+
+	registry := web.NewRegistry()
+	if err := web.ApplyConfigurers(t.Context(), resolver, registry); err != nil {
+		t.Fatalf("ApplyConfigurers failed: %v", err)
+	}
+	if err := registry.GET("/registered", mvc.Text(http.StatusOK, func(_ *arkweb.Context) (string, error) {
+		return "ok", nil
+	})); err != nil {
+		t.Fatalf("GET failed: %v", err)
+	}
+
+	recorder := serveMVCRegistry(t, registry, http.MethodGet, "/registered")
+	if got := recorder.Header().Get("X-Handler-Interceptor"); got != "hit" {
+		t.Fatalf("X-Handler-Interceptor = %q, want hit", got)
+	}
+}
+
+func TestRegisterMappedHandlerInterceptorContributesScopedConfigurer(t *testing.T) {
+	t.Parallel()
+
+	mapping, err := web.NewInterceptorMapping(
+		web.WithInterceptorPathPatterns("/api/**"),
+		web.WithInterceptorExcludePathPatterns("/api/public/**"),
+	)
+	if err != nil {
+		t.Fatalf("NewInterceptorMapping failed: %v", err)
+	}
+	beanRegistry := container.NewRegistry()
+	if err := mvc.RegisterMappedHandlerInterceptor(beanRegistry, "apiHandlerInterceptor", mvc.HandlerInterceptorFuncs{
+		PreHandleFunc: func(ctx *arkweb.Context) (bool, error) {
+			ctx.Response().Header().Set("X-Mapped-Handler-Interceptor", "hit")
+			return true, nil
+		},
+	}, mapping); err != nil {
+		t.Fatalf("RegisterMappedHandlerInterceptor failed: %v", err)
+	}
+	resolver, err := container.New(beanRegistry)
+	if err != nil {
+		t.Fatalf("container.New failed: %v", err)
+	}
+
+	registry := web.NewRegistry()
+	if err := web.ApplyConfigurers(t.Context(), resolver, registry); err != nil {
+		t.Fatalf("ApplyConfigurers failed: %v", err)
+	}
+	for _, target := range []string{"/api/users", "/api/public/ping", "/admin"} {
+		if err := registry.GET(target, mvc.Text(http.StatusOK, func(_ *arkweb.Context) (string, error) {
+			return "ok", nil
+		})); err != nil {
+			t.Fatalf("GET %s failed: %v", target, err)
+		}
+	}
+
+	matched := serveMVCRegistry(t, registry, http.MethodGet, "/api/users")
+	if got := matched.Header().Get("X-Mapped-Handler-Interceptor"); got != "hit" {
+		t.Fatalf("matched header = %q, want hit", got)
+	}
+	excluded := serveMVCRegistry(t, registry, http.MethodGet, "/api/public/ping")
+	if got := excluded.Header().Get("X-Mapped-Handler-Interceptor"); got != "" {
+		t.Fatalf("excluded header = %q, want empty", got)
+	}
+	unmatched := serveMVCRegistry(t, registry, http.MethodGet, "/admin")
+	if got := unmatched.Header().Get("X-Mapped-Handler-Interceptor"); got != "" {
+		t.Fatalf("unmatched header = %q, want empty", got)
 	}
 }
