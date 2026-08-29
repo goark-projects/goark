@@ -92,6 +92,71 @@ func TestValidatedRequestBodyUsesExplicitValidationGroup(t *testing.T) {
 	}
 }
 
+func TestOptionalValidatedRequestBodySkipsMissingBody(t *testing.T) {
+	t.Parallel()
+
+	type createRequest struct {
+		Name string `json:"name" arkarta:"required"`
+	}
+	type payload struct {
+		Present bool   `json:"present"`
+		Name    string `json:"name"`
+	}
+	router := arkweb.NewRouter()
+	if err := router.Handle(http.MethodPost, "/body/optional", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (payload, error) {
+		input, present, err := mvc.OptionalValidatedRequestBody[createRequest](ctx)
+		if err != nil {
+			return payload{}, err
+		}
+		return payload{Present: present, Name: input.Name}, nil
+	})); err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/body/optional", nil)
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if recorder.Body.String() != `{"present":false,"name":""}` {
+		t.Fatalf("body = %s, want absent optional body", recorder.Body.String())
+	}
+}
+
+func TestOptionalRequestBodyBindsPresentBody(t *testing.T) {
+	t.Parallel()
+
+	type createRequest struct {
+		Name string `json:"name"`
+	}
+	type payload struct {
+		Present bool   `json:"present"`
+		Name    string `json:"name"`
+	}
+	router := arkweb.NewRouter()
+	if err := router.Handle(http.MethodPost, "/body/optional", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (payload, error) {
+		input, present, err := mvc.OptionalRequestBodyWithMediaTypes[createRequest](ctx, arkjson.ContentType)
+		if err != nil {
+			return payload{}, err
+		}
+		return payload{Present: present, Name: input.Name}, nil
+	})); err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/body/optional", strings.NewReader(`{"name":"goark"}`))
+	request.Header.Set("Content-Type", arkjson.ContentType)
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if recorder.Body.String() != `{"present":true,"name":"goark"}` {
+		t.Fatalf("body = %s, want present optional body", recorder.Body.String())
+	}
+}
+
 func TestBindBodyReadsTextRequest(t *testing.T) {
 	t.Parallel()
 
