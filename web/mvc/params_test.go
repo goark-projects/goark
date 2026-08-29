@@ -2,6 +2,7 @@ package mvc_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -583,6 +584,87 @@ func TestModelAttributeRejectsOversizedIndexedProperties(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/users/search?owners[256].name=ada", nil)
 	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400, body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestModelAttributeBindsMapProperties(t *testing.T) {
+	t.Parallel()
+
+	type userSearchCriteria struct {
+		Flags   map[string]bool     `form:"flags" json:"flags"`
+		Filters map[string]int      `form:"filters" json:"filters"`
+		Tags    map[string][]string `form:"tags" json:"tags"`
+		Page    int                 `form:"page" json:"page"`
+	}
+
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/users/search", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]any, error) {
+		criteria, err := mvc.ModelAttribute[userSearchCriteria](ctx)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{
+			"enabled": criteria.Flags["enabled"],
+			"level":   criteria.Filters["level"],
+			"roles":   criteria.Tags["roles"],
+			"groups":  criteria.Tags["groups"],
+			"page":    criteria.Page,
+		}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/users/search?"+
+		"flags[enabled]=true&filters[level]=7&tags[roles]=admin,ops&"+
+		"tags[groups]=core&tags[groups]=web&page=2", nil)
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"enabled":true`) ||
+		!strings.Contains(recorder.Body.String(), `"level":7`) ||
+		!strings.Contains(recorder.Body.String(), `"roles":["admin","ops"]`) ||
+		!strings.Contains(recorder.Body.String(), `"groups":["core","web"]`) ||
+		!strings.Contains(recorder.Body.String(), `"page":2`) {
+		t.Fatalf("body = %s, want map model attribute values", recorder.Body.String())
+	}
+}
+
+func TestModelAttributeRejectsOversizedMapProperties(t *testing.T) {
+	t.Parallel()
+
+	type userSearchCriteria struct {
+		Filters map[string]string `form:"filters" json:"filters"`
+	}
+
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/users/search", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]int, error) {
+		criteria, err := mvc.ModelAttribute[userSearchCriteria](ctx)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]int{"filters": len(criteria.Filters)}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	var query strings.Builder
+	query.WriteString("/users/search?")
+	for i := 0; i < 257; i++ {
+		if i > 0 {
+			query.WriteByte('&')
+		}
+		fmt.Fprintf(&query, "filters[k%d]=v", i)
+	}
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, query.String(), nil))
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400, body=%s", recorder.Code, recorder.Body.String())

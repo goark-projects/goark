@@ -131,6 +131,12 @@ func (b modelAttributeBinder) bindStruct(value reflect.Value, values url.Values,
 			if err := b.bindIndexedSliceField(name, fieldValue, values); err != nil {
 				return err
 			}
+			continue
+		}
+		if shouldBindMappedModelAttributeField(fieldValue, values, name) {
+			if err := b.bindMappedField(name, fieldValue, values); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
