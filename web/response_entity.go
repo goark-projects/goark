@@ -134,7 +134,7 @@ func (e ResponseEntity[T]) Write(ctx *arkweb.Context) error {
 		return nil
 	}
 	if len(e.mediaTypes) > 0 {
-		return message.NewWriter().Write(ctx, statusCode, e.body, e.mediaTypes...)
+		return message.WriterFromContext(ctx).Write(ctx, statusCode, e.body, e.mediaTypes...)
 	}
 	if response.Header().Get("Content-Type") == "" {
 		if err := servlet.SetContentType(response, arkjson.ContentType); err != nil {

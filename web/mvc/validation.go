@@ -28,7 +28,7 @@ func bindAndValidateJSON(ctx *arkweb.Context, target any, groups []string) error
 }
 
 func bindAndValidateBody(ctx *arkweb.Context, target any, groups []string, mediaTypes []string) error {
-	if err := message.NewReader().Read(ctx, target, mediaTypes...); err != nil {
+	if err := message.ReaderFromContext(ctx).Read(ctx, target, mediaTypes...); err != nil {
 		return err
 	}
 	if !supportsValidation(target) {

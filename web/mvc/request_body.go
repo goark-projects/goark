@@ -8,7 +8,7 @@ import (
 // RequestBody 将请求体按 Content-Type 绑定到目标类型，不执行结构体验证。
 func RequestBody[T any](ctx *arkweb.Context) (T, error) {
 	var out T
-	if err := message.NewReader().Read(ctx, &out); err != nil {
+	if err := message.ReaderFromContext(ctx).Read(ctx, &out); err != nil {
 		return out, err
 	}
 	return out, nil
@@ -17,7 +17,7 @@ func RequestBody[T any](ctx *arkweb.Context) (T, error) {
 // RequestBodyWithMediaTypes 将请求体按指定媒体类型集合绑定到目标类型。
 func RequestBodyWithMediaTypes[T any](ctx *arkweb.Context, mediaTypes ...string) (T, error) {
 	var out T
-	if err := message.NewReader().Read(ctx, &out, mediaTypes...); err != nil {
+	if err := message.ReaderFromContext(ctx).Read(ctx, &out, mediaTypes...); err != nil {
 		return out, err
 	}
 	return out, nil

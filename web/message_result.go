@@ -22,5 +22,5 @@ func Message(statusCode int, value any, mediaTypes ...string) arkweb.Result {
 
 // Write 将消息响应写入 Arkarta Web 上下文。
 func (r messageResult) Write(ctx *arkweb.Context) error {
-	return message.NewWriter().Write(ctx, r.statusCode, r.value, r.mediaTypes...)
+	return message.WriterFromContext(ctx).Write(ctx, r.statusCode, r.value, r.mediaTypes...)
 }

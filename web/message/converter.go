@@ -16,6 +16,12 @@ type Converter interface {
 	Write(ctx *arkweb.Context, value any, mediaType string) error
 }
 
+// HTTPConverter 表示同时支持请求读取和响应写出的消息转换器。
+type HTTPConverter interface {
+	Converter
+	ReadConverter
+}
+
 // JSONConverter 使用 Arkarta sonic JSON Codec 写出响应。
 type JSONConverter struct{}
 

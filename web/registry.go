@@ -7,6 +7,7 @@ import (
 	"goark.dev/arkarta/servlet"
 	servletcontainer "goark.dev/arkarta/servlet/container"
 	arkweb "goark.dev/arkarta/web"
+	"goark.dev/goark/web/message"
 )
 
 // Registry 收集 Web 路由、拦截器和部署选项。
@@ -15,6 +16,10 @@ type Registry struct {
 	interceptors      []interceptorRegistration
 	advice            []arkweb.ResponseAdvice
 	errorMappers      []arkweb.ErrorMapper
+	messageReader     *message.Reader
+	messageWriter     *message.Writer
+	readConverters    []message.ReadConverter
+	writeConverters   []message.Converter
 	filters           []filterRegistration
 	profiles          []servletcontainer.Profile
 	servlets          []servletMapping
@@ -102,6 +107,34 @@ func (r *Registry) UseErrorMapper(mapper arkweb.ErrorMapper) {
 	}
 }
 
+// UseMessageReader 设置当前 Web 注册表的请求体读取器。
+func (r *Registry) UseMessageReader(reader message.Reader) {
+	if r != nil {
+		r.messageReader = &reader
+	}
+}
+
+// UseMessageWriter 设置当前 Web 注册表的响应体写出器。
+func (r *Registry) UseMessageWriter(writer message.Writer) {
+	if r != nil {
+		r.messageWriter = &writer
+	}
+}
+
+// AddMessageReadConverter 添加请求体读取转换器，优先级高于默认转换器。
+func (r *Registry) AddMessageReadConverter(converter message.ReadConverter) {
+	if r != nil && !isNilMessageConverter(converter) {
+		r.readConverters = append(r.readConverters, converter)
+	}
+}
+
+// AddMessageConverter 添加响应体写出转换器，优先级高于默认转换器。
+func (r *Registry) AddMessageConverter(converter message.Converter) {
+	if r != nil && !isNilMessageConverter(converter) {
+		r.writeConverters = append(r.writeConverters, converter)
+	}
+}
+
 // AddFilter 添加 Servlet 过滤器。
 func (r *Registry) AddFilter(filter servlet.Filter) {
 	if !isNilFilter(filter) {
@@ -141,6 +174,9 @@ func (r *Registry) Router(options ...arkweb.Option) (*arkweb.Router, error) {
 	}
 	routerOptions := appendRouterOptions(r.errorMappers, options)
 	router := arkweb.NewRouter(routerOptions...)
+	if r.hasMessageIO() {
+		router.Use(message.ContextInterceptor(r.currentMessageReader(), r.currentMessageWriter()))
+	}
 	for _, registration := range r.interceptors {
 		router.Use(registration.Interceptor())
 	}
@@ -169,6 +205,22 @@ func (r *Registry) ErrorMappers() []arkweb.ErrorMapper {
 		return nil
 	}
 	return append([]arkweb.ErrorMapper(nil), r.errorMappers...)
+}
+
+// MessageReadConverters 返回请求体读取转换器快照。
+func (r *Registry) MessageReadConverters() []message.ReadConverter {
+	if r == nil {
+		return nil
+	}
+	return append([]message.ReadConverter(nil), r.readConverters...)
+}
+
+// MessageConverters 返回响应体写出转换器快照。
+func (r *Registry) MessageConverters() []message.Converter {
+	if r == nil {
+		return nil
+	}
+	return append([]message.Converter(nil), r.writeConverters...)
 }
 
 // Filters 返回 Servlet 过滤器快照。
@@ -231,6 +283,38 @@ func appendRouterOptions(mappers []arkweb.ErrorMapper, options []arkweb.Option) 
 	routerOptions = append(routerOptions, arkweb.WithErrorMapper(NewErrorMapperChain(mappers...)))
 	routerOptions = append(routerOptions, options...)
 	return routerOptions
+}
+
+func (r *Registry) hasMessageIO() bool {
+	return r.messageReader != nil || r.messageWriter != nil || len(r.readConverters) > 0 || len(r.writeConverters) > 0
+}
+
+func (r *Registry) currentMessageReader() message.Reader {
+	reader := message.NewReader()
+	if r.messageReader != nil {
+		reader = *r.messageReader
+	}
+	if len(r.readConverters) > 0 {
+		reader = message.NewReader(
+			message.WithReadConverters(reader.ReadConverters()...),
+			message.WithPrependedReadConverters(r.readConverters...),
+		)
+	}
+	return reader
+}
+
+func (r *Registry) currentMessageWriter() message.Writer {
+	writer := message.NewWriter()
+	if r.messageWriter != nil {
+		writer = *r.messageWriter
+	}
+	if len(r.writeConverters) > 0 {
+		writer = message.NewWriter(
+			message.WithConverters(writer.Converters()...),
+			message.WithPrependedConverters(r.writeConverters...),
+		)
+	}
+	return writer
 }
 
 func normalizeMethod(method string) string {

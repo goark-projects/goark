@@ -30,6 +30,38 @@ func WithReadConverters(converters ...ReadConverter) ReaderOption {
 	}
 }
 
+// WithPrependedReadConverters 将读取转换器加入默认转换器之前，适合用户覆盖内置绑定逻辑。
+func WithPrependedReadConverters(converters ...ReadConverter) ReaderOption {
+	copied := append([]ReadConverter(nil), converters...)
+	return func(reader *Reader) {
+		cleaned := cleanReadConverters(copied)
+		if len(cleaned) == 0 {
+			return
+		}
+		current := reader.ReadConverters()
+		merged := make([]ReadConverter, 0, len(cleaned)+len(current))
+		merged = append(merged, cleaned...)
+		merged = append(merged, current...)
+		reader.converters = merged
+	}
+}
+
+// WithAppendedReadConverters 将读取转换器加入当前转换器之后，适合补充低优先级兜底逻辑。
+func WithAppendedReadConverters(converters ...ReadConverter) ReaderOption {
+	copied := append([]ReadConverter(nil), converters...)
+	return func(reader *Reader) {
+		cleaned := cleanReadConverters(copied)
+		if len(cleaned) == 0 {
+			return
+		}
+		current := reader.ReadConverters()
+		merged := make([]ReadConverter, 0, len(current)+len(cleaned))
+		merged = append(merged, current...)
+		merged = append(merged, cleaned...)
+		reader.converters = merged
+	}
+}
+
 // NewReader 创建请求体读取器。
 func NewReader(options ...ReaderOption) Reader {
 	reader := Reader{converters: DefaultReadConverters()}
@@ -39,6 +71,11 @@ func NewReader(options ...ReaderOption) Reader {
 		}
 	}
 	return reader
+}
+
+// ReadConverters 返回当前请求体读取转换器快照。
+func (r Reader) ReadConverters() []ReadConverter {
+	return append([]ReadConverter(nil), r.convertersOrDefault()...)
 }
 
 // DefaultReadConverters 返回 Spring Web 风格默认请求体转换器。

@@ -23,6 +23,38 @@ func WithConverters(converters ...Converter) Option {
 	}
 }
 
+// WithPrependedConverters 将消息转换器加入默认转换器之前，适合用户覆盖内置写出逻辑。
+func WithPrependedConverters(converters ...Converter) Option {
+	copied := append([]Converter(nil), converters...)
+	return func(writer *Writer) {
+		cleaned := cleanConverters(copied)
+		if len(cleaned) == 0 {
+			return
+		}
+		current := writer.Converters()
+		merged := make([]Converter, 0, len(cleaned)+len(current))
+		merged = append(merged, cleaned...)
+		merged = append(merged, current...)
+		writer.converters = merged
+	}
+}
+
+// WithAppendedConverters 将消息转换器加入当前转换器之后，适合补充低优先级兜底逻辑。
+func WithAppendedConverters(converters ...Converter) Option {
+	copied := append([]Converter(nil), converters...)
+	return func(writer *Writer) {
+		cleaned := cleanConverters(copied)
+		if len(cleaned) == 0 {
+			return
+		}
+		current := writer.Converters()
+		merged := make([]Converter, 0, len(current)+len(cleaned))
+		merged = append(merged, current...)
+		merged = append(merged, cleaned...)
+		writer.converters = merged
+	}
+}
+
 // NewWriter 创建消息写出器。
 func NewWriter(options ...Option) Writer {
 	writer := Writer{converters: DefaultConverters()}
@@ -32,6 +64,11 @@ func NewWriter(options ...Option) Writer {
 		}
 	}
 	return writer
+}
+
+// Converters 返回当前消息转换器快照。
+func (w Writer) Converters() []Converter {
+	return append([]Converter(nil), w.convertersOrDefault()...)
 }
 
 // DefaultConverters 返回 Spring Web 风格默认转换器。
