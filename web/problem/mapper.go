@@ -58,7 +58,7 @@ func classifyError(err error) (int, string, map[string]any) {
 	}
 	var parameterErr *arkweb.ParameterError
 	if errors.As(err, &parameterErr) {
-		return http.StatusBadRequest, "请求参数格式非法", nil
+		return http.StatusBadRequest, "请求参数格式非法", parameterDetails(parameterErr)
 	}
 	var bindErr *arkweb.BindError
 	if errors.As(err, &bindErr) {
@@ -69,6 +69,17 @@ func classifyError(err error) (int, string, map[string]any) {
 		return statusErr.StatusCode(), statusErr.PublicMessage(), nil
 	}
 	return http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), nil
+}
+
+func parameterDetails(err *arkweb.ParameterError) map[string]any {
+	if err == nil || err.Name == "" {
+		return nil
+	}
+	detail := map[string]string{"name": err.Name}
+	if err.Type != "" {
+		detail["type"] = err.Type
+	}
+	return map[string]any{"parameter": detail}
 }
 
 type violationDetail struct {

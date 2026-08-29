@@ -7,10 +7,12 @@ import (
 	"strings"
 	"testing"
 
+	arkjson "goark.dev/arkarta/json"
 	"goark.dev/arkarta/servlet"
 	servletnethttp "goark.dev/arkarta/servlet/nethttp"
 	arkweb "goark.dev/arkarta/web"
 	"goark.dev/goark/web"
+	"goark.dev/goark/web/mvc"
 	"goark.dev/goark/web/problem"
 )
 
@@ -76,6 +78,75 @@ func TestMapperMapsStatusErrorToProblemDetail(t *testing.T) {
 	}
 }
 
+func TestMapperMapsParameterErrorWithoutRawValue(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	registry.UseErrorMapper(problem.NewMapper())
+	if err := registry.GET("/jobs", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]int, error) {
+		page, err := mvc.RequestParamInt(ctx, "page")
+		if err != nil {
+			return nil, err
+		}
+		return map[string]int{"page": page}, nil
+	})); err != nil {
+		t.Fatalf("GET failed: %v", err)
+	}
+
+	recorder := serveProblemRegistry(t, registry, http.MethodGet, "/jobs?page=abc")
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", recorder.Code)
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, `"detail":"请求参数格式非法"`) {
+		t.Fatalf("body = %s, want parameter detail", body)
+	}
+	if strings.Contains(body, "abc") {
+		t.Fatalf("body exposes raw parameter value: %s", body)
+	}
+	var parsed map[string]any
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &parsed); err != nil {
+		t.Fatalf("problem json invalid: %v", err)
+	}
+	parameter, ok := parsed["parameter"].(map[string]any)
+	if !ok || parameter["name"] != "page" || parameter["type"] != "int" {
+		t.Fatalf("parameter detail = %#v, want page int", parsed["parameter"])
+	}
+}
+
+func TestMapperMapsValidationErrorViolations(t *testing.T) {
+	t.Parallel()
+
+	type createJobRequest struct {
+		Name string `json:"name" arkarta:"required"`
+	}
+	registry := web.NewRegistry()
+	registry.UseErrorMapper(problem.NewMapper())
+	if err := registry.POST("/jobs", mvc.BindJSON(http.StatusCreated, func(_ *arkweb.Context, input createJobRequest) (map[string]string, error) {
+		return map[string]string{"name": input.Name}, nil
+	})); err != nil {
+		t.Fatalf("POST failed: %v", err)
+	}
+
+	recorder := serveProblemRegistryWith(t, registry, func() *http.Request {
+		request := httptest.NewRequest(http.MethodPost, "/jobs", strings.NewReader(`{}`))
+		request.Header.Set("Content-Type", "application/json")
+		return request
+	})
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want 422", recorder.Code)
+	}
+	body := recorder.Body.String()
+	for _, want := range []string{
+		`"detail":"请求参数校验失败"`,
+		`"violations":[{"path":"name","code":"required"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body = %s, want %s", body, want)
+		}
+	}
+}
+
 func TestMapperDoesNotExposeInternalErrorDetail(t *testing.T) {
 	t.Parallel()
 
@@ -99,11 +170,19 @@ func TestMapperDoesNotExposeInternalErrorDetail(t *testing.T) {
 func serveProblemRegistry(t *testing.T, registry *web.Registry, method, target string) *httptest.ResponseRecorder {
 	t.Helper()
 
+	return serveProblemRegistryWith(t, registry, func() *http.Request {
+		return httptest.NewRequest(method, target, nil)
+	})
+}
+
+func serveProblemRegistryWith(t *testing.T, registry *web.Registry, build func() *http.Request) *httptest.ResponseRecorder {
+	t.Helper()
+
 	router, err := registry.Router()
 	if err != nil {
 		t.Fatalf("Router failed: %v", err)
 	}
 	recorder := httptest.NewRecorder()
-	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(method, target, nil))
+	servletnethttp.Handler(router).ServeHTTP(recorder, build())
 	return recorder
 }
