@@ -165,10 +165,7 @@ func newParamOptions(ctx *arkweb.Context, options []ParamOption) paramOptions {
 }
 
 func formValue(ctx *arkweb.Context, name string) (string, bool, error) {
-	if ctx == nil {
-		return "", false, arkweb.ErrNilContext
-	}
-	return ctx.FormValue(name)
+	return requestParameterValue(ctx, name)
 }
 
 func headerValue(ctx *arkweb.Context, name string) (string, bool, error) {

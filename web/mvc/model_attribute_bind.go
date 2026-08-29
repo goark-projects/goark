@@ -27,7 +27,7 @@ func bindModelAttribute(ctx *arkweb.Context, target any) error {
 	if err := ensureModelAttributeContentType(ctx); err != nil {
 		return err
 	}
-	values, err := ctx.Request().Parameters()
+	values, err := requestParameters(ctx)
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func ensureModelAttributeContentType(ctx *arkweb.Context) error {
 
 func modelAttributeMethodAllowsBody(method string) bool {
 	switch method {
-	case http.MethodPost, http.MethodPut, http.MethodPatch:
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
 		return true
 	default:
 		return false

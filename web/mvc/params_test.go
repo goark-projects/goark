@@ -14,6 +14,7 @@ import (
 	servletnethttp "goark.dev/arkarta/servlet/nethttp"
 	"goark.dev/arkarta/servlet/session"
 	arkweb "goark.dev/arkarta/web"
+	"goark.dev/goark/web/filter"
 	"goark.dev/goark/web/mvc"
 )
 
@@ -171,6 +172,46 @@ func TestParameterHelpersBindExtendedConversions(t *testing.T) {
 		!reflect.DeepEqual(got.Roles, []string{"admin", "ops"}) ||
 		got.Threshold != 0.75 ||
 		got.Day != "2026-08-29" {
+		t.Fatalf("payload = %#v", got)
+	}
+}
+
+func TestRequestParamReadsFormContentFilterValues(t *testing.T) {
+	t.Parallel()
+
+	type payload struct {
+		Active bool     `json:"active"`
+		Tags   []string `json:"tags"`
+	}
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodDelete, "/users/42", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (payload, error) {
+		tags, err := mvc.RequestParamStrings(ctx, "tag")
+		if err != nil {
+			return payload{}, err
+		}
+		active, err := mvc.RequestParamBool(ctx, "active")
+		if err != nil {
+			return payload{}, err
+		}
+		return payload{Active: active, Tags: tags}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodDelete, "/users/42?tag=query", strings.NewReader("tag=form&active=true"))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(servlet.ChainFilters(router, filter.FormContent())).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	var got payload
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &got); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if !reflect.DeepEqual(got.Tags, []string{"query", "form"}) || !got.Active {
 		t.Fatalf("payload = %#v", got)
 	}
 }
@@ -336,6 +377,42 @@ func TestModelAttributeBindsQueryAndFormValues(t *testing.T) {
 	}
 	if payload.Username != "ad" || payload.Page != 2 || !payload.IncludeDisabled {
 		t.Fatalf("payload = %#v", payload)
+	}
+}
+
+func TestModelAttributeReadsFormContentFilterValues(t *testing.T) {
+	t.Parallel()
+
+	type userSearchCriteria struct {
+		Username string `form:"username" json:"username" arkarta:"required,min=2"`
+		Page     int    `form:"page" json:"page"`
+	}
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodDelete, "/users/search", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]any, error) {
+		criteria, err := mvc.ModelAttribute[userSearchCriteria](ctx)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{
+			"username": criteria.Username,
+			"page":     criteria.Page,
+		}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodDelete, "/users/search?username=ad", strings.NewReader("page=2"))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(servlet.ChainFilters(router, filter.FormContent())).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"username":"ad"`) ||
+		!strings.Contains(recorder.Body.String(), `"page":2`) {
+		t.Fatalf("body = %s, want model attribute values", recorder.Body.String())
 	}
 }
 

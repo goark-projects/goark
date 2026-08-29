@@ -116,10 +116,7 @@ func CookieValueTimes(ctx *arkweb.Context, name string, options ...ParamOption) 
 }
 
 func formValues(ctx *arkweb.Context, name string) ([]string, bool, error) {
-	if ctx == nil {
-		return nil, false, arkweb.ErrNilContext
-	}
-	return ctx.FormValues(name)
+	return requestParameterValues(ctx, name)
 }
 
 func headerValues(ctx *arkweb.Context, name string) ([]string, bool, error) {

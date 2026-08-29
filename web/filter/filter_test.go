@@ -2,6 +2,7 @@ package filter_test
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -138,6 +139,63 @@ func TestHiddenHTTPMethodUsesCustomParameterAndAllowedMethods(t *testing.T) {
 	}
 	if recorder.Body.String() != http.MethodPost {
 		t.Fatalf("body = %q, want POST route", recorder.Body.String())
+	}
+}
+
+func TestFormContentCachesDeleteFormAndPreservesBody(t *testing.T) {
+	t.Parallel()
+
+	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, req *servlet.Request, res servlet.Response) error {
+		value, ok := filter.FormContentValue(req, "name")
+		if !ok {
+			res.SetStatus(http.StatusInternalServerError)
+			return nil
+		}
+		body, err := io.ReadAll(req.Body())
+		if err != nil {
+			return err
+		}
+		res.Header().Set("X-Form-Name", value)
+		_, err = res.Write(body)
+		return err
+	}), filter.FormContent())
+
+	form := url.Values{"name": {"goark"}}
+	request := httptest.NewRequest(http.MethodDelete, "/items/1", strings.NewReader(form.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(handler).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", recorder.Code)
+	}
+	if recorder.Header().Get("X-Form-Name") != "goark" {
+		t.Fatalf("form name = %q, want goark", recorder.Header().Get("X-Form-Name"))
+	}
+	if recorder.Body.String() != form.Encode() {
+		t.Fatalf("body = %q, want original form body", recorder.Body.String())
+	}
+}
+
+func TestFormContentRejectsOversizedBody(t *testing.T) {
+	t.Parallel()
+
+	called := false
+	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, _ *servlet.Request, _ servlet.Response) error {
+		called = true
+		return nil
+	}), filter.FormContent(filter.WithFormContentMaxBodyBytes(4)))
+
+	request := httptest.NewRequest(http.MethodDelete, "/items/1", strings.NewReader("name=goark"))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(handler).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want 413", recorder.Code)
+	}
+	if called {
+		t.Fatal("chain should not run when form body is oversized")
 	}
 }
 
