@@ -20,6 +20,10 @@ type tenantID struct {
 	value string
 }
 
+type scopedTenantID struct {
+	value string
+}
+
 func TestConversionServiceAppliesToMVCParameters(t *testing.T) {
 	t.Parallel()
 
@@ -78,6 +82,95 @@ func TestConversionServiceAppliesToMVCParameters(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), `"page":103`) ||
 		!strings.Contains(recorder.Body.String(), `"tenant":"tenant:blue"`) {
 		t.Fatalf("body = %s, want converted parameters", recorder.Body.String())
+	}
+}
+
+func TestControllerInitBinderAppliesScopedConversionService(t *testing.T) {
+	t.Parallel()
+
+	type searchCriteria struct {
+		Page   int            `form:"page"`
+		Tenant scopedTenantID `form:"tenant"`
+	}
+	type payload struct {
+		Page        int    `json:"page"`
+		Tenant      string `json:"tenant"`
+		ParamTenant string `json:"paramTenant"`
+	}
+
+	service, err := convert.NewService(convert.ConverterFunc[string, int](func(value string) (int, error) {
+		return len(value) + 100, nil
+	}))
+	if err != nil {
+		t.Fatalf("NewService failed: %v", err)
+	}
+	beanRegistry := container.NewRegistry()
+	if err := mvc.RegisterConversionService(beanRegistry, "testConversionService", service); err != nil {
+		t.Fatalf("RegisterConversionService failed: %v", err)
+	}
+	resolver, err := container.New(beanRegistry)
+	if err != nil {
+		t.Fatalf("container.New failed: %v", err)
+	}
+
+	registry := web.NewRegistry()
+	if err := web.ApplyConfigurers(t.Context(), resolver, registry); err != nil {
+		t.Fatalf("ApplyConfigurers failed: %v", err)
+	}
+	localController := mvc.NewRestController("local-search",
+		mvc.GET("/local", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (payload, error) {
+			criteria, err := mvc.ModelAttribute[searchCriteria](ctx)
+			if err != nil {
+				return payload{}, err
+			}
+			tenant, err := mvc.RequestParamAs[scopedTenantID](ctx, "tenant")
+			if err != nil {
+				return payload{}, err
+			}
+			return payload{Page: criteria.Page, Tenant: criteria.Tenant.value, ParamTenant: tenant.value}, nil
+		})),
+	).WithInitBinders(mvc.BinderInitializerFunc(func(_ *arkweb.Context, binder *mvc.DataBinder) error {
+		return binder.AddConverter(mvc.ConverterFunc[string, scopedTenantID](func(value string) (scopedTenantID, error) {
+			return scopedTenantID{value: "local:" + value}, nil
+		}))
+	}))
+	if err := localController.Register(registry); err != nil {
+		t.Fatalf("local Register failed: %v", err)
+	}
+	plainController := mvc.NewRestController("plain-search",
+		mvc.GET("/plain", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (payload, error) {
+			criteria, err := mvc.ModelAttribute[searchCriteria](ctx)
+			if err != nil {
+				return payload{}, err
+			}
+			return payload{Page: criteria.Page, Tenant: criteria.Tenant.value}, nil
+		})),
+	)
+	if err := plainController.Register(registry); err != nil {
+		t.Fatalf("plain Register failed: %v", err)
+	}
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+
+	local := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(local, httptest.NewRequest(http.MethodGet, "/local?page=goark&tenant=blue", nil))
+	if local.Code != http.StatusOK {
+		t.Fatalf("local status = %d, want 200, body=%s", local.Code, local.Body.String())
+	}
+	var got payload
+	if err := arkjson.Unmarshal(nil, local.Body.Bytes(), &got); err != nil {
+		t.Fatalf("local response json invalid: %v", err)
+	}
+	if got.Page != 105 || got.Tenant != "local:blue" || got.ParamTenant != "local:blue" {
+		t.Fatalf("local payload = %#v, want scoped conversion", got)
+	}
+
+	plain := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(plain, httptest.NewRequest(http.MethodGet, "/plain?page=goark&tenant=blue", nil))
+	if plain.Code != http.StatusBadRequest {
+		t.Fatalf("plain status = %d, want 400, body=%s", plain.Code, plain.Body.String())
 	}
 }
 

@@ -63,6 +63,49 @@ func TestService_whenCustomConverterRegistered_shouldUseConverter(t *testing.T) 
 	}
 }
 
+func TestService_whenCloned_shouldPreserveConvertersWithoutMutatingOriginal(t *testing.T) {
+	type targetA struct {
+		value string
+	}
+	type targetB struct {
+		value string
+	}
+
+	service, err := convert.NewService(convert.ConverterFunc[string, targetA](func(value string) (targetA, error) {
+		return targetA{value: "a:" + value}, nil
+	}))
+	if err != nil {
+		t.Fatalf("create service failed: %v", err)
+	}
+	cloned, err := service.Clone()
+	if err != nil {
+		t.Fatalf("clone service failed: %v", err)
+	}
+	if err := cloned.Register(convert.ConverterFunc[string, targetB](func(value string) (targetB, error) {
+		return targetB{value: "b:" + value}, nil
+	})); err != nil {
+		t.Fatalf("register cloned converter failed: %v", err)
+	}
+
+	a, err := convert.Convert[targetA](cloned, "goark")
+	if err != nil {
+		t.Fatalf("clone should preserve original converter: %v", err)
+	}
+	if a.value != "a:goark" {
+		t.Fatalf("targetA = %#v", a)
+	}
+	b, err := convert.Convert[targetB](cloned, "goark")
+	if err != nil {
+		t.Fatalf("clone should use new converter: %v", err)
+	}
+	if b.value != "b:goark" {
+		t.Fatalf("targetB = %#v", b)
+	}
+	if _, err := convert.Convert[targetB](service, "goark"); err == nil {
+		t.Fatal("original service should not see cloned converter")
+	}
+}
+
 func TestService_whenTargetCannotAcceptNil_shouldReturnError(t *testing.T) {
 	service := convert.DefaultService()
 

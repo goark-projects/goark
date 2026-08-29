@@ -57,6 +57,22 @@ func DefaultService() *Service {
 	return MustNewService()
 }
 
+// Clone 复制当前转换服务注册表，转换器实例按不可变对象复用。
+func (s *Service) Clone() (*Service, error) {
+	if s == nil {
+		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "conversion service is nil")
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	cloned := &Service{
+		converters: make(map[typePair]Converter, len(s.converters)),
+	}
+	for pair, converter := range s.converters {
+		cloned.converters[pair] = converter
+	}
+	return cloned, nil
+}
+
 // Register 注册转换器，已有相同源/目标类型时拒绝覆盖。
 func (s *Service) Register(converter Converter) error {
 	if s == nil {

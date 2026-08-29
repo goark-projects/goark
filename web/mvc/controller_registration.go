@@ -70,6 +70,7 @@ func appendControllerRegistrations(
 				*keys = append(*keys, key)
 			}
 			handler := wrapModelAttributeInitializers(resolvedRoute.Handler, controller.modelAttrs)
+			handler = wrapInitBinders(handler, controller.binders)
 			groups[key] = append(groups[key], routeRegistration{
 				handler:    bindControllerKind(controller.kind, handler),
 				conditions: mergeControllerRouteConditions(controller.conditions, resolvedRoute.Conditions),

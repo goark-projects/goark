@@ -30,6 +30,7 @@ type Controller struct {
 	conditions  Conditions
 	crossOrigin *cors.Config
 	modelAttrs  []ModelAttributeInitializer
+	binders     []BinderInitializer
 }
 
 // NewController 创建控制器描述。
