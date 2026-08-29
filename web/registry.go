@@ -23,6 +23,7 @@ type Registry struct {
 	writeConverters   []message.Converter
 	validator         validation.Validator
 	filters           []filterRegistration
+	corsMappings      []CORSMapping
 	profiles          []servletcontainer.Profile
 	servlets          []servletMapping
 	deploymentOptions []servletcontainer.DeploymentOption
@@ -192,7 +193,11 @@ func (r *Registry) Router(options ...arkweb.Option) (*arkweb.Router, error) {
 	for _, advice := range r.advice {
 		router.UseResponseAdvice(advice)
 	}
-	for _, route := range r.routes {
+	routes, err := applyCORSMappings(r.routes, r.corsMappings)
+	if err != nil {
+		return nil, err
+	}
+	for _, route := range routes {
 		if err := router.Handle(route.Method, route.Pattern, route.Handler); err != nil {
 			return nil, err
 		}

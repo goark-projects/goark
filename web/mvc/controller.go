@@ -3,6 +3,7 @@ package mvc
 import (
 	arkweb "goark.dev/arkarta/web"
 	goweb "goark.dev/goark/web"
+	"goark.dev/goark/web/cors"
 )
 
 const (
@@ -22,9 +23,10 @@ const (
 
 // Controller 描述一组同属一个控制器的路由。
 type Controller struct {
-	name   string
-	routes []Route
-	kind   ControllerKind
+	name        string
+	routes      []Route
+	kind        ControllerKind
+	crossOrigin *cors.Config
 }
 
 // NewController 创建控制器描述。
@@ -58,18 +60,39 @@ func (c Controller) Routes() []Route {
 	return append([]Route(nil), c.routes...)
 }
 
+// WithCrossOrigin 设置控制器级 CORS 策略，对齐 Spring 类级 @CrossOrigin。
+func (c Controller) WithCrossOrigin(config cors.Config) Controller {
+	c.crossOrigin = cloneCrossOriginConfig(config)
+	return c
+}
+
 // Register 注册控制器路由。
 func (c Controller) Register(registry *goweb.Registry) error {
 	if registry == nil {
 		return goweb.ErrNilRegistry
 	}
 	for _, route := range c.routes {
+		if config, ok := c.crossOriginFor(route); ok {
+			if err := registry.AddCORSMapping(route.Pattern, crossOriginMethods(route.Method), *config); err != nil {
+				return err
+			}
+		}
 		handler := route.Conditions.wrap(bindControllerKind(c.kind, route.Handler))
 		if err := registry.Handle(route.Method, route.Pattern, handler); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (c Controller) crossOriginFor(route Route) (*cors.Config, bool) {
+	if route.crossOrigin != nil {
+		return route.crossOrigin, true
+	}
+	if c.crossOrigin != nil {
+		return c.crossOrigin, true
+	}
+	return nil, false
 }
 
 // ControllerKindFromContext 返回当前请求命中的控制器类型。

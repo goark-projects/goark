@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	arkweb "goark.dev/arkarta/web"
+	"goark.dev/goark/web/cors"
 )
 
 // Route 描述 MVC 路由。
@@ -13,6 +14,8 @@ type Route struct {
 	Pattern    string
 	Handler    arkweb.Handler
 	Conditions Conditions
+
+	crossOrigin *cors.Config
 }
 
 // RouteOption 定制 MVC 路由描述。
@@ -98,6 +101,14 @@ func WithHeaders(expressions ...string) RouteOption {
 	copied := cleanRouteValues(expressions)
 	return func(route *Route) {
 		route.Conditions.Headers = copied
+	}
+}
+
+// WithCrossOrigin 设置路由级 CORS 策略，对齐 Spring 方法级 @CrossOrigin。
+func WithCrossOrigin(config cors.Config) RouteOption {
+	copied := cloneCrossOriginConfig(config)
+	return func(route *Route) {
+		route.crossOrigin = copied
 	}
 }
 
