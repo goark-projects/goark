@@ -69,7 +69,9 @@ func (v ModelAndView) Write(ctx *arkweb.Context) error {
 	if result, ok := forwardResultFromViewName(viewName); ok {
 		return result.Write(ctx)
 	}
-	if result, ok := redirectResultFromViewName(ctx, v.status, viewName); ok {
+	if result, ok, err := redirectResultFromViewNameWithModel(ctx, v.status, viewName, v.model); err != nil {
+		return err
+	} else if ok {
 		return result.Write(ctx)
 	}
 	return view.Using(

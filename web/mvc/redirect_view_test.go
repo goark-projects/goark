@@ -78,3 +78,49 @@ func TestModelAndViewRedirectViewNameWritesRedirect(t *testing.T) {
 		t.Fatalf("Location = %q, want /signin", got)
 	}
 }
+
+func TestModelAndViewRedirectExpandsModelAttributes(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	if err := mvc.NewController("pages",
+		mvc.GET("/accounts", mvc.Return(0, func(_ *arkweb.Context) (mvc.ModelAndView, error) {
+			model := mvc.NewModel().
+				AddAttribute("id", "a/b").
+				AddAttribute("page", 2).
+				AddAttribute("tab", "security")
+			return mvc.NewModelAndView("redirect:/users/{id}", model, mvc.WithViewStatus(http.StatusSeeOther)), nil
+		})),
+	).Register(registry); err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+
+	recorder := serveMVC(t, registry, http.MethodGet, "/accounts", "")
+	if recorder.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303", recorder.Code)
+	}
+	if got := recorder.Header().Get("Location"); got != "/users/a%2Fb?page=2&tab=security" {
+		t.Fatalf("Location = %q, want expanded redirect", got)
+	}
+}
+
+func TestModelAndViewRedirectReportsMissingPathVariable(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	if err := mvc.NewController("pages",
+		mvc.GET("/accounts", mvc.Return(0, func(_ *arkweb.Context) (mvc.ModelAndView, error) {
+			return mvc.NewModelAndView("redirect:/users/{id}", mvc.NewModel()), nil
+		})),
+	).Register(registry); err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+
+	recorder := serveMVC(t, registry, http.MethodGet, "/accounts", "")
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", recorder.Code)
+	}
+	if got := recorder.Header().Get("Location"); got != "" {
+		t.Fatalf("Location = %q, want empty", got)
+	}
+}
