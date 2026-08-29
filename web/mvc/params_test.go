@@ -265,6 +265,50 @@ func TestRequestParamReadsFormContentFilterValues(t *testing.T) {
 	}
 }
 
+func TestRequestParamReadsEmptyArrayIndexValues(t *testing.T) {
+	t.Parallel()
+
+	type payload struct {
+		Query string   `json:"query"`
+		Tags  []string `json:"tags"`
+		IDs   []int64  `json:"ids"`
+	}
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/search", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (payload, error) {
+		query, err := mvc.RequestParamString(ctx, "q")
+		if err != nil {
+			return payload{}, err
+		}
+		tags, err := mvc.RequestParamStrings(ctx, "tag")
+		if err != nil {
+			return payload{}, err
+		}
+		ids, err := mvc.RequestParamInt64s(ctx, "id")
+		if err != nil {
+			return payload{}, err
+		}
+		return payload{Query: query, Tags: tags, IDs: ids}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/search?q[]=goark&tag[]=web&tag[]=mvc&id[]=1&id[]=2", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	var got payload
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &got); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if got.Query != "goark" ||
+		!reflect.DeepEqual(got.Tags, []string{"web", "mvc"}) ||
+		!reflect.DeepEqual(got.IDs, []int64{1, 2}) {
+		t.Fatalf("payload = %#v, want empty array index request params", got)
+	}
+}
+
 func TestParameterHelpersRejectMissingRequiredParameter(t *testing.T) {
 	t.Parallel()
 

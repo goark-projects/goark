@@ -35,10 +35,20 @@ func requestParameterValues(ctx *arkweb.Context, name string) ([]string, bool, e
 		return nil, false, err
 	}
 	list, ok := values[name]
+	if !ok {
+		list, ok = values[emptyArrayRequestParameterName(name)]
+	}
 	if !ok || len(list) == 0 {
 		return nil, false, nil
 	}
 	return append([]string(nil), list...), true, nil
+}
+
+func emptyArrayRequestParameterName(name string) string {
+	if name == "" || strings.HasSuffix(name, "[]") {
+		return name
+	}
+	return name + "[]"
 }
 
 func appendFormContentValues(values url.Values, req *servlet.Request) url.Values {
