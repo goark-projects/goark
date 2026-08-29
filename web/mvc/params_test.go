@@ -176,6 +176,54 @@ func TestParameterHelpersBindExtendedConversions(t *testing.T) {
 	}
 }
 
+func TestParameterHelpersBindPathVariableAliases(t *testing.T) {
+	t.Parallel()
+
+	type payload struct {
+		ID    string  `json:"id"`
+		Count int     `json:"count"`
+		Codes []int64 `json:"codes"`
+		Ratio float64 `json:"ratio"`
+	}
+
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/aliases/{id}/{count}/{codes}/{ratio}", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (payload, error) {
+		id, err := mvc.PathVariableString(ctx, "id")
+		if err != nil {
+			return payload{}, err
+		}
+		count, err := mvc.PathVariableAs[int](ctx, "count")
+		if err != nil {
+			return payload{}, err
+		}
+		codes, err := mvc.PathVariableInt64s(ctx, "codes")
+		if err != nil {
+			return payload{}, err
+		}
+		ratio, err := mvc.PathVariableFloat64(ctx, "ratio")
+		if err != nil {
+			return payload{}, err
+		}
+		return payload{ID: id, Count: count, Codes: codes, Ratio: ratio}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/aliases/u-42/3/7,8/1.5", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	var got payload
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &got); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if got.ID != "u-42" || got.Count != 3 || !reflect.DeepEqual(got.Codes, []int64{7, 8}) || got.Ratio != 1.5 {
+		t.Fatalf("payload = %#v", got)
+	}
+}
+
 func TestRequestParamReadsFormContentFilterValues(t *testing.T) {
 	t.Parallel()
 
