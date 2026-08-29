@@ -142,6 +142,74 @@ func TestConfigurerServesContentVersionedResource(t *testing.T) {
 	}
 }
 
+func TestConfigurerServesFixedVersionedResource(t *testing.T) {
+	t.Parallel()
+
+	root := fstest.MapFS{
+		"app.js": &fstest.MapFile{
+			Data:    []byte("console.log('goark')"),
+			Mode:    0o644,
+			ModTime: time.Unix(10, 0),
+		},
+	}
+	versioned, err := static.FixedVersionPath("v1", "app.js")
+	if err != nil {
+		t.Fatalf("FixedVersionPath failed: %v", err)
+	}
+	configurer, err := static.New("/assets/*", root, static.WithFixedVersion("v1"))
+	if err != nil {
+		t.Fatalf("static.New failed: %v", err)
+	}
+	registry := web.NewRegistry()
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+
+	recorder := serveStaticRegistry(t, registry, http.MethodGet, "/assets/"+versioned)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if recorder.Body.String() != "console.log('goark')" {
+		t.Fatalf("body = %q", recorder.Body.String())
+	}
+}
+
+func TestConfigurerServesCombinedVersionedResource(t *testing.T) {
+	t.Parallel()
+
+	root := fstest.MapFS{
+		"app.js": &fstest.MapFile{
+			Data:    []byte("console.log('goark')"),
+			Mode:    0o644,
+			ModTime: time.Unix(10, 0),
+		},
+	}
+	contentPath, err := static.ContentVersionPath(t.Context(), root, "app.js")
+	if err != nil {
+		t.Fatalf("ContentVersionPath failed: %v", err)
+	}
+	versioned, err := static.FixedVersionPath("v1", contentPath)
+	if err != nil {
+		t.Fatalf("FixedVersionPath failed: %v", err)
+	}
+	configurer, err := static.New("/assets/*", root, static.WithContentVersioning(), static.WithFixedVersion("v1"))
+	if err != nil {
+		t.Fatalf("static.New failed: %v", err)
+	}
+	registry := web.NewRegistry()
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+
+	recorder := serveStaticRegistry(t, registry, http.MethodGet, "/assets/"+versioned)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if recorder.Body.String() != "console.log('goark')" {
+		t.Fatalf("body = %q", recorder.Body.String())
+	}
+}
+
 func TestContentVersionPathRejectsInvalidPath(t *testing.T) {
 	t.Parallel()
 
@@ -151,6 +219,9 @@ func TestContentVersionPathRejectsInvalidPath(t *testing.T) {
 	}
 	if _, err := static.ContentVersionPath(t.Context(), nil, "app.js"); !errors.Is(err, servletresource.ErrNilFileSystem) {
 		t.Fatalf("err = %v, want ErrNilFileSystem", err)
+	}
+	if _, err := static.FixedVersionPath("../v1", "app.js"); !errors.Is(err, static.ErrInvalidResourceVersion) {
+		t.Fatalf("err = %v, want ErrInvalidResourceVersion", err)
 	}
 }
 

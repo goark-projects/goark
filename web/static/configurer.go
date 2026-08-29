@@ -31,6 +31,9 @@ func New(pattern string, root fs.FS, options ...Option) (Configurer, error) {
 	if cfg.contentVersion && root != nil {
 		root = newContentVersionFS(root)
 	}
+	if cfg.fixedVersion != "" && root != nil {
+		root = newFixedVersionFS(root, cfg.fixedVersion)
+	}
 	providerOptions := make([]servletresource.FSProviderOption, 0, 1)
 	if cfg.contentType != nil {
 		providerOptions = append(providerOptions, servletresource.WithContentTypeFunc(cfg.contentType))

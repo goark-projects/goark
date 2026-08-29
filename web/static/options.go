@@ -20,6 +20,7 @@ type config struct {
 	welcomeFilesSet bool
 	cacheControl    string
 	contentVersion  bool
+	fixedVersion    string
 }
 
 // Option 定制静态资源配置器。
@@ -80,6 +81,18 @@ func WithCacheMaxAge(maxAge time.Duration) Option {
 func WithContentVersioning() Option {
 	return func(cfg *config) error {
 		cfg.contentVersion = true
+		return nil
+	}
+}
+
+// WithFixedVersion 启用静态资源固定版本前缀路径解析。
+func WithFixedVersion(version string) Option {
+	return func(cfg *config) error {
+		clean, err := cleanFixedVersion(version)
+		if err != nil {
+			return err
+		}
+		cfg.fixedVersion = clean
 		return nil
 	}
 }
