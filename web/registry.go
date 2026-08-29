@@ -79,6 +79,11 @@ func (r *Registry) OPTIONS(pattern string, handler arkweb.Handler) error {
 	return r.Handle(http.MethodOptions, pattern, handler)
 }
 
+// TRACE 注册 TRACE 路由。
+func (r *Registry) TRACE(pattern string, handler arkweb.Handler) error {
+	return r.Handle(http.MethodTrace, pattern, handler)
+}
+
 // Use 注册全局 Web 拦截器。
 func (r *Registry) Use(interceptor arkweb.Interceptor) {
 	if !isNilInterceptor(interceptor) {

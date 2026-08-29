@@ -29,7 +29,7 @@ func TestRegistryBuildsRouter(t *testing.T) {
 	}
 }
 
-func TestRegistrySupportsHeadAndOptionsHelpers(t *testing.T) {
+func TestRegistrySupportsHeadOptionsAndTraceHelpers(t *testing.T) {
 	registry := web.NewRegistry()
 	if err := registry.HEAD("/healthz", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
 		return arkweb.Text(http.StatusOK, "UP"), nil
@@ -41,12 +41,17 @@ func TestRegistrySupportsHeadAndOptionsHelpers(t *testing.T) {
 	})); err != nil {
 		t.Fatalf("OPTIONS failed: %v", err)
 	}
+	if err := registry.TRACE("/healthz", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+		return arkweb.NoContent(), nil
+	})); err != nil {
+		t.Fatalf("TRACE failed: %v", err)
+	}
 
 	routes := registry.Routes()
-	if len(routes) != 2 {
-		t.Fatalf("route count = %d, want 2", len(routes))
+	if len(routes) != 3 {
+		t.Fatalf("route count = %d, want 3", len(routes))
 	}
-	if routes[0].Method != http.MethodHead || routes[1].Method != http.MethodOptions {
-		t.Fatalf("methods = %s/%s, want HEAD/OPTIONS", routes[0].Method, routes[1].Method)
+	if routes[0].Method != http.MethodHead || routes[1].Method != http.MethodOptions || routes[2].Method != http.MethodTrace {
+		t.Fatalf("methods = %s/%s/%s, want HEAD/OPTIONS/TRACE", routes[0].Method, routes[1].Method, routes[2].Method)
 	}
 }

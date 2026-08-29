@@ -72,6 +72,11 @@ func OPTIONS(pattern string, handler arkweb.Handler, options ...RouteOption) Rou
 	return Handle(http.MethodOptions, pattern, handler, options...)
 }
 
+// TRACE 创建 TRACE 路由描述。
+func TRACE(pattern string, handler arkweb.Handler, options ...RouteOption) Route {
+	return Handle(http.MethodTrace, pattern, handler, options...)
+}
+
 // WithConsumes 设置请求 Content-Type 条件。
 func WithConsumes(mediaTypes ...string) RouteOption {
 	copied := cleanRouteValues(mediaTypes)
