@@ -10,11 +10,13 @@ import (
 
 // Configuration 将 MVC 控制器注册为 Goark 配置单元。
 type Configuration struct {
-	name              string
-	order             int
-	controllers       []Controller
-	advices           []ControllerAdvice
-	exceptionHandlers []goweb.ErrorMapper
+	name                      string
+	order                     int
+	controllers               []Controller
+	advices                   []ControllerAdvice
+	exceptionHandlers         []goweb.ErrorMapper
+	handlerInterceptors       []HandlerInterceptor
+	mappedHandlerInterceptors []mappedHandlerInterceptor
 }
 
 // NewConfiguration 创建 MVC 配置单元。
@@ -34,6 +36,21 @@ func (c Configuration) WithOrder(order int) Configuration {
 // WithExceptionHandlers 添加 MVC 全局异常处理器。
 func (c Configuration) WithExceptionHandlers(handlers ...goweb.ErrorMapper) Configuration {
 	c.exceptionHandlers = append(c.exceptionHandlers, handlers...)
+	return c
+}
+
+// WithHandlerInterceptors 添加 MVC 全局处理器拦截器。
+func (c Configuration) WithHandlerInterceptors(interceptors ...HandlerInterceptor) Configuration {
+	c.handlerInterceptors = append(c.handlerInterceptors, interceptors...)
+	return c
+}
+
+// WithMappedHandlerInterceptor 添加带路径映射的 MVC 处理器拦截器。
+func (c Configuration) WithMappedHandlerInterceptor(interceptor HandlerInterceptor, mapping goweb.InterceptorMapping) Configuration {
+	c.mappedHandlerInterceptors = append(c.mappedHandlerInterceptors, mappedHandlerInterceptor{
+		interceptor: interceptor,
+		mapping:     mapping,
+	})
 	return c
 }
 
@@ -66,7 +83,11 @@ func (c Configuration) RegisterWithContext(_ context.Context, config appcontext.
 	return goweb.RegisterConfigurer(
 		config.Registry(),
 		c.Name()+".configurer",
-		NewConfigurer(c.controllers...).WithExceptionHandlers(c.exceptionHandlers...).WithControllerAdvices(c.advices...),
+		NewConfigurer(c.controllers...).
+			WithExceptionHandlers(c.exceptionHandlers...).
+			WithHandlerInterceptors(c.handlerInterceptors...).
+			WithControllerAdvices(c.advices...).
+			withMappedHandlerInterceptors(c.mappedHandlerInterceptors...),
 		container.WithOrder(c.order),
 	)
 }
