@@ -81,7 +81,6 @@ func TestRequestMappingCreatesDefaultMethodRoutes(t *testing.T) {
 		http.MethodPatch,
 		http.MethodDelete,
 		http.MethodOptions,
-		http.MethodTrace,
 	}
 	if len(routes) != len(wantMethods) {
 		t.Fatalf("route count = %d, want %d", len(routes), len(wantMethods))
@@ -101,7 +100,7 @@ func TestRequestMappingCreatesDefaultMethodRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Router failed: %v", err)
 	}
-	for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodOptions, http.MethodTrace} {
+	for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodOptions} {
 		recorder := httptest.NewRecorder()
 		servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(method, "/probe", nil))
 		if recorder.Code != http.StatusNoContent {
@@ -111,11 +110,11 @@ func TestRequestMappingCreatesDefaultMethodRoutes(t *testing.T) {
 }
 
 func TestRequestMappingMethodsNormalizesAndDeduplicatesMethods(t *testing.T) {
-	routes := mvc.RequestMappingMethods([]string{"post", "POST", " put "}, "/jobs", mvc.NoContent(func(_ *arkweb.Context) error {
+	routes := mvc.RequestMappingMethods([]string{"post", "POST", " put ", "trace"}, "/jobs", mvc.NoContent(func(_ *arkweb.Context) error {
 		return nil
 	}))
 
-	wantMethods := []string{http.MethodPost, http.MethodPut}
+	wantMethods := []string{http.MethodPost, http.MethodPut, http.MethodTrace}
 	if len(routes) != len(wantMethods) {
 		t.Fatalf("route count = %d, want %d", len(routes), len(wantMethods))
 	}

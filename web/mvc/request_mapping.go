@@ -15,7 +15,6 @@ var defaultRequestMappingMethods = [...]string{
 	http.MethodPatch,
 	http.MethodDelete,
 	http.MethodOptions,
-	http.MethodTrace,
 }
 
 // RequestMapping 创建无 HTTP method 限定的 MVC 路由集合，对齐 Spring @RequestMapping 默认语义。
