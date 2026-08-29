@@ -68,6 +68,27 @@ func TestRegistryErrorMapperFallsBackToDefault(t *testing.T) {
 	}
 }
 
+func TestDefaultErrorMapperMapsWebStatusError(t *testing.T) {
+	t.Parallel()
+
+	cause := errors.New("internal quota bucket")
+	registry := web.NewRegistry()
+	if err := registry.GET("/limited", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+		return nil, web.NewStatusError(http.StatusTooManyRequests, "rate limited", cause)
+	})); err != nil {
+		t.Fatalf("GET failed: %v", err)
+	}
+
+	recorder := serveRegistry(t, registry, http.MethodGet, "/limited")
+	if recorder.Code != http.StatusTooManyRequests {
+		t.Fatalf("status = %d, want 429, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"message":"rate limited"`) ||
+		strings.Contains(recorder.Body.String(), cause.Error()) {
+		t.Fatalf("body = %s, want public message without cause", recorder.Body.String())
+	}
+}
+
 func TestRegistryRouterOptionsOverrideErrorMappers(t *testing.T) {
 	t.Parallel()
 
