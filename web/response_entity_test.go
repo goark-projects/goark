@@ -75,6 +75,45 @@ func TestResponseEntityNoBodyWritesOnlyStatusAndHeaders(t *testing.T) {
 	}
 }
 
+func TestResponseEntitySpringStyleConstructors(t *testing.T) {
+	t.Parallel()
+
+	created := web.Created("/jobs/1", map[string]string{"state": "created"})
+	if created.StatusCode() != http.StatusCreated {
+		t.Fatalf("created status = %d, want 201", created.StatusCode())
+	}
+	if got := created.Headers().Get("Location"); got != "/jobs/1" {
+		t.Fatalf("created Location = %q, want /jobs/1", got)
+	}
+	if body, ok := created.Body(); !ok || body["state"] != "created" {
+		t.Fatalf("created body = %#v ok=%t", body, ok)
+	}
+
+	createdNoBody := web.CreatedNoBody("/jobs/1")
+	if createdNoBody.StatusCode() != http.StatusCreated {
+		t.Fatalf("created no body status = %d, want 201", createdNoBody.StatusCode())
+	}
+	if _, ok := createdNoBody.Body(); ok {
+		t.Fatal("created no body should not expose a body")
+	}
+
+	if web.Accepted("queued").StatusCode() != http.StatusAccepted {
+		t.Fatal("accepted should use 202")
+	}
+	if web.AcceptedNoBody().StatusCode() != http.StatusAccepted {
+		t.Fatal("accepted no body should use 202")
+	}
+	if web.NoContent().StatusCode() != http.StatusNoContent {
+		t.Fatal("no content should use 204")
+	}
+	if web.BadRequest("invalid").StatusCode() != http.StatusBadRequest {
+		t.Fatal("bad request should use 400")
+	}
+	if web.NotFound().StatusCode() != http.StatusNotFound {
+		t.Fatal("not found should use 404")
+	}
+}
+
 func TestResponseEntityWritesConfiguredMediaType(t *testing.T) {
 	t.Parallel()
 
