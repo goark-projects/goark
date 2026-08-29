@@ -19,6 +19,15 @@ func (e ResponseEntity[T]) WithCookie(cookie *http.Cookie) ResponseEntity[T] {
 	return e.WithAddedHeader("Set-Cookie", value)
 }
 
+// WithResponseCookie 追加响应 Cookie 值对象。
+func (e ResponseEntity[T]) WithResponseCookie(cookie ResponseCookie) ResponseEntity[T] {
+	value := cookie.String()
+	if value == "" {
+		return e
+	}
+	return e.WithAddedHeader("Set-Cookie", value)
+}
+
 // WithCacheControl 设置 Cache-Control 响应头。
 func (e ResponseEntity[T]) WithCacheControl(control CacheControl) ResponseEntity[T] {
 	return e.WithCacheControlValue(control.HeaderValue())
