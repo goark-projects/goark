@@ -13,7 +13,7 @@ func ModelAttributeGroups[T any](ctx *arkweb.Context, groups ...string) (T, erro
 	if ctx == nil {
 		return out, arkweb.ErrNilContext
 	}
-	if err := ctx.BindForm(&out); err != nil {
+	if err := bindModelAttribute(ctx, &out); err != nil {
 		return out, err
 	}
 	return out, validateBound(ctx, &out, groups)
