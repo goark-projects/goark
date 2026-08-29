@@ -3,22 +3,17 @@ package web
 import (
 	"goark.dev/arkarta/servlet"
 	arkweb "goark.dev/arkarta/web"
+	weblocale "goark.dev/goark/web/locale"
 )
 
 // RequestLocale 返回请求 Accept-Language 中优先级最高的 Locale。
 func RequestLocale(ctx *arkweb.Context) (servlet.Locale, bool) {
-	if ctx == nil || ctx.Request() == nil {
-		return servlet.Locale{}, false
-	}
-	return ctx.Request().Locale()
+	return weblocale.Current(ctx)
 }
 
 // RequestLocales 按客户端声明优先级返回请求 Locale 列表。
 func RequestLocales(ctx *arkweb.Context) []servlet.Locale {
-	if ctx == nil || ctx.Request() == nil {
-		return nil
-	}
-	return ctx.Request().Locales()
+	return weblocale.Locales(ctx)
 }
 
 // SetResponseLocale 设置响应 Content-Language。
