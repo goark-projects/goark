@@ -77,6 +77,7 @@ func TestParameterHelpersBindExtendedConversions(t *testing.T) {
 
 	type payload struct {
 		Score     float64   `json:"score"`
+		PathIDs   []int64   `json:"pathIds"`
 		Tags      []string  `json:"tags"`
 		IDs       []int64   `json:"ids"`
 		Enabled   []bool    `json:"enabled"`
@@ -88,8 +89,12 @@ func TestParameterHelpersBindExtendedConversions(t *testing.T) {
 	}
 
 	router := arkweb.NewRouter()
-	err := router.Handle(http.MethodGet, "/reports/{date}", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (payload, error) {
+	err := router.Handle(http.MethodGet, "/reports/{date}/{pathIds}", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (payload, error) {
 		score, err := mvc.RequestParamFloat64(ctx, "score")
+		if err != nil {
+			return payload{}, err
+		}
+		pathIDs, err := mvc.PathInt64s(ctx, "pathIds")
 		if err != nil {
 			return payload{}, err
 		}
@@ -127,6 +132,7 @@ func TestParameterHelpersBindExtendedConversions(t *testing.T) {
 		}
 		return payload{
 			Score:     score,
+			PathIDs:   pathIDs,
 			Tags:      tags,
 			IDs:       ids,
 			Enabled:   enabled,
@@ -142,7 +148,7 @@ func TestParameterHelpersBindExtendedConversions(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/reports/20260829?score=98.5&tag=ops&tag=web,api&ids=1,2&enabled=true,false&ratio=1.5&ratio=2.5", nil)
+	request := httptest.NewRequest(http.MethodGet, "/reports/20260829/7,8?score=98.5&tag=ops&tag=web,api&ids=1,2&enabled=true,false&ratio=1.5&ratio=2.5", nil)
 	request.Header.Set("X-At", "2026-08-29T02:30:00Z")
 	request.Header.Add("X-Role", "admin,ops")
 	request.AddCookie(&http.Cookie{Name: "threshold", Value: "0.75"})
@@ -156,6 +162,7 @@ func TestParameterHelpersBindExtendedConversions(t *testing.T) {
 		t.Fatalf("response json invalid: %v", err)
 	}
 	if got.Score != 98.5 ||
+		!reflect.DeepEqual(got.PathIDs, []int64{7, 8}) ||
 		!reflect.DeepEqual(got.Tags, []string{"ops", "web", "api"}) ||
 		!reflect.DeepEqual(got.IDs, []int64{1, 2}) ||
 		!reflect.DeepEqual(got.Enabled, []bool{true, false}) ||
@@ -259,20 +266,30 @@ func TestParameterHelpersBindMatrixVariables(t *testing.T) {
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"id": id, "color": color, "year": year}, nil
+		codes, err := mvc.MatrixVariableInt64s(ctx, "code")
+		if err != nil {
+			return nil, err
+		}
+		flags, err := mvc.MatrixVariableBools(ctx, "flag")
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"id": id, "color": color, "year": year, "codes": codes, "flags": flags}, nil
 	}))
 	if err != nil {
 		t.Fatalf("Handle failed: %v", err)
 	}
 
 	recorder := httptest.NewRecorder()
-	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/cars/42;color=red;year=2026", nil))
+	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/cars/42;color=red;year=2026;code=1,2;flag=true,false", nil))
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
 	}
 	if !strings.Contains(recorder.Body.String(), `"id":42`) ||
 		!strings.Contains(recorder.Body.String(), `"color":"red"`) ||
-		!strings.Contains(recorder.Body.String(), `"year":2026`) {
+		!strings.Contains(recorder.Body.String(), `"year":2026`) ||
+		!strings.Contains(recorder.Body.String(), `"codes":[1,2]`) ||
+		!strings.Contains(recorder.Body.String(), `"flags":[true,false]`) {
 		t.Fatalf("body = %s, want matrix variables", recorder.Body.String())
 	}
 }
