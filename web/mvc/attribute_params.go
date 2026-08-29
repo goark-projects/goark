@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"goark.dev/arkarta/servlet/session"
 	arkweb "goark.dev/arkarta/web"
 )
 
@@ -57,27 +56,17 @@ func SessionAttributeBool(ctx *arkweb.Context, name string, options ...ParamOpti
 }
 
 func requestAttributeValue(ctx *arkweb.Context, name string) (string, bool, error) {
-	if ctx == nil || ctx.Request() == nil {
-		return "", false, arkweb.ErrNilContext
-	}
-	value, ok := ctx.Request().Attribute(name)
-	if !ok {
-		return "", false, nil
+	value, ok, err := rawRequestAttributeValue(ctx, name)
+	if err != nil || !ok {
+		return "", ok, err
 	}
 	return attributeString(value), true, nil
 }
 
 func sessionAttributeValue(ctx *arkweb.Context, name string) (string, bool, error) {
-	if ctx == nil || ctx.Request() == nil {
-		return "", false, arkweb.ErrNilContext
-	}
-	current, ok := session.Current(ctx.Request())
-	if !ok {
-		return "", false, nil
-	}
-	value, ok := current.Attribute(name)
-	if !ok {
-		return "", false, nil
+	value, ok, err := rawSessionAttributeValue(ctx, name)
+	if err != nil || !ok {
+		return "", ok, err
 	}
 	return attributeString(value), true, nil
 }
