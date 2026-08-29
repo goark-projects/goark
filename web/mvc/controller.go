@@ -26,6 +26,7 @@ type Controller struct {
 	name        string
 	routes      []Route
 	kind        ControllerKind
+	conditions  Conditions
 	crossOrigin *cors.Config
 }
 
@@ -77,7 +78,8 @@ func (c Controller) Register(registry *goweb.Registry) error {
 				return err
 			}
 		}
-		handler := route.Conditions.wrap(bindControllerKind(c.kind, route.Handler))
+		conditions := mergeControllerRouteConditions(c.conditions, route.Conditions)
+		handler := conditions.wrap(bindControllerKind(c.kind, route.Handler))
 		if err := registry.Handle(route.Method, route.Pattern, handler); err != nil {
 			return err
 		}

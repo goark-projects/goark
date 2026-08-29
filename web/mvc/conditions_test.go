@@ -168,3 +168,63 @@ func TestRouteConditionsRejectMismatches(t *testing.T) {
 		})
 	}
 }
+
+func TestControllerConditionsMergeWithRouteConditions(t *testing.T) {
+	t.Parallel()
+
+	const routeMediaType = "application/vnd.goark.job+json"
+	registry := web.NewRegistry()
+	controller := mvc.NewRestController("jobs",
+		mvc.POST("/jobs", mvc.JSON(http.StatusCreated, func(ctx *arkweb.Context) (map[string]string, error) {
+			produces, _ := ctx.Request().Attribute(mvc.AttributeProducesMediaType)
+			return map[string]string{
+				"produces": produces.(string),
+			}, nil
+		}),
+			mvc.WithConsumes(routeMediaType),
+			mvc.WithProduces(routeMediaType),
+			mvc.WithParams("mode=fast"),
+			mvc.WithHeaders("X-Route=enabled"),
+		),
+	).
+		WithConsumes("application/json").
+		WithProduces("application/json").
+		WithParams("tenant=admin").
+		WithHeaders("X-Tenant=admin")
+	configurer := mvc.NewConfigurer(controller)
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/jobs?tenant=admin&mode=fast", strings.NewReader("{}"))
+	request.Header.Set("Content-Type", routeMediaType)
+	request.Header.Set("Accept", routeMediaType)
+	request.Header.Set("X-Tenant", "admin")
+	request.Header.Set("X-Route", "enabled")
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if got := recorder.Header().Get("Content-Type"); got != routeMediaType {
+		t.Fatalf("Content-Type = %q, want route media type", got)
+	}
+	if !strings.Contains(recorder.Body.String(), `"produces":"`+routeMediaType+`"`) {
+		t.Fatalf("body = %s, want route produces media type", recorder.Body.String())
+	}
+
+	missingControllerParam := httptest.NewRequest(http.MethodPost, "/jobs?mode=fast", strings.NewReader("{}"))
+	missingControllerParam.Header.Set("Content-Type", routeMediaType)
+	missingControllerParam.Header.Set("Accept", routeMediaType)
+	missingControllerParam.Header.Set("X-Tenant", "admin")
+	missingControllerParam.Header.Set("X-Route", "enabled")
+	recorder = httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, missingControllerParam)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("missing controller param status = %d, want 400", recorder.Code)
+	}
+}
