@@ -15,15 +15,16 @@ const (
 	AttributeControllerAdviceKind = "goark.web.mvc.controller_advice.kind"
 )
 
-// ControllerAdvice 描述一组全局 MVC 异常处理器、响应增强器、模型初始化器和绑定器初始化器。
+// ControllerAdvice 描述一组全局 MVC 异常处理器、请求/响应增强器、模型初始化器和绑定器初始化器。
 type ControllerAdvice struct {
-	name           string
-	order          int
-	kind           ControllerKind
-	handlers       []goweb.ErrorMapper
-	responseAdvice []goweb.ResponseAdvice
-	binders        []BinderInitializer
-	models         []ModelAttributeInitializer
+	name              string
+	order             int
+	kind              ControllerKind
+	handlers          []goweb.ErrorMapper
+	requestBodyAdvice []goweb.RequestBodyAdvice
+	responseAdvice    []goweb.ResponseAdvice
+	binders           []BinderInitializer
+	models            []ModelAttributeInitializer
 }
 
 // NewControllerAdvice 创建普通 MVC advice，字符串返回值默认解析为逻辑视图名。
@@ -51,6 +52,12 @@ func (a ControllerAdvice) WithOrder(order int) ControllerAdvice {
 // WithExceptionHandlers 追加全局异常处理器。
 func (a ControllerAdvice) WithExceptionHandlers(handlers ...goweb.ErrorMapper) ControllerAdvice {
 	a.handlers = append(a.handlers, handlers...)
+	return a
+}
+
+// WithRequestBodyAdvice 追加请求体读取增强器，对齐 Spring ControllerAdvice RequestBodyAdvice。
+func (a ControllerAdvice) WithRequestBodyAdvice(advice ...goweb.RequestBodyAdvice) ControllerAdvice {
+	a.requestBodyAdvice = append(a.requestBodyAdvice, advice...)
 	return a
 }
 
@@ -93,6 +100,11 @@ func (a ControllerAdvice) Kind() ControllerKind {
 // ExceptionHandlers 返回异常处理器快照。
 func (a ControllerAdvice) ExceptionHandlers() []goweb.ErrorMapper {
 	return append([]goweb.ErrorMapper(nil), a.handlers...)
+}
+
+// RequestBodyAdvice 返回请求体读取增强器快照。
+func (a ControllerAdvice) RequestBodyAdvice() []goweb.RequestBodyAdvice {
+	return append([]goweb.RequestBodyAdvice(nil), a.requestBodyAdvice...)
 }
 
 // ResponseAdvice 返回响应增强器快照。
@@ -138,6 +150,12 @@ func (a ControllerAdvice) ConfigureWeb(ctx context.Context, registry *goweb.Regi
 	}
 	if len(a.models) > 0 {
 		registry.Use(modelAttributeInterceptor(a.models))
+	}
+	for _, advice := range a.requestBodyAdvice {
+		if util.IsNil(advice) {
+			continue
+		}
+		registry.UseRequestBodyAdvice(advice)
 	}
 	for _, advice := range a.responseAdvice {
 		if util.IsNil(advice) {
