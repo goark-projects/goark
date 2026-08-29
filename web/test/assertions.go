@@ -134,6 +134,55 @@ func (r *Response) ExpectJSON(t testing.TB, expected any) *Response {
 	return r
 }
 
+// ExpectJSONPath 断言 JSON 路径对应值与期望值语义等价。
+func (r *Response) ExpectJSONPath(t testing.TB, expression string, expected any) *Response {
+	t.Helper()
+	r.ExpectNoError(t)
+	actual, ok, err := resolveJSONPath(r.codec, r.BodyBytes(), expression)
+	if err != nil {
+		t.Fatalf("json path %q invalid: %v", expression, err)
+	}
+	if !ok {
+		t.Fatalf("json path %q missing", expression)
+	}
+	normalized, err := normalizeJSONValue(r.codec, expected)
+	if err != nil {
+		t.Fatalf("expected json path value encode failed: %v", err)
+	}
+	if !reflect.DeepEqual(actual, normalized) {
+		t.Fatalf("json path %q = %#v, want %#v", expression, actual, normalized)
+	}
+	return r
+}
+
+// ExpectJSONPathExists 断言 JSON 路径存在。
+func (r *Response) ExpectJSONPathExists(t testing.TB, expression string) *Response {
+	t.Helper()
+	r.ExpectNoError(t)
+	_, ok, err := resolveJSONPath(r.codec, r.BodyBytes(), expression)
+	if err != nil {
+		t.Fatalf("json path %q invalid: %v", expression, err)
+	}
+	if !ok {
+		t.Fatalf("json path %q missing", expression)
+	}
+	return r
+}
+
+// ExpectJSONPathAbsent 断言 JSON 路径不存在。
+func (r *Response) ExpectJSONPathAbsent(t testing.TB, expression string) *Response {
+	t.Helper()
+	r.ExpectNoError(t)
+	_, ok, err := resolveJSONPath(r.codec, r.BodyBytes(), expression)
+	if err != nil {
+		t.Fatalf("json path %q invalid: %v", expression, err)
+	}
+	if ok {
+		t.Fatalf("json path %q exists", expression)
+	}
+	return r
+}
+
 // DecodeJSON 在测试中解码响应 JSON。
 func DecodeJSON[T any](t testing.TB, response *Response) T {
 	t.Helper()

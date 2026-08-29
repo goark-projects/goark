@@ -17,4 +17,6 @@ var (
 	ErrNilResponse = errors.New("goark/web/test: response is nil")
 	// ErrNilJSONTarget 表示 JSON 解码目标为空。
 	ErrNilJSONTarget = errors.New("goark/web/test: json target is nil")
+	// ErrInvalidJSONPath 表示 JSON 路径表达式非法。
+	ErrInvalidJSONPath = errors.New("goark/web/test: invalid json path")
 )

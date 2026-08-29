@@ -55,11 +55,40 @@ func TestRouterClientPerformsJSONRequest(t *testing.T) {
 	response.
 		ExpectStatus(t, http.StatusCreated).
 		ExpectHeader(t, "Content-Type", arkjson.ContentType).
-		ExpectJSON(t, map[string]string{"id": "42", "name": "sync"})
+		ExpectJSON(t, map[string]string{"id": "42", "name": "sync"}).
+		ExpectJSONPath(t, "$.id", "42").
+		ExpectJSONPath(t, "$.name", "sync").
+		ExpectJSONPathAbsent(t, "$.missing")
 	decoded := webtest.DecodeJSON[map[string]string](t, response)
 	if decoded["name"] != "sync" {
 		t.Fatalf("decoded name = %q, want sync", decoded["name"])
 	}
+}
+
+func TestResponseJSONPathAssertionsSupportArraysAndQuotedKeys(t *testing.T) {
+	t.Parallel()
+
+	router := arkweb.NewRouter()
+	if err := router.GET("/matrix", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+		return arkweb.JSON(http.StatusOK, map[string]any{
+			"items": []map[string]any{
+				{"name": "admin", "order": 1},
+			},
+			"trace.id": "trace-1",
+		}), nil
+	})); err != nil {
+		t.Fatalf("register route failed: %v", err)
+	}
+
+	client, err := webtest.NewRouter(router)
+	client = webtest.Must(t, client, err)
+	client.Perform(t, http.MethodGet, "/matrix").
+		ExpectStatus(t, http.StatusOK).
+		ExpectJSONPath(t, "$.items[0].name", "admin").
+		ExpectJSONPath(t, "$.items[0].order", 1).
+		ExpectJSONPath(t, "$['trace.id']", "trace-1").
+		ExpectJSONPathExists(t, "$.items[0]").
+		ExpectJSONPathAbsent(t, "$.items[1]")
 }
 
 func TestRegistryClientRunsFiltersAndStaticServlet(t *testing.T) {
