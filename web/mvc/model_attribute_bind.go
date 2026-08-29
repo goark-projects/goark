@@ -16,8 +16,9 @@ import (
 const modelAttributeFormContentType = "application/x-www-form-urlencoded"
 
 type modelAttributeBinder struct {
-	value     reflect.Value
-	converter *convert.Service
+	value        reflect.Value
+	converter    *convert.Service
+	fieldMarkers map[string]struct{}
 }
 
 func bindModelAttribute(ctx *arkweb.Context, target any) error {
@@ -31,12 +32,12 @@ func bindModelAttribute(ctx *arkweb.Context, target any) error {
 	if err != nil {
 		return err
 	}
-	values = modelAttributeValuesForCurrentBinder(ctx, values)
-	binder, err := newModelAttributeBinder(target, ConversionServiceFromContext(ctx))
+	preparedValues := modelAttributeValuesForCurrentBinder(ctx, values)
+	binder, err := newModelAttributeBinder(target, ConversionServiceFromContext(ctx), preparedValues.fieldMarkers)
 	if err != nil {
 		return err
 	}
-	return binder.bind(values)
+	return binder.bind(preparedValues.values)
 }
 
 func ensureModelAttributeContentType(ctx *arkweb.Context) error {
@@ -63,7 +64,11 @@ func modelAttributeMethodAllowsBody(method string) bool {
 	}
 }
 
-func newModelAttributeBinder(target any, converter *convert.Service) (modelAttributeBinder, error) {
+func newModelAttributeBinder(
+	target any,
+	converter *convert.Service,
+	fieldMarkers map[string]struct{},
+) (modelAttributeBinder, error) {
 	if util.IsNil(target) {
 		return modelAttributeBinder{}, arkweb.ErrInvalidBindTarget
 	}
@@ -79,8 +84,9 @@ func newModelAttributeBinder(target any, converter *convert.Service) (modelAttri
 		converter = DefaultConversionService()
 	}
 	return modelAttributeBinder{
-		value:     value,
-		converter: converter,
+		value:        value,
+		converter:    converter,
+		fieldMarkers: fieldMarkers,
 	}, nil
 }
 
@@ -110,7 +116,7 @@ func (b modelAttributeBinder) bindStruct(value reflect.Value, values url.Values,
 			continue
 		}
 		name = prefixedModelAttributeName(prefix, name)
-		if shouldBindNestedModelAttributeField(fieldValue, values, name) {
+		if shouldBindNestedModelAttributeField(fieldValue, values, b.fieldMarkers, name) {
 			nested := indirectModelAttributeStruct(fieldValue)
 			if nested.IsValid() {
 				if err := b.bindStruct(nested, values, name); err != nil {
@@ -136,6 +142,12 @@ func (b modelAttributeBinder) bindStruct(value reflect.Value, values url.Values,
 		}
 		if shouldBindMappedModelAttributeField(fieldValue, values, name) {
 			if err := b.bindMappedField(name, fieldValue, values); err != nil {
+				return err
+			}
+			continue
+		}
+		if b.hasFieldMarker(name) {
+			if err := setModelAttributeMarkerField(name, fieldValue); err != nil {
 				return err
 			}
 		}
@@ -289,6 +301,43 @@ func modelAttributeFieldValue(targetType reflect.Type, converted any) (reflect.V
 		return value.Convert(targetType), nil
 	}
 	return reflect.Value{}, fmt.Errorf("converted value is %T, expected %s", converted, targetType)
+}
+
+func setModelAttributeMarkerField(name string, field reflect.Value) error {
+	value, err := modelAttributeMarkerFieldValue(field.Type())
+	if err != nil {
+		return invalidParameterError(name, "", field.Type().String(), err)
+	}
+	field.Set(value)
+	return nil
+}
+
+func modelAttributeMarkerFieldValue(targetType reflect.Type) (reflect.Value, error) {
+	if targetType.Kind() == reflect.Pointer {
+		value, err := modelAttributeMarkerFieldValue(targetType.Elem())
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		pointer := reflect.New(targetType.Elem())
+		pointer.Elem().Set(value)
+		return pointer, nil
+	}
+	switch targetType.Kind() {
+	case reflect.Slice:
+		return reflect.MakeSlice(targetType, 0, 0), nil
+	case reflect.Map:
+		return reflect.MakeMapWithSize(targetType, 0), nil
+	default:
+		return reflect.Zero(targetType), nil
+	}
+}
+
+func (b modelAttributeBinder) hasFieldMarker(name string) bool {
+	if len(b.fieldMarkers) == 0 {
+		return false
+	}
+	_, ok := b.fieldMarkers[name]
+	return ok
 }
 
 func modelAttributeCanSetNil(targetType reflect.Type) bool {

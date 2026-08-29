@@ -7,16 +7,22 @@ import (
 
 // DataBinder 封装控制器本地的数据绑定扩展点。
 type DataBinder struct {
-	conversionService *convert.Service
-	allowedFields     []string
-	disallowedFields  []string
+	conversionService  *convert.Service
+	allowedFields      []string
+	disallowedFields   []string
+	fieldMarkerPrefix  string
+	fieldDefaultPrefix string
 }
 
 func newDataBinder(service *convert.Service) *DataBinder {
 	if service == nil {
 		service = DefaultConversionService()
 	}
-	return &DataBinder{conversionService: service}
+	return &DataBinder{
+		conversionService:  service,
+		fieldMarkerPrefix:  defaultFieldMarkerPrefix,
+		fieldDefaultPrefix: defaultFieldDefaultPrefix,
+	}
 }
 
 // AddConverter 向当前请求作用域的转换服务注册转换器。

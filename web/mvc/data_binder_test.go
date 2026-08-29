@@ -39,6 +39,114 @@ type binderUserPayload struct {
 	Metadata     map[string]string `json:"metadata"`
 }
 
+type binderPreferenceProfile struct {
+	Subscribed bool `form:"subscribed" json:"subscribed"`
+}
+
+type binderPreferenceInput struct {
+	Theme   string                   `form:"theme" json:"theme"`
+	Notify  *bool                    `form:"notify" json:"notify"`
+	Confirm *bool                    `form:"confirm" json:"confirm"`
+	Profile *binderPreferenceProfile `form:"profile" json:"profile"`
+	Tags    []string                 `form:"tags" json:"tags"`
+}
+
+type binderPreferencePayload struct {
+	Theme      string `json:"theme"`
+	NotifySet  bool   `json:"notifySet"`
+	Notify     bool   `json:"notify"`
+	ConfirmSet bool   `json:"confirmSet"`
+	Confirm    bool   `json:"confirm"`
+	ProfileSet bool   `json:"profileSet"`
+	Subscribed bool   `json:"subscribed"`
+	TagsNil    bool   `json:"tagsNil"`
+	TagsLength int    `json:"tagsLength"`
+}
+
+func TestModelAttributeAppliesDefaultFieldPrefixes(t *testing.T) {
+	t.Parallel()
+
+	router := arkweb.NewRouter()
+	if err := router.Handle(http.MethodGet, "/preferences", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (binderPreferencePayload, error) {
+		input, err := mvc.ModelAttribute[binderPreferenceInput](ctx)
+		if err != nil {
+			return binderPreferencePayload{}, err
+		}
+		return binderPreferencePayloadFromInput(input), nil
+	})); err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/preferences?!theme=dark&_notify=on&confirm=true&_confirm=on&_profile.subscribed=on&_tags=on", nil)
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	var got binderPreferencePayload
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &got); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if got.Theme != "dark" ||
+		!got.NotifySet ||
+		got.Notify ||
+		!got.ConfirmSet ||
+		!got.Confirm ||
+		!got.ProfileSet ||
+		got.Subscribed ||
+		got.TagsNil ||
+		got.TagsLength != 0 {
+		t.Fatalf("payload = %#v, want default field prefix binding", got)
+	}
+}
+
+func TestControllerInitBinderCustomizesFieldPrefixes(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	controller := mvc.NewRestController("preferences",
+		mvc.GET("/preferences", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (binderPreferencePayload, error) {
+			input, err := mvc.ModelAttribute[binderPreferenceInput](ctx)
+			if err != nil {
+				return binderPreferencePayload{}, err
+			}
+			return binderPreferencePayloadFromInput(input), nil
+		})),
+	).WithInitBinders(mvc.BinderInitializerFunc(func(_ *arkweb.Context, binder *mvc.DataBinder) error {
+		if err := binder.SetFieldDefaultPrefix("~"); err != nil {
+			return err
+		}
+		return binder.SetFieldMarkerPrefix("__")
+	}))
+	if err := controller.Register(registry); err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/preferences?~theme=dark&__notify=on&__profile.subscribed=on", nil)
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	var got binderPreferencePayload
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &got); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if got.Theme != "dark" ||
+		!got.NotifySet ||
+		got.Notify ||
+		!got.ProfileSet ||
+		got.Subscribed {
+		t.Fatalf("payload = %#v, want custom field prefix binding", got)
+	}
+}
+
 func TestControllerInitBinderRestrictsModelAttributeAllowedFields(t *testing.T) {
 	t.Parallel()
 
@@ -152,6 +260,27 @@ func binderPayload(input binderUserInput) binderUserPayload {
 	if input.Profile != nil {
 		out.ProfileEmail = input.Profile.Email
 		out.ProfileAdmin = input.Profile.Admin
+	}
+	return out
+}
+
+func binderPreferencePayloadFromInput(input binderPreferenceInput) binderPreferencePayload {
+	out := binderPreferencePayload{
+		Theme:      input.Theme,
+		TagsNil:    input.Tags == nil,
+		TagsLength: len(input.Tags),
+	}
+	if input.Notify != nil {
+		out.NotifySet = true
+		out.Notify = *input.Notify
+	}
+	if input.Confirm != nil {
+		out.ConfirmSet = true
+		out.Confirm = *input.Confirm
+	}
+	if input.Profile != nil {
+		out.ProfileSet = true
+		out.Subscribed = input.Profile.Subscribed
 	}
 	return out
 }

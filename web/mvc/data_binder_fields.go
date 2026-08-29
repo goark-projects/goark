@@ -7,7 +7,16 @@ import (
 	arkweb "goark.dev/arkarta/web"
 )
 
-const attributeDataBinder = "goark.dev/goark/web/mvc.dataBinder"
+const (
+	attributeDataBinder       = "goark.dev/goark/web/mvc.dataBinder"
+	defaultFieldMarkerPrefix  = "_"
+	defaultFieldDefaultPrefix = "!"
+)
+
+type preparedModelAttributeValues struct {
+	values       url.Values
+	fieldMarkers map[string]struct{}
+}
 
 // SetAllowedFields 设置允许绑定的字段模式；未设置时默认允许全部字段。
 func (b *DataBinder) SetAllowedFields(fields ...string) error {
@@ -43,12 +52,119 @@ func (b *DataBinder) DisallowedFields() []string {
 	return append([]string(nil), b.disallowedFields...)
 }
 
+// SetFieldMarkerPrefix 设置字段 marker 前缀；空字符串表示禁用 marker 处理。
+func (b *DataBinder) SetFieldMarkerPrefix(prefix string) error {
+	if b == nil {
+		return ErrNilDataBinder
+	}
+	b.fieldMarkerPrefix = strings.TrimSpace(prefix)
+	return nil
+}
+
+// FieldMarkerPrefix 返回字段 marker 前缀。
+func (b *DataBinder) FieldMarkerPrefix() string {
+	if b == nil {
+		return ""
+	}
+	return b.fieldMarkerPrefix
+}
+
+// SetFieldDefaultPrefix 设置字段默认值前缀；空字符串表示禁用默认值处理。
+func (b *DataBinder) SetFieldDefaultPrefix(prefix string) error {
+	if b == nil {
+		return ErrNilDataBinder
+	}
+	b.fieldDefaultPrefix = strings.TrimSpace(prefix)
+	return nil
+}
+
+// FieldDefaultPrefix 返回字段默认值前缀。
+func (b *DataBinder) FieldDefaultPrefix() string {
+	if b == nil {
+		return ""
+	}
+	return b.fieldDefaultPrefix
+}
+
 func (b *DataBinder) inheritFieldRules(parent *DataBinder) {
 	if b == nil || parent == nil {
 		return
 	}
 	b.allowedFields = parent.AllowedFields()
 	b.disallowedFields = parent.DisallowedFields()
+	b.fieldMarkerPrefix = parent.FieldMarkerPrefix()
+	b.fieldDefaultPrefix = parent.FieldDefaultPrefix()
+}
+
+func (b *DataBinder) prepareModelAttributeValues(values url.Values) preparedModelAttributeValues {
+	if b == nil {
+		return preparedModelAttributeValues{values: values}
+	}
+	values = b.applyFieldDefaults(values)
+	values, markers := b.extractFieldMarkers(values)
+	values = b.filterModelAttributeValues(values)
+	markers = b.filterFieldMarkers(markers)
+	return preparedModelAttributeValues{
+		values:       values,
+		fieldMarkers: markers,
+	}
+}
+
+func (b *DataBinder) applyFieldDefaults(values url.Values) url.Values {
+	prefix := b.FieldDefaultPrefix()
+	if prefix == "" || len(values) == 0 {
+		return values
+	}
+	var out url.Values
+	for name, list := range values {
+		field, ok := strings.CutPrefix(name, prefix)
+		if !ok {
+			continue
+		}
+		out = ensureClonedModelAttributeValues(out, values)
+		delete(out, name)
+		if field == "" {
+			continue
+		}
+		if _, exists := out[field]; !exists {
+			out[field] = append([]string(nil), list...)
+		}
+	}
+	if out == nil {
+		return values
+	}
+	return out
+}
+
+func (b *DataBinder) extractFieldMarkers(values url.Values) (url.Values, map[string]struct{}) {
+	prefix := b.FieldMarkerPrefix()
+	if prefix == "" || len(values) == 0 {
+		return values, nil
+	}
+	var out url.Values
+	var markers map[string]struct{}
+	for name := range values {
+		field, ok := strings.CutPrefix(name, prefix)
+		if !ok {
+			continue
+		}
+		out = ensureClonedModelAttributeValues(out, values)
+		delete(out, name)
+		if field == "" {
+			continue
+		}
+		if _, exists := out[field]; exists {
+			continue
+		}
+		if markers == nil {
+			markers = make(map[string]struct{})
+		}
+		markers[field] = struct{}{}
+	}
+	if out == nil {
+		return values, markers
+	}
+	return out, markers
 }
 
 func (b *DataBinder) filterModelAttributeValues(values url.Values) url.Values {
@@ -61,6 +177,22 @@ func (b *DataBinder) filterModelAttributeValues(values url.Values) url.Values {
 			continue
 		}
 		out[name] = append([]string(nil), list...)
+	}
+	return out
+}
+
+func (b *DataBinder) filterFieldMarkers(markers map[string]struct{}) map[string]struct{} {
+	if len(markers) == 0 || !b.hasFieldRules() {
+		return markers
+	}
+	out := make(map[string]struct{}, len(markers))
+	for name := range markers {
+		if name != "" && b.isFieldAllowed(name) {
+			out[name] = struct{}{}
+		}
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }
@@ -151,12 +283,19 @@ func matchBinderFieldWildcard(pattern string, name string) bool {
 	return patternIndex == len(pattern)
 }
 
-func modelAttributeValuesForCurrentBinder(ctx *arkweb.Context, values url.Values) url.Values {
+func ensureClonedModelAttributeValues(out url.Values, values url.Values) url.Values {
+	if out != nil {
+		return out
+	}
+	return url.Values(cloneStringValuesMap(values))
+}
+
+func modelAttributeValuesForCurrentBinder(ctx *arkweb.Context, values url.Values) preparedModelAttributeValues {
 	binder, ok := dataBinderFromContext(ctx)
 	if !ok {
-		return values
+		binder = newDataBinder(nil)
 	}
-	return binder.filterModelAttributeValues(values)
+	return binder.prepareModelAttributeValues(values)
 }
 
 func dataBinderFromContext(ctx *arkweb.Context) (*DataBinder, bool) {
