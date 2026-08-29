@@ -4,6 +4,7 @@ import (
 	"errors"
 	"mime"
 	"net/http"
+	"reflect"
 	"strings"
 
 	arkweb "goark.dev/arkarta/web"
@@ -11,6 +12,13 @@ import (
 
 func ensureContext(ctx *arkweb.Context) error {
 	if ctx == nil || ctx.Response() == nil {
+		return arkweb.ErrNilContext
+	}
+	return nil
+}
+
+func ensureReadableContext(ctx *arkweb.Context) error {
+	if ctx == nil || ctx.Request() == nil {
 		return arkweb.ErrNilContext
 	}
 	return nil
@@ -52,6 +60,19 @@ func parseMediaType(value string) (string, map[string]string, bool) {
 		return "", nil, false
 	}
 	return strings.ToLower(mediaType), params, true
+}
+
+func nilTarget(target any) bool {
+	if target == nil {
+		return true
+	}
+	value := reflect.ValueOf(target)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
+	}
 }
 
 func normalizeStatus(statusCode, fallback int) int {

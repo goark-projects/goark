@@ -15,10 +15,10 @@ type ValueFunc[T any] func(ctx *arkweb.Context) (T, error)
 // EntityFunc 表示返回 Goark 响应实体的处理函数。
 type EntityFunc[T any] func(ctx *arkweb.Context) (goweb.ResponseEntity[T], error)
 
-// BindFunc 表示绑定并校验 JSON 请求体后返回普通值的处理函数。
+// BindFunc 表示绑定并校验请求体后返回普通值的处理函数。
 type BindFunc[In any, Out any] func(ctx *arkweb.Context, input In) (Out, error)
 
-// BindEntityFunc 表示绑定并校验 JSON 请求体后返回 Goark 响应实体的处理函数。
+// BindEntityFunc 表示绑定并校验请求体后返回 Goark 响应实体的处理函数。
 type BindEntityFunc[In any, Out any] func(ctx *arkweb.Context, input In) (goweb.ResponseEntity[Out], error)
 
 // Handler 将 ResultFunc 适配为 Arkarta Web Handler。
@@ -55,6 +55,11 @@ func BindJSON[In any, Out any](statusCode int, fn BindFunc[In, Out]) arkweb.Hand
 	return bindJSON(statusCode, fn, nil)
 }
 
+// BindBody 按 Content-Type 绑定并校验请求体，再将返回值写为 JSON 响应。
+func BindBody[In any, Out any](statusCode int, fn BindFunc[In, Out]) arkweb.Handler {
+	return bindBody(statusCode, fn, nil, nil)
+}
+
 func bindJSON[In any, Out any](statusCode int, fn BindFunc[In, Out], groups []string) arkweb.Handler {
 	validationGroups := cloneValidationGroups(groups)
 	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
@@ -70,9 +75,30 @@ func bindJSON[In any, Out any](statusCode int, fn BindFunc[In, Out], groups []st
 	})
 }
 
+func bindBody[In any, Out any](statusCode int, fn BindFunc[In, Out], groups []string, mediaTypes []string) arkweb.Handler {
+	validationGroups := cloneValidationGroups(groups)
+	readMediaTypes := cleanRouteValues(mediaTypes)
+	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+		var input In
+		if err := bindAndValidateBody(ctx, &input, validationGroups, readMediaTypes); err != nil {
+			return nil, err
+		}
+		value, err := fn(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+		return jsonResult(ctx, statusCode, value), nil
+	})
+}
+
 // BindEntity 绑定并校验 JSON 请求体，再写出响应实体。
 func BindEntity[In any, Out any](fn BindEntityFunc[In, Out]) arkweb.Handler {
 	return bindEntity(fn, nil)
+}
+
+// BindBodyEntity 按 Content-Type 绑定并校验请求体，再写出响应实体。
+func BindBodyEntity[In any, Out any](fn BindEntityFunc[In, Out]) arkweb.Handler {
+	return bindBodyEntity(fn, nil, nil)
 }
 
 func bindEntity[In any, Out any](fn BindEntityFunc[In, Out], groups []string) arkweb.Handler {
@@ -80,6 +106,22 @@ func bindEntity[In any, Out any](fn BindEntityFunc[In, Out], groups []string) ar
 	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
 		var input In
 		if err := bindAndValidateJSON(ctx, &input, validationGroups); err != nil {
+			return nil, err
+		}
+		entity, err := fn(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+		return entityResult(ctx, entity), nil
+	})
+}
+
+func bindBodyEntity[In any, Out any](fn BindEntityFunc[In, Out], groups []string, mediaTypes []string) arkweb.Handler {
+	validationGroups := cloneValidationGroups(groups)
+	readMediaTypes := cleanRouteValues(mediaTypes)
+	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+		var input In
+		if err := bindAndValidateBody(ctx, &input, validationGroups, readMediaTypes); err != nil {
 			return nil, err
 		}
 		entity, err := fn(ctx, input)

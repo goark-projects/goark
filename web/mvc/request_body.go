@@ -1,23 +1,41 @@
 package mvc
 
-import arkweb "goark.dev/arkarta/web"
+import (
+	arkweb "goark.dev/arkarta/web"
+	"goark.dev/goark/web/message"
+)
 
-// RequestBody 将 JSON 请求体绑定到目标类型，不执行结构体验证。
+// RequestBody 将请求体按 Content-Type 绑定到目标类型，不执行结构体验证。
 func RequestBody[T any](ctx *arkweb.Context) (T, error) {
 	var out T
-	if ctx == nil {
-		return out, arkweb.ErrNilContext
-	}
-	if err := ctx.BindJSON(&out); err != nil {
+	if err := message.NewReader().Read(ctx, &out); err != nil {
 		return out, err
 	}
 	return out, nil
 }
 
-// ValidatedRequestBody 将 JSON 请求体绑定到目标类型，并按可选分组执行结构体验证。
+// RequestBodyWithMediaTypes 将请求体按指定媒体类型集合绑定到目标类型。
+func RequestBodyWithMediaTypes[T any](ctx *arkweb.Context, mediaTypes ...string) (T, error) {
+	var out T
+	if err := message.NewReader().Read(ctx, &out, mediaTypes...); err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+// ValidatedRequestBody 将请求体绑定到目标类型，并按可选分组执行结构体验证。
 func ValidatedRequestBody[T any](ctx *arkweb.Context, groups ...string) (T, error) {
 	var out T
-	if err := bindAndValidateJSON(ctx, &out, groups); err != nil {
+	if err := bindAndValidateBody(ctx, &out, groups, nil); err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+// ValidatedRequestBodyWithMediaTypes 将请求体按指定媒体类型集合绑定，并执行结构体验证。
+func ValidatedRequestBodyWithMediaTypes[T any](ctx *arkweb.Context, mediaTypes []string, groups ...string) (T, error) {
+	var out T
+	if err := bindAndValidateBody(ctx, &out, groups, mediaTypes); err != nil {
 		return out, err
 	}
 	return out, nil

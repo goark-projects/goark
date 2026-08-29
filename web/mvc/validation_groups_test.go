@@ -46,6 +46,26 @@ func TestBindJSONGroupsUsesExplicitValidationGroup(t *testing.T) {
 	}
 }
 
+func TestBindBodyGroupsUsesExplicitValidationGroup(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	configurer := mvc.NewConfigurer(mvc.NewController("users",
+		mvc.POST("/users", mvc.BindBodyGroups(http.StatusCreated, func(_ *arkweb.Context, input groupedCreateRequest) (map[string]string, error) {
+			return map[string]string{"name": input.Name}, nil
+		}, "create")),
+	))
+	router := configureMVC(t, registry, configurer)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"arkarta"}`))
+	request.Header.Set("Content-Type", arkjson.ContentType)
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201, body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
 func TestBindEntityGroupsUsesExplicitValidationGroup(t *testing.T) {
 	t.Parallel()
 
