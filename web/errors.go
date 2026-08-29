@@ -13,6 +13,8 @@ var (
 	ErrNilErrorMapper = errors.New("goark/web: error mapper is nil")
 	// ErrNilResponseAdvice 表示响应增强器为空。
 	ErrNilResponseAdvice = errors.New("goark/web: response advice is nil")
+	// ErrNilRequestBodyAdvice 表示请求体读取增强器为空。
+	ErrNilRequestBodyAdvice = errors.New("goark/web: request body advice is nil")
 	// ErrNilMessageConverter 表示消息转换器为空。
 	ErrNilMessageConverter = errors.New("goark/web: message converter is nil")
 	// ErrNilValidator 表示校验器为空。

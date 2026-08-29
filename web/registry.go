@@ -19,6 +19,7 @@ type Registry struct {
 	errorMappers      []arkweb.ErrorMapper
 	messageReader     *message.Reader
 	messageWriter     *message.Writer
+	requestBodyAdvice []message.ReadAdvice
 	readConverters    []message.ReadConverter
 	writeConverters   []message.Converter
 	validator         validation.Validator
@@ -105,6 +106,13 @@ func (r *Registry) UseMapped(interceptor arkweb.Interceptor, mapping Interceptor
 func (r *Registry) UseResponseAdvice(advice arkweb.ResponseAdvice) {
 	if advice != nil {
 		r.advice = append(r.advice, advice)
+	}
+}
+
+// UseRequestBodyAdvice 注册请求体读取增强器。
+func (r *Registry) UseRequestBodyAdvice(advice message.ReadAdvice) {
+	if r != nil && !isNilMessageReadAdvice(advice) {
+		r.requestBodyAdvice = append(r.requestBodyAdvice, advice)
 	}
 }
 
@@ -234,6 +242,14 @@ func (r *Registry) MessageReadConverters() []message.ReadConverter {
 	return append([]message.ReadConverter(nil), r.readConverters...)
 }
 
+// RequestBodyAdvice 返回请求体读取增强器快照。
+func (r *Registry) RequestBodyAdvice() []message.ReadAdvice {
+	if r == nil {
+		return nil
+	}
+	return append([]message.ReadAdvice(nil), r.requestBodyAdvice...)
+}
+
 // MessageConverters 返回响应体写出转换器快照。
 func (r *Registry) MessageConverters() []message.Converter {
 	if r == nil {
@@ -318,7 +334,8 @@ func appendRouterOptions(mappers []arkweb.ErrorMapper, validator validation.Vali
 }
 
 func (r *Registry) hasMessageIO() bool {
-	return r.messageReader != nil || r.messageWriter != nil || len(r.readConverters) > 0 || len(r.writeConverters) > 0
+	return r.messageReader != nil || r.messageWriter != nil ||
+		len(r.requestBodyAdvice) > 0 || len(r.readConverters) > 0 || len(r.writeConverters) > 0
 }
 
 func (r *Registry) currentMessageReader() message.Reader {
@@ -330,6 +347,13 @@ func (r *Registry) currentMessageReader() message.Reader {
 		reader = message.NewReader(
 			message.WithReadConverters(reader.ReadConverters()...),
 			message.WithPrependedReadConverters(r.readConverters...),
+		)
+	}
+	if len(r.requestBodyAdvice) > 0 {
+		reader = message.NewReader(
+			message.WithReadConverters(reader.ReadConverters()...),
+			message.WithReadAdvice(reader.ReadAdvices()...),
+			message.WithAppendedReadAdvice(r.requestBodyAdvice...),
 		)
 	}
 	return reader

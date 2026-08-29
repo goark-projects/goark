@@ -17,6 +17,7 @@ type ReadConverter interface {
 // Reader 按请求 Content-Type 选择 ReadConverter 读取请求体。
 type Reader struct {
 	converters []ReadConverter
+	advice     []ReadAdvice
 }
 
 // ReaderOption 定制请求体读取器。
@@ -62,6 +63,46 @@ func WithAppendedReadConverters(converters ...ReadConverter) ReaderOption {
 	}
 }
 
+// WithReadAdvice 覆盖请求体读取增强器列表。
+func WithReadAdvice(advice ...ReadAdvice) ReaderOption {
+	copied := append([]ReadAdvice(nil), advice...)
+	return func(reader *Reader) {
+		reader.advice = cleanReadAdvice(copied)
+	}
+}
+
+// WithPrependedReadAdvice 将读取增强器加入当前增强器之前。
+func WithPrependedReadAdvice(advice ...ReadAdvice) ReaderOption {
+	copied := append([]ReadAdvice(nil), advice...)
+	return func(reader *Reader) {
+		cleaned := cleanReadAdvice(copied)
+		if len(cleaned) == 0 {
+			return
+		}
+		current := reader.ReadAdvices()
+		merged := make([]ReadAdvice, 0, len(cleaned)+len(current))
+		merged = append(merged, cleaned...)
+		merged = append(merged, current...)
+		reader.advice = merged
+	}
+}
+
+// WithAppendedReadAdvice 将读取增强器加入当前增强器之后。
+func WithAppendedReadAdvice(advice ...ReadAdvice) ReaderOption {
+	copied := append([]ReadAdvice(nil), advice...)
+	return func(reader *Reader) {
+		cleaned := cleanReadAdvice(copied)
+		if len(cleaned) == 0 {
+			return
+		}
+		current := reader.ReadAdvices()
+		merged := make([]ReadAdvice, 0, len(current)+len(cleaned))
+		merged = append(merged, current...)
+		merged = append(merged, cleaned...)
+		reader.advice = merged
+	}
+}
+
 // NewReader 创建请求体读取器。
 func NewReader(options ...ReaderOption) Reader {
 	reader := Reader{converters: DefaultReadConverters()}
@@ -76,6 +117,11 @@ func NewReader(options ...ReaderOption) Reader {
 // ReadConverters 返回当前请求体读取转换器快照。
 func (r Reader) ReadConverters() []ReadConverter {
 	return append([]ReadConverter(nil), r.convertersOrDefault()...)
+}
+
+// ReadAdvices 返回当前请求体读取增强器快照。
+func (r Reader) ReadAdvices() []ReadAdvice {
+	return append([]ReadAdvice(nil), r.advice...)
 }
 
 // DefaultReadConverters 返回 Spring Web 风格默认请求体转换器。
@@ -152,7 +198,18 @@ func (r Reader) readWith(ctx *arkweb.Context, target any, mediaType string) erro
 	if !ok {
 		return arkweb.ErrUnsupportedMediaType
 	}
-	return converter.Read(ctx, target, mediaType)
+	input := ReadAdviceContext{
+		MediaType: mediaType,
+		Target:    target,
+		Converter: converter,
+	}
+	if err := beforeRead(ctx, input, r.advice); err != nil {
+		return err
+	}
+	if err := converter.Read(ctx, target, mediaType); err != nil {
+		return err
+	}
+	return afterRead(ctx, input, r.advice)
 }
 
 func (r Reader) converterFor(target any, mediaType string) (ReadConverter, bool) {
@@ -182,4 +239,28 @@ func cleanReadConverters(converters []ReadConverter) []ReadConverter {
 		}
 	}
 	return out
+}
+
+func beforeRead(ctx *arkweb.Context, input ReadAdviceContext, advice []ReadAdvice) error {
+	for _, item := range advice {
+		if item == nil {
+			continue
+		}
+		if err := item.BeforeRead(ctx, input); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func afterRead(ctx *arkweb.Context, input ReadAdviceContext, advice []ReadAdvice) error {
+	for _, item := range advice {
+		if item == nil {
+			continue
+		}
+		if err := item.AfterRead(ctx, input); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -9,16 +9,7 @@ import (
 )
 
 func bindAndValidateJSON(ctx *arkweb.Context, target any, groups []string) error {
-	if len(groups) == 0 {
-		if err := ctx.BindJSON(target); err != nil {
-			return err
-		}
-		if !supportsValidation(target) {
-			return nil
-		}
-		return validateBound(ctx, target, nil)
-	}
-	if err := ctx.BindJSON(target); err != nil {
+	if err := message.ReaderFromContext(ctx).Read(ctx, target, message.MediaTypeJSON); err != nil {
 		return err
 	}
 	if !supportsValidation(target) {
