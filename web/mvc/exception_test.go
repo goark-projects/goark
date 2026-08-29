@@ -92,6 +92,43 @@ func TestRestControllerAdviceReturnAsWritesResponseBody(t *testing.T) {
 	}
 }
 
+func TestControllerAdviceEntityAsWritesResponseEntity(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	advice := mvc.NewRestControllerAdvice("api-errors",
+		mvc.ExceptionEntityAs[*resourceNotFoundError](func(_ *arkweb.Context, err *resourceNotFoundError) web.ResponseEntity[map[string]string] {
+			return web.Status(http.StatusNotFound, map[string]string{
+				"resource": err.resource,
+				"id":       err.id,
+			}).WithHeader("X-Error-ID", err.id)
+		}),
+	)
+	if err := advice.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb advice failed: %v", err)
+	}
+	configurer := mvc.NewConfigurer(mvc.NewRestController("users",
+		mvc.GET("/users/{id}", mvc.JSON(http.StatusOK, func(_ *arkweb.Context) (map[string]string, error) {
+			return nil, &resourceNotFoundError{resource: "user", id: "42"}
+		})),
+	))
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb controller failed: %v", err)
+	}
+
+	recorder := serveMVCRegistry(t, registry, http.MethodGet, "/users/42")
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if got := recorder.Header().Get("X-Error-ID"); got != "42" {
+		t.Fatalf("X-Error-ID = %q, want 42", got)
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, `"resource":"user"`) || !strings.Contains(body, `"id":"42"`) {
+		t.Fatalf("body = %s, want response entity payload", body)
+	}
+}
+
 func TestControllerAdviceReturnAsRendersLogicalView(t *testing.T) {
 	t.Parallel()
 

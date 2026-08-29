@@ -19,6 +19,9 @@ type ExceptionResultFunc[E error] func(ctx *arkweb.Context, err E) arkweb.Result
 // ExceptionValueFunc 将指定错误转换为普通返回值。
 type ExceptionValueFunc[E error, T any] func(ctx *arkweb.Context, err E) T
 
+// ExceptionEntityFunc 将指定错误转换为响应实体。
+type ExceptionEntityFunc[E error, T any] func(ctx *arkweb.Context, err E) goweb.ResponseEntity[T]
+
 // ExceptionHandler 将 MVC 异常函数适配为 Web 错误映射器。
 func ExceptionHandler(fn ExceptionFunc) goweb.ErrorMapper {
 	return goweb.ErrorMapperFunc(func(ctx *arkweb.Context, err error) arkweb.Result {
@@ -74,5 +77,15 @@ func ExceptionResponseBodyAs[E error, T any](statusCode int, fn ExceptionValueFu
 			return nil
 		}
 		return responseBodyResult(ctx, statusCode, fn(ctx, err))
+	})
+}
+
+// ExceptionEntityAs 使用响应实体完整控制异常响应状态、头和响应体。
+func ExceptionEntityAs[E error, T any](fn ExceptionEntityFunc[E, T]) goweb.ErrorMapper {
+	return ExceptionHandlerAs(func(ctx *arkweb.Context, err E) arkweb.Result {
+		if fn == nil {
+			return nil
+		}
+		return entityResult(ctx, fn(ctx, err))
 	})
 }
