@@ -47,6 +47,7 @@ func setCurrentModel(ctx *arkweb.Context, model Model) {
 func mergeCurrentModel(ctx *arkweb.Context, model Model) Model {
 	base, ok := currentModel(ctx)
 	if !ok {
+		setCurrentModel(ctx, model)
 		return model
 	}
 	merged := base.AddAllAttributes(model.Values())

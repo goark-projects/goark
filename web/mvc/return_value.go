@@ -59,6 +59,9 @@ func returnValueByKind(ctx *arkweb.Context, statusCode int, value any, kind Cont
 		return responseBodyResult(ctx, statusCode, value)
 	}
 	if name, ok := value.(string); ok {
+		if result, ok := forwardResultFromViewName(name); ok {
+			return result
+		}
 		if result, ok := redirectResultFromViewName(ctx, statusCode, name); ok {
 			return result
 		}

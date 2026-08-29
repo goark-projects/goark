@@ -55,10 +55,13 @@ func BuildDeployment(registry *Registry, spec DeploymentSpec) (*servletcontainer
 		return nil, err
 	}
 
-	deploymentOptions := []servletcontainer.DeploymentOption{
-		servletcontainer.WithMapping(mappingPattern, router, registry.Filters()...),
-	}
 	globalFilters := registry.Filters()
+	webFilters := make([]servlet.Filter, 0, len(globalFilters)+1)
+	webFilters = append(webFilters, webAppRequestFilter(app))
+	webFilters = append(webFilters, globalFilters...)
+	deploymentOptions := []servletcontainer.DeploymentOption{
+		servletcontainer.WithMapping(mappingPattern, router, webFilters...),
+	}
 	for _, mapping := range registry.servletMappings() {
 		deploymentOptions = append(deploymentOptions, servletcontainer.WithServlet(
 			mapping.pattern,
