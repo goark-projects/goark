@@ -19,4 +19,6 @@ var (
 	ErrNilServlet = errors.New("goark/web: servlet is nil")
 	// ErrNilDownloadReader 表示下载响应体为空。
 	ErrNilDownloadReader = errors.New("goark/web: download reader is nil")
+	// ErrInvalidRedirectLocation 表示重定向 Location 非法。
+	ErrInvalidRedirectLocation = errors.New("goark/web: invalid redirect location")
 )
