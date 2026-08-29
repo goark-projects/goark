@@ -66,3 +66,36 @@ func TestModelAttributeInitializerMergesWithReturnedModel(t *testing.T) {
 		t.Fatalf("body = %q, want merged model", recorder.Body.String())
 	}
 }
+
+func TestControllerAdviceModelAttributeInitializerMergesWithReturnedModel(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	registry.Use(view.Interceptor(modelViewResolver(t, fstest.MapFS{
+		"dashboard.html": {Data: []byte("<h1>{{.AppName}} {{.Title}}</h1>")},
+	})))
+	advice := mvc.NewControllerAdvice("global-model").WithModelAttributes(
+		mvc.ModelAttributeValue("AppName", func(*arkweb.Context) (string, error) {
+			return "Goark", nil
+		}),
+		mvc.ModelAttributeInitializerFunc(func(_ *arkweb.Context, model mvc.Model) (mvc.Model, error) {
+			return model.AddAttribute("Title", "Default"), nil
+		}),
+	)
+	configurer := mvc.NewConfigurer(mvc.NewController("pages",
+		mvc.GET("/dashboard", mvc.Return(0, func(_ *arkweb.Context) (mvc.ModelAndView, error) {
+			return mvc.NewModelAndView("dashboard", mvc.NewModel().AddAttribute("Title", "Dashboard")), nil
+		})),
+	)).WithControllerAdvices(advice)
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+
+	recorder := serveMVC(t, registry, http.MethodGet, "/dashboard", "text/html")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", recorder.Code)
+	}
+	if recorder.Body.String() != "<h1>Goark Dashboard</h1>" {
+		t.Fatalf("body = %q, want advice initialized model", recorder.Body.String())
+	}
+}

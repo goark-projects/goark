@@ -55,11 +55,32 @@ func wrapModelAttributeInitializers(handler arkweb.Handler, initializers []Model
 	}
 	copied := append([]ModelAttributeInitializer(nil), initializers...)
 	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
-		if err := initializeModelAttributes(ctx, copied); err != nil {
-			return nil, err
-		}
-		return handler.Handle(ctx)
+		return handleWithModelAttributeInitializers(ctx, handler, copied)
 	})
+}
+
+func modelAttributeInterceptor(initializers []ModelAttributeInitializer) arkweb.Interceptor {
+	if len(initializers) == 0 {
+		return nil
+	}
+	copied := append([]ModelAttributeInitializer(nil), initializers...)
+	return arkweb.InterceptorFunc(func(ctx *arkweb.Context, next arkweb.Handler) (arkweb.Result, error) {
+		return handleWithModelAttributeInitializers(ctx, next, copied)
+	})
+}
+
+func handleWithModelAttributeInitializers(
+	ctx *arkweb.Context,
+	handler arkweb.Handler,
+	initializers []ModelAttributeInitializer,
+) (arkweb.Result, error) {
+	if handler == nil {
+		return nil, arkweb.ErrNilHandler
+	}
+	if err := initializeModelAttributes(ctx, initializers); err != nil {
+		return nil, err
+	}
+	return handler.Handle(ctx)
 }
 
 func initializeModelAttributes(ctx *arkweb.Context, initializers []ModelAttributeInitializer) error {
