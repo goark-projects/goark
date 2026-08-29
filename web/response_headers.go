@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"goark.dev/arkarta/servlet"
 )
 
 // WithCookie 追加 Set-Cookie 响应头。
@@ -75,6 +77,11 @@ func (e ResponseEntity[T]) WithContentLength(length int64) ResponseEntity[T] {
 		return e
 	}
 	return e.WithHeader("Content-Length", strconv.FormatInt(length, 10))
+}
+
+// WithContentLanguage 设置 Content-Language 响应头。
+func (e ResponseEntity[T]) WithContentLanguage(locale servlet.Locale) ResponseEntity[T] {
+	return e.WithHeader("Content-Language", locale.Tag())
 }
 
 // WithAllow 设置 Allow 响应头。
