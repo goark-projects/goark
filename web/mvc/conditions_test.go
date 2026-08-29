@@ -182,6 +182,44 @@ func TestRouteConditionsRejectAmbiguousCandidates(t *testing.T) {
 	}
 }
 
+func TestRouteConditionsDispatchPreservesSelectedProduces(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	configurer := mvc.NewConfigurer(mvc.NewRestController("reports",
+		mvc.GET("/reports", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]string, error) {
+			produces, _ := ctx.Request().Attribute(mvc.AttributeProducesMediaType)
+			return map[string]string{"produces": produces.(string)}, nil
+		}), mvc.WithProduces("application/json")),
+		mvc.GET("/reports", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]string, error) {
+			produces, _ := ctx.Request().Attribute(mvc.AttributeProducesMediaType)
+			return map[string]string{"produces": produces.(string)}, nil
+		}), mvc.WithProduces("text/plain")),
+	))
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/reports", nil)
+	request.Header.Set("Accept", "application/json, text/plain")
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if got := recorder.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("Content-Type = %q, want application/json", got)
+	}
+	if !strings.Contains(recorder.Body.String(), `"produces":"application/json"`) {
+		t.Fatalf("body = %s, want selected JSON produces", recorder.Body.String())
+	}
+}
+
 func TestRouteConditionsRejectMismatches(t *testing.T) {
 	t.Parallel()
 

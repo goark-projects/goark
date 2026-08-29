@@ -38,7 +38,11 @@ func (h conditionDispatchHandler) Handle(ctx *arkweb.Context) (arkweb.Result, er
 		}
 		return nil, servlet.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound), nil)
 	}
-	return h.registrations[bestIndex].handler.Handle(ctx)
+	registration := h.registrations[bestIndex]
+	if err := registration.conditions.match(ctx); err != nil {
+		return nil, err
+	}
+	return registration.handler.Handle(ctx)
 }
 
 func selectConditionError(current error, candidate error) error {
