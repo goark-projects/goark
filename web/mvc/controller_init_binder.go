@@ -19,29 +19,49 @@ func wrapInitBinders(handler arkweb.Handler, initializers []BinderInitializer) a
 	}
 	copied := append([]BinderInitializer(nil), initializers...)
 	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
-		if ctx == nil || ctx.Request() == nil {
-			return handler.Handle(ctx)
+		return handleWithInitBinders(ctx, handler, copied)
+	})
+}
+
+func initBinderInterceptor(initializers []BinderInitializer) arkweb.Interceptor {
+	if len(initializers) == 0 {
+		return nil
+	}
+	copied := append([]BinderInitializer(nil), initializers...)
+	return arkweb.InterceptorFunc(func(ctx *arkweb.Context, next arkweb.Handler) (arkweb.Result, error) {
+		if next == nil {
+			return nil, arkweb.ErrNilHandler
 		}
-		base := ConversionServiceFromContext(ctx)
-		scoped, err := base.Clone()
-		if err != nil {
+		return handleWithInitBinders(ctx, next, copied)
+	})
+}
+
+func handleWithInitBinders(ctx *arkweb.Context, handler arkweb.Handler, initializers []BinderInitializer) (arkweb.Result, error) {
+	if handler == nil {
+		return nil, arkweb.ErrNilHandler
+	}
+	if ctx == nil || ctx.Request() == nil {
+		return handler.Handle(ctx)
+	}
+	base := ConversionServiceFromContext(ctx)
+	scoped, err := base.Clone()
+	if err != nil {
+		return nil, err
+	}
+	binder := newDataBinder(scoped)
+	request := ctx.Request()
+	previous, existed := request.Attribute(AttributeConversionService)
+	request.SetAttribute(AttributeConversionService, binder.ConversionService())
+	defer restoreConversionServiceAttribute(ctx, previous, existed)
+	for _, initializer := range initializers {
+		if initializer == nil {
+			return nil, ErrNilBinderInitializer
+		}
+		if err := initializer.InitializeBinder(ctx, binder); err != nil {
 			return nil, err
 		}
-		binder := newDataBinder(scoped)
-		request := ctx.Request()
-		previous, existed := request.Attribute(AttributeConversionService)
-		request.SetAttribute(AttributeConversionService, binder.ConversionService())
-		defer restoreConversionServiceAttribute(ctx, previous, existed)
-		for _, initializer := range copied {
-			if initializer == nil {
-				return nil, ErrNilBinderInitializer
-			}
-			if err := initializer.InitializeBinder(ctx, binder); err != nil {
-				return nil, err
-			}
-		}
-		return handler.Handle(ctx)
-	})
+	}
+	return handler.Handle(ctx)
 }
 
 func restoreConversionServiceAttribute(ctx *arkweb.Context, previous any, existed bool) {

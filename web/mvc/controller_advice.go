@@ -15,12 +15,13 @@ const (
 	AttributeControllerAdviceKind = "goark.web.mvc.controller_advice.kind"
 )
 
-// ControllerAdvice 描述一组全局 MVC 异常处理器。
+// ControllerAdvice 描述一组全局 MVC 异常处理器和绑定器初始化器。
 type ControllerAdvice struct {
 	name     string
 	order    int
 	kind     ControllerKind
 	handlers []goweb.ErrorMapper
+	binders  []BinderInitializer
 }
 
 // NewControllerAdvice 创建普通 MVC advice，字符串返回值默认解析为逻辑视图名。
@@ -51,6 +52,12 @@ func (a ControllerAdvice) WithExceptionHandlers(handlers ...goweb.ErrorMapper) C
 	return a
 }
 
+// WithInitBinders 追加全局绑定器初始化器，对齐 Spring ControllerAdvice @InitBinder。
+func (a ControllerAdvice) WithInitBinders(initializers ...BinderInitializer) ControllerAdvice {
+	a.binders = append(a.binders, initializers...)
+	return a
+}
+
 // Name 返回 advice 配置名称。
 func (a ControllerAdvice) Name() string {
 	if a.name == "" {
@@ -72,6 +79,11 @@ func (a ControllerAdvice) Kind() ControllerKind {
 // ExceptionHandlers 返回异常处理器快照。
 func (a ControllerAdvice) ExceptionHandlers() []goweb.ErrorMapper {
 	return append([]goweb.ErrorMapper(nil), a.handlers...)
+}
+
+// InitBinders 返回全局绑定器初始化器快照。
+func (a ControllerAdvice) InitBinders() []BinderInitializer {
+	return append([]BinderInitializer(nil), a.binders...)
 }
 
 // Register 注册 advice Web 配置器 Bean。
@@ -96,6 +108,9 @@ func (a ControllerAdvice) ConfigureWeb(ctx context.Context, registry *goweb.Regi
 	}
 	if registry == nil {
 		return goweb.ErrNilRegistry
+	}
+	if len(a.binders) > 0 {
+		registry.Use(initBinderInterceptor(a.binders))
 	}
 	for _, handler := range a.handlers {
 		if util.IsNil(handler) {

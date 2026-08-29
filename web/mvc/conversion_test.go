@@ -24,6 +24,10 @@ type scopedTenantID struct {
 	value string
 }
 
+type adviceTenantID struct {
+	value string
+}
+
 func TestConversionServiceAppliesToMVCParameters(t *testing.T) {
 	t.Parallel()
 
@@ -171,6 +175,83 @@ func TestControllerInitBinderAppliesScopedConversionService(t *testing.T) {
 	servletnethttp.Handler(router).ServeHTTP(plain, httptest.NewRequest(http.MethodGet, "/plain?page=goark&tenant=blue", nil))
 	if plain.Code != http.StatusBadRequest {
 		t.Fatalf("plain status = %d, want 400, body=%s", plain.Code, plain.Body.String())
+	}
+}
+
+func TestControllerAdviceInitBinderAppliesScopedConversionService(t *testing.T) {
+	t.Parallel()
+
+	type searchCriteria struct {
+		Page   int            `form:"page"`
+		Tenant adviceTenantID `form:"tenant"`
+	}
+	type payload struct {
+		Page        int    `json:"page"`
+		Tenant      string `json:"tenant"`
+		ParamTenant string `json:"paramTenant"`
+	}
+
+	service, err := convert.NewService(convert.ConverterFunc[string, int](func(value string) (int, error) {
+		return len(value) + 100, nil
+	}))
+	if err != nil {
+		t.Fatalf("NewService failed: %v", err)
+	}
+	beanRegistry := container.NewRegistry()
+	if err := mvc.RegisterConversionService(beanRegistry, "testConversionService", service); err != nil {
+		t.Fatalf("RegisterConversionService failed: %v", err)
+	}
+	resolver, err := container.New(beanRegistry)
+	if err != nil {
+		t.Fatalf("container.New failed: %v", err)
+	}
+
+	registry := web.NewRegistry()
+	if err := web.ApplyConfigurers(t.Context(), resolver, registry); err != nil {
+		t.Fatalf("ApplyConfigurers failed: %v", err)
+	}
+	advice := mvc.NewRestControllerAdvice("global-binders").WithInitBinders(
+		mvc.BinderInitializerFunc(func(_ *arkweb.Context, binder *mvc.DataBinder) error {
+			return binder.AddConverter(mvc.ConverterFunc[string, adviceTenantID](func(value string) (adviceTenantID, error) {
+				return adviceTenantID{value: "advice:" + value}, nil
+			}))
+		}),
+	)
+	configurer := mvc.NewConfigurer(mvc.NewRestController("search",
+		mvc.GET("/advice", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (payload, error) {
+			criteria, err := mvc.ModelAttribute[searchCriteria](ctx)
+			if err != nil {
+				return payload{}, err
+			}
+			tenant, err := mvc.RequestParamAs[adviceTenantID](ctx, "tenant")
+			if err != nil {
+				return payload{}, err
+			}
+			return payload{Page: criteria.Page, Tenant: criteria.Tenant.value, ParamTenant: tenant.value}, nil
+		})),
+	)).WithControllerAdvices(advice)
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/advice?page=goark&tenant=blue", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	var got payload
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &got); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if got.Page != 105 || got.Tenant != "advice:blue" || got.ParamTenant != "advice:blue" {
+		t.Fatalf("payload = %#v, want advice-scoped conversion", got)
+	}
+	if _, err := convert.Convert[adviceTenantID](service, "blue"); err == nil {
+		t.Fatal("global conversion service should not see advice converter")
 	}
 }
 
