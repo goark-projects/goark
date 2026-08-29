@@ -77,6 +77,22 @@ type binderTagPayload struct {
 	Aliases []string `json:"aliases"`
 }
 
+type binderSuppressedProfile struct {
+	Email string `form:"email" json:"email"`
+}
+
+type binderSuppressedInput struct {
+	Name    string                   `form:"name" json:"name"`
+	Admin   bool                     `form:"admin" json:"admin"`
+	Profile *binderSuppressedProfile `form:"profile" json:"profile"`
+}
+
+type binderSuppressedPayload struct {
+	Name             string   `json:"name"`
+	Admin            bool     `json:"admin"`
+	SuppressedFields []string `json:"suppressedFields"`
+}
+
 func TestModelAttributeAppliesDefaultFieldPrefixes(t *testing.T) {
 	t.Parallel()
 
@@ -197,6 +213,51 @@ func TestControllerInitBinderCustomizesFieldPrefixes(t *testing.T) {
 		!got.ProfileSet ||
 		got.Subscribed {
 		t.Fatalf("payload = %#v, want custom field prefix binding", got)
+	}
+}
+
+func TestModelAttributeResultReportsSuppressedFields(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	controller := mvc.NewRestController("suppressed",
+		mvc.GET("/suppressed", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (binderSuppressedPayload, error) {
+			input, result, err := mvc.ModelAttributeResult[binderSuppressedInput](ctx)
+			if err != nil {
+				return binderSuppressedPayload{}, err
+			}
+			return binderSuppressedPayload{
+				Name:             input.Name,
+				Admin:            input.Admin,
+				SuppressedFields: result.SuppressedFields(),
+			}, nil
+		})),
+	).WithInitBinders(mvc.BinderInitializerFunc(func(_ *arkweb.Context, binder *mvc.DataBinder) error {
+		return binder.SetAllowedFields("name")
+	}))
+	if err := controller.Register(registry); err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/suppressed?name=ada&admin=true&profile.email=ada@example.test", nil)
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	var got binderSuppressedPayload
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &got); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if got.Name != "ada" || got.Admin || len(got.SuppressedFields) != 2 ||
+		got.SuppressedFields[0] != "admin" ||
+		got.SuppressedFields[1] != "profile.email" {
+		t.Fatalf("payload = %#v, want suppressed fields", got)
 	}
 }
 

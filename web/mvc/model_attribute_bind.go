@@ -21,23 +21,23 @@ type modelAttributeBinder struct {
 	fieldMarkers map[string]struct{}
 }
 
-func bindModelAttribute(ctx *arkweb.Context, target any) error {
+func bindModelAttribute(ctx *arkweb.Context, target any) ([]string, error) {
 	if ctx == nil || ctx.Request() == nil {
-		return arkweb.ErrNilContext
+		return nil, arkweb.ErrNilContext
 	}
 	if err := ensureModelAttributeContentType(ctx); err != nil {
-		return err
+		return nil, err
 	}
 	values, err := requestParameters(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	preparedValues := modelAttributeValuesForCurrentBinder(ctx, values)
 	binder, err := newModelAttributeBinder(target, ConversionServiceFromContext(ctx), preparedValues.fieldMarkers)
 	if err != nil {
-		return err
+		return preparedValues.suppressedFields, err
 	}
-	return binder.bind(preparedValues.values)
+	return preparedValues.suppressedFields, binder.bind(preparedValues.values)
 }
 
 func ensureModelAttributeContentType(ctx *arkweb.Context) error {

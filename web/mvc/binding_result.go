@@ -8,8 +8,9 @@ import (
 
 // BindingResult 表示绑定成功后的结构体验证结果。
 type BindingResult struct {
-	result       validation.Result
-	bindingError error
+	result           validation.Result
+	bindingError     error
+	suppressedFields []string
 }
 
 // NewBindingResult 创建绑定结果。
@@ -71,7 +72,23 @@ func (r BindingResult) BindingError() error {
 	return r.bindingError
 }
 
+// SuppressedFields 返回被字段绑定规则拒绝的字段名快照。
+func (r BindingResult) SuppressedFields() []string {
+	if len(r.suppressedFields) == 0 {
+		return nil
+	}
+	return append([]string(nil), r.suppressedFields...)
+}
+
 // Err 将验证失败结果转换为 error。
 func (r BindingResult) Err() error {
 	return errors.Join(r.bindingError, r.result.Error())
+}
+
+func (r BindingResult) withSuppressedFields(fields []string) BindingResult {
+	if len(fields) == 0 {
+		return r
+	}
+	r.suppressedFields = append([]string(nil), fields...)
+	return r
 }

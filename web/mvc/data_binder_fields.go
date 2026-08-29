@@ -2,6 +2,7 @@ package mvc
 
 import (
 	"net/url"
+	"sort"
 	"strings"
 
 	arkweb "goark.dev/arkarta/web"
@@ -14,8 +15,9 @@ const (
 )
 
 type preparedModelAttributeValues struct {
-	values       url.Values
-	fieldMarkers map[string]struct{}
+	values           url.Values
+	fieldMarkers     map[string]struct{}
+	suppressedFields []string
 }
 
 // SetAllowedFields 设置允许绑定的字段模式；未设置时默认允许全部字段。
@@ -103,11 +105,14 @@ func (b *DataBinder) prepareModelAttributeValues(values url.Values) preparedMode
 	values = b.applyFieldDefaults(values)
 	values, markers := b.extractFieldMarkers(values)
 	values = b.adaptEmptyArrayIndices(values)
-	values = b.filterModelAttributeValues(values)
-	markers = b.filterFieldMarkers(markers)
+	var suppressed []string
+	values, suppressed = b.filterModelAttributeValues(values)
+	markers, suppressed = b.filterFieldMarkers(markers, suppressed)
+	suppressed = sortedSuppressedFields(suppressed)
 	return preparedModelAttributeValues{
-		values:       values,
-		fieldMarkers: markers,
+		values:           values,
+		fieldMarkers:     markers,
+		suppressedFields: suppressed,
 	}
 }
 
@@ -193,28 +198,55 @@ func (b *DataBinder) adaptEmptyArrayIndices(values url.Values) url.Values {
 	return out
 }
 
-func (b *DataBinder) filterModelAttributeValues(values url.Values) url.Values {
+func (b *DataBinder) filterModelAttributeValues(values url.Values) (url.Values, []string) {
 	if b == nil || len(values) == 0 || !b.hasFieldRules() {
-		return values
+		return values, nil
 	}
 	out := make(url.Values, len(values))
+	suppressed := make([]string, 0)
 	for name, list := range values {
-		if name == "" || len(list) == 0 || !b.isFieldAllowed(name) {
+		if name == "" || len(list) == 0 {
+			continue
+		}
+		if !b.isFieldAllowed(name) {
+			suppressed = append(suppressed, name)
 			continue
 		}
 		out[name] = append([]string(nil), list...)
 	}
-	return out
+	return out, suppressed
 }
 
-func (b *DataBinder) filterFieldMarkers(markers map[string]struct{}) map[string]struct{} {
+func (b *DataBinder) filterFieldMarkers(markers map[string]struct{}, suppressed []string) (map[string]struct{}, []string) {
 	if len(markers) == 0 || !b.hasFieldRules() {
-		return markers
+		return markers, suppressed
 	}
 	out := make(map[string]struct{}, len(markers))
 	for name := range markers {
 		if name != "" && b.isFieldAllowed(name) {
 			out[name] = struct{}{}
+			continue
+		}
+		suppressed = append(suppressed, name)
+	}
+	if len(out) == 0 {
+		return nil, suppressed
+	}
+	return out, suppressed
+}
+
+func sortedSuppressedFields(fields []string) []string {
+	if len(fields) == 0 {
+		return nil
+	}
+	sort.Strings(fields)
+	out := fields[:0]
+	for _, field := range fields {
+		if field == "" {
+			continue
+		}
+		if len(out) == 0 || out[len(out)-1] != field {
+			out = append(out, field)
 		}
 	}
 	if len(out) == 0 {
