@@ -43,24 +43,15 @@ func returnValueByKind(ctx *arkweb.Context, statusCode int, value any, kind Cont
 		return responseBodyResult(ctx, statusCode, value)
 	}
 	if name, ok := value.(string); ok {
-		return view.Render(name, nil, view.WithStatus(normalizeReturnStatus(statusCode)))
+		return view.Render(name, nil, view.WithStatus(resolveResponseStatus(ctx, statusCode, http.StatusOK)))
 	}
 	return responseBodyResult(ctx, statusCode, value)
 }
 
 func responseBodyResult(ctx *arkweb.Context, statusCode int, value any) arkweb.Result {
+	statusCode = resolveResponseStatus(ctx, statusCode, http.StatusOK)
 	if mediaType, ok := selectedProducesMediaType(ctx); ok {
 		return goweb.Message(statusCode, value, mediaType)
 	}
 	return goweb.Message(statusCode, value)
-}
-
-func normalizeReturnStatus(statusCode int) int {
-	if statusCode == 0 {
-		return http.StatusOK
-	}
-	if statusCode < 100 || statusCode > 999 {
-		return http.StatusInternalServerError
-	}
-	return statusCode
 }

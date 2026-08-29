@@ -1,6 +1,8 @@
 package mvc
 
 import (
+	"net/http"
+
 	servletmultipart "goark.dev/arkarta/servlet/multipart"
 	arkweb "goark.dev/arkarta/web"
 	goweb "goark.dev/goark/web"
@@ -189,6 +191,6 @@ func NoContent(fn func(ctx *arkweb.Context) error) arkweb.Handler {
 		if err := fn(ctx); err != nil {
 			return nil, err
 		}
-		return arkweb.NoContent(), nil
+		return responseStatusResult{statusCode: resolveResponseStatus(ctx, 0, http.StatusNoContent)}, nil
 	})
 }

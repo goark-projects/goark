@@ -1,6 +1,7 @@
 package mvc
 
 import (
+	"net/http"
 	"strings"
 
 	arkweb "goark.dev/arkarta/web"
@@ -8,6 +9,7 @@ import (
 )
 
 func jsonResult(ctx *arkweb.Context, statusCode int, value any) arkweb.Result {
+	statusCode = resolveResponseStatus(ctx, statusCode, http.StatusOK)
 	if mediaType, ok := selectedProducesMediaType(ctx); ok {
 		return goweb.Message(statusCode, value, mediaType)
 	}
