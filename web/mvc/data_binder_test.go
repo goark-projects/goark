@@ -63,6 +63,20 @@ type binderPreferencePayload struct {
 	TagsLength int    `json:"tagsLength"`
 }
 
+type binderTagProfile struct {
+	Aliases []string `form:"aliases" json:"aliases"`
+}
+
+type binderTagInput struct {
+	Tags    []string          `form:"tags" json:"tags"`
+	Profile *binderTagProfile `form:"profile" json:"profile"`
+}
+
+type binderTagPayload struct {
+	Tags    []string `json:"tags"`
+	Aliases []string `json:"aliases"`
+}
+
 func TestModelAttributeAppliesDefaultFieldPrefixes(t *testing.T) {
 	t.Parallel()
 
@@ -98,6 +112,45 @@ func TestModelAttributeAppliesDefaultFieldPrefixes(t *testing.T) {
 		got.TagsNil ||
 		got.TagsLength != 0 {
 		t.Fatalf("payload = %#v, want default field prefix binding", got)
+	}
+}
+
+func TestModelAttributeAdaptsEmptyArrayIndexFields(t *testing.T) {
+	t.Parallel()
+
+	router := arkweb.NewRouter()
+	if err := router.Handle(http.MethodGet, "/tags", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (binderTagPayload, error) {
+		input, err := mvc.ModelAttribute[binderTagInput](ctx)
+		if err != nil {
+			return binderTagPayload{}, err
+		}
+		out := binderTagPayload{Tags: input.Tags}
+		if input.Profile != nil {
+			out.Aliases = input.Profile.Aliases
+		}
+		return out, nil
+	})); err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/tags?tags[]=red&tags[]=blue&profile.aliases[]=core&profile.aliases[]=web", nil)
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	var got binderTagPayload
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &got); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if len(got.Tags) != 2 ||
+		got.Tags[0] != "red" ||
+		got.Tags[1] != "blue" ||
+		len(got.Aliases) != 2 ||
+		got.Aliases[0] != "core" ||
+		got.Aliases[1] != "web" {
+		t.Fatalf("payload = %#v, want empty array index fields bound", got)
 	}
 }
 

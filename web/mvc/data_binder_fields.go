@@ -102,6 +102,7 @@ func (b *DataBinder) prepareModelAttributeValues(values url.Values) preparedMode
 	}
 	values = b.applyFieldDefaults(values)
 	values, markers := b.extractFieldMarkers(values)
+	values = b.adaptEmptyArrayIndices(values)
 	values = b.filterModelAttributeValues(values)
 	markers = b.filterFieldMarkers(markers)
 	return preparedModelAttributeValues{
@@ -165,6 +166,31 @@ func (b *DataBinder) extractFieldMarkers(values url.Values) (url.Values, map[str
 		return values, markers
 	}
 	return out, markers
+}
+
+func (b *DataBinder) adaptEmptyArrayIndices(values url.Values) url.Values {
+	if len(values) == 0 {
+		return values
+	}
+	var out url.Values
+	for name, list := range values {
+		field, ok := strings.CutSuffix(name, "[]")
+		if !ok {
+			continue
+		}
+		out = ensureClonedModelAttributeValues(out, values)
+		delete(out, name)
+		if field == "" {
+			continue
+		}
+		if _, exists := out[field]; !exists {
+			out[field] = append([]string(nil), list...)
+		}
+	}
+	if out == nil {
+		return values
+	}
+	return out
 }
 
 func (b *DataBinder) filterModelAttributeValues(values url.Values) url.Values {
