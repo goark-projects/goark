@@ -183,3 +183,39 @@ func TestControllerRequestMethodsApplyToImplicitRequestMapping(t *testing.T) {
 		}
 	}
 }
+
+func TestControllerPathPrefixesApplyToRoutePatterns(t *testing.T) {
+	controller := mvc.NewRestController("api",
+		mvc.GET("/users/{id}", mvc.Text(http.StatusOK, func(ctx *arkweb.Context) (string, error) {
+			return mvc.PathString(ctx, "id")
+		})),
+	).WithPathPrefixes("/api", "v2")
+
+	prefixes := controller.PathPrefixes()
+	if len(prefixes) != 2 || prefixes[0] != "/api" || prefixes[1] != "/v2" {
+		t.Fatalf("prefixes = %#v, want /api and /v2", prefixes)
+	}
+
+	registry := web.NewRegistry()
+	configurer := mvc.NewConfigurer(controller)
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+	routes := registry.Routes()
+	if len(routes) != 2 || routes[0].Pattern != "/api/users/{id}" || routes[1].Pattern != "/v2/users/{id}" {
+		t.Fatalf("registered routes = %#v, want prefixed routes", routes)
+	}
+
+	api := serveMVC(t, registry, http.MethodGet, "/api/users/42", "text/plain")
+	if api.Code != http.StatusOK || api.Body.String() != "42" {
+		t.Fatalf("api response = %d/%q, want 200 42", api.Code, api.Body.String())
+	}
+	v2 := serveMVC(t, registry, http.MethodGet, "/v2/users/84", "text/plain")
+	if v2.Code != http.StatusOK || v2.Body.String() != "84" {
+		t.Fatalf("v2 response = %d/%q, want 200 84", v2.Code, v2.Body.String())
+	}
+	plain := serveMVC(t, registry, http.MethodGet, "/users/42", "text/plain")
+	if plain.Code != http.StatusNotFound {
+		t.Fatalf("plain status = %d, want 404", plain.Code)
+	}
+}

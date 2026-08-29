@@ -23,14 +23,15 @@ const (
 
 // Controller 描述一组同属一个控制器的路由。
 type Controller struct {
-	name        string
-	routes      []Route
-	kind        ControllerKind
-	methods     []string
-	conditions  Conditions
-	crossOrigin *cors.Config
-	modelAttrs  []ModelAttributeInitializer
-	binders     []BinderInitializer
+	name         string
+	routes       []Route
+	kind         ControllerKind
+	methods      []string
+	conditions   Conditions
+	crossOrigin  *cors.Config
+	modelAttrs   []ModelAttributeInitializer
+	binders      []BinderInitializer
+	pathPrefixes []string
 }
 
 // NewController 创建控制器描述。

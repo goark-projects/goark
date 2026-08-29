@@ -59,22 +59,25 @@ func appendControllerRegistrations(
 			}
 			implicitGroups[route.methodGroupID] = struct{}{}
 		}
-		for _, method := range controller.routeMethods(route) {
-			resolvedRoute := route
-			resolvedRoute.Method = method
-			if err := registerRouteCORS(registry, controller, resolvedRoute); err != nil {
-				return err
+		for _, prefix := range controller.registrationPathPrefixes() {
+			for _, method := range controller.routeMethods(route) {
+				resolvedRoute := route
+				resolvedRoute.Method = method
+				resolvedRoute.Pattern = joinControllerRoutePattern(prefix, route.Pattern)
+				if err := registerRouteCORS(registry, controller, resolvedRoute); err != nil {
+					return err
+				}
+				key := routeRegistrationKey{method: resolvedRoute.Method, pattern: resolvedRoute.Pattern}
+				if _, exists := groups[key]; !exists {
+					*keys = append(*keys, key)
+				}
+				handler := wrapModelAttributeInitializers(resolvedRoute.Handler, controller.modelAttrs)
+				handler = wrapInitBinders(handler, controller.binders)
+				groups[key] = append(groups[key], routeRegistration{
+					handler:    bindControllerKind(controller.kind, handler),
+					conditions: mergeControllerRouteConditions(controller.conditions, resolvedRoute.Conditions),
+				})
 			}
-			key := routeRegistrationKey{method: resolvedRoute.Method, pattern: resolvedRoute.Pattern}
-			if _, exists := groups[key]; !exists {
-				*keys = append(*keys, key)
-			}
-			handler := wrapModelAttributeInitializers(resolvedRoute.Handler, controller.modelAttrs)
-			handler = wrapInitBinders(handler, controller.binders)
-			groups[key] = append(groups[key], routeRegistration{
-				handler:    bindControllerKind(controller.kind, handler),
-				conditions: mergeControllerRouteConditions(controller.conditions, resolvedRoute.Conditions),
-			})
 		}
 	}
 	return nil
