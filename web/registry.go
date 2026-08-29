@@ -12,7 +12,7 @@ import (
 // Registry 收集 Web 路由、拦截器和部署选项。
 type Registry struct {
 	routes            []Route
-	interceptors      []arkweb.Interceptor
+	interceptors      []interceptorRegistration
 	advice            []arkweb.ResponseAdvice
 	errorMappers      []arkweb.ErrorMapper
 	filters           []servlet.Filter
@@ -74,7 +74,17 @@ func (r *Registry) OPTIONS(pattern string, handler arkweb.Handler) error {
 // Use 注册全局 Web 拦截器。
 func (r *Registry) Use(interceptor arkweb.Interceptor) {
 	if !isNilInterceptor(interceptor) {
-		r.interceptors = append(r.interceptors, interceptor)
+		r.interceptors = append(r.interceptors, interceptorRegistration{interceptor: interceptor})
+	}
+}
+
+// UseMapped 注册带路径映射的 Web 拦截器。
+func (r *Registry) UseMapped(interceptor arkweb.Interceptor, mapping InterceptorMapping) {
+	if !isNilInterceptor(interceptor) {
+		r.interceptors = append(r.interceptors, interceptorRegistration{
+			interceptor: interceptor,
+			mapping:     mapping,
+		})
 	}
 }
 
@@ -121,8 +131,8 @@ func (r *Registry) Router(options ...arkweb.Option) (*arkweb.Router, error) {
 	}
 	routerOptions := appendRouterOptions(r.errorMappers, options)
 	router := arkweb.NewRouter(routerOptions...)
-	for _, interceptor := range r.interceptors {
-		router.Use(interceptor)
+	for _, registration := range r.interceptors {
+		router.Use(registration.Interceptor())
 	}
 	for _, advice := range r.advice {
 		router.UseResponseAdvice(advice)
@@ -173,6 +183,21 @@ func (r *Registry) DeploymentOptions() []servletcontainer.DeploymentOption {
 		return nil
 	}
 	return append([]servletcontainer.DeploymentOption(nil), r.deploymentOptions...)
+}
+
+type interceptorRegistration struct {
+	interceptor arkweb.Interceptor
+	mapping     InterceptorMapping
+}
+
+func (r interceptorRegistration) Interceptor() arkweb.Interceptor {
+	if len(r.mapping.includes) == 0 && len(r.mapping.excludes) == 0 {
+		return r.interceptor
+	}
+	return mappedInterceptor{
+		target:  r.interceptor,
+		mapping: r.mapping,
+	}
 }
 
 func hasProfile(profiles []servletcontainer.Profile, target servletcontainer.Profile) bool {

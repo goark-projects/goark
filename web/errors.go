@@ -13,6 +13,8 @@ var (
 	ErrNilErrorMapper = errors.New("goark/web: error mapper is nil")
 	// ErrNilInterceptor 表示 Web 拦截器为空。
 	ErrNilInterceptor = errors.New("goark/web: interceptor is nil")
+	// ErrInvalidInterceptorMapping 表示拦截器路径映射非法。
+	ErrInvalidInterceptorMapping = errors.New("goark/web: invalid interceptor mapping")
 	// ErrNilFilter 表示 Servlet 过滤器为空。
 	ErrNilFilter = errors.New("goark/web: filter is nil")
 	// ErrNilServlet 表示 Servlet 为空。

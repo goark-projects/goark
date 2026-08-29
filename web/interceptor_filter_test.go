@@ -91,6 +91,54 @@ func TestRegisterFilterContributesConfigurer(t *testing.T) {
 	}
 }
 
+func TestRegisterMappedInterceptorContributesScopedConfigurer(t *testing.T) {
+	t.Parallel()
+
+	mapping, err := web.NewInterceptorMapping(
+		web.WithInterceptorPathPatterns("/api/**"),
+		web.WithInterceptorExcludePathPatterns("/api/public/**"),
+	)
+	if err != nil {
+		t.Fatalf("NewInterceptorMapping failed: %v", err)
+	}
+	beanRegistry := container.NewRegistry()
+	if err := web.RegisterMappedInterceptor(beanRegistry, "apiInterceptor", arkweb.InterceptorFunc(func(ctx *arkweb.Context, next arkweb.Handler) (arkweb.Result, error) {
+		ctx.Response().Header().Set("X-Scoped-Interceptor", "hit")
+		return next.Handle(ctx)
+	}), mapping); err != nil {
+		t.Fatalf("RegisterMappedInterceptor failed: %v", err)
+	}
+	resolver, err := container.New(beanRegistry)
+	if err != nil {
+		t.Fatalf("container.New failed: %v", err)
+	}
+
+	registry := web.NewRegistry()
+	if err := web.ApplyConfigurers(t.Context(), resolver, registry); err != nil {
+		t.Fatalf("ApplyConfigurers failed: %v", err)
+	}
+	for _, target := range []string{"/api/users", "/api/public/ping", "/admin"} {
+		if err := registry.GET(target, arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+			return arkweb.Text(http.StatusOK, "ok"), nil
+		})); err != nil {
+			t.Fatalf("GET %s failed: %v", target, err)
+		}
+	}
+
+	matched := serveRegistry(t, registry, http.MethodGet, "/api/users")
+	if got := matched.Header().Get("X-Scoped-Interceptor"); got != "hit" {
+		t.Fatalf("matched header = %q, want hit", got)
+	}
+	excluded := serveRegistry(t, registry, http.MethodGet, "/api/public/ping")
+	if got := excluded.Header().Get("X-Scoped-Interceptor"); got != "" {
+		t.Fatalf("excluded header = %q, want empty", got)
+	}
+	unmatched := serveRegistry(t, registry, http.MethodGet, "/admin")
+	if got := unmatched.Header().Get("X-Scoped-Interceptor"); got != "" {
+		t.Fatalf("unmatched header = %q, want empty", got)
+	}
+}
+
 func TestRegisterInterceptorAndFilterRejectNil(t *testing.T) {
 	t.Parallel()
 
@@ -99,5 +147,8 @@ func TestRegisterInterceptorAndFilterRejectNil(t *testing.T) {
 	}
 	if err := web.RegisterFilter(container.NewRegistry(), "nilFilter", nil); !errors.Is(err, web.ErrNilFilter) {
 		t.Fatalf("filter err = %v, want ErrNilFilter", err)
+	}
+	if _, err := web.NewInterceptorMapping(web.WithInterceptorPathPatterns("/api/**/bad")); !errors.Is(err, web.ErrInvalidInterceptorMapping) {
+		t.Fatalf("mapping err = %v, want ErrInvalidInterceptorMapping", err)
 	}
 }
