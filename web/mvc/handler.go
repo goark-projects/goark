@@ -52,9 +52,14 @@ func JSON[T any](statusCode int, fn ValueFunc[T]) arkweb.Handler {
 
 // BindJSON 绑定并校验 JSON 请求体，再将返回值写为 JSON 响应。
 func BindJSON[In any, Out any](statusCode int, fn BindFunc[In, Out]) arkweb.Handler {
+	return bindJSON(statusCode, fn, nil)
+}
+
+func bindJSON[In any, Out any](statusCode int, fn BindFunc[In, Out], groups []string) arkweb.Handler {
+	validationGroups := cloneValidationGroups(groups)
 	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
 		var input In
-		if err := ctx.BindAndValidateJSON(&input); err != nil {
+		if err := bindAndValidateJSON(ctx, &input, validationGroups); err != nil {
 			return nil, err
 		}
 		value, err := fn(ctx, input)
@@ -67,9 +72,14 @@ func BindJSON[In any, Out any](statusCode int, fn BindFunc[In, Out]) arkweb.Hand
 
 // BindEntity 绑定并校验 JSON 请求体，再写出响应实体。
 func BindEntity[In any, Out any](fn BindEntityFunc[In, Out]) arkweb.Handler {
+	return bindEntity(fn, nil)
+}
+
+func bindEntity[In any, Out any](fn BindEntityFunc[In, Out], groups []string) arkweb.Handler {
+	validationGroups := cloneValidationGroups(groups)
 	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
 		var input In
-		if err := ctx.BindAndValidateJSON(&input); err != nil {
+		if err := bindAndValidateJSON(ctx, &input, validationGroups); err != nil {
 			return nil, err
 		}
 		entity, err := fn(ctx, input)
@@ -82,8 +92,13 @@ func BindEntity[In any, Out any](fn BindEntityFunc[In, Out]) arkweb.Handler {
 
 // BindMultipart 绑定并校验 multipart/form-data 请求体，再将返回值写为 JSON 响应。
 func BindMultipart[In any, Out any](statusCode int, fn BindFunc[In, Out], options ...servletmultipart.Option) arkweb.Handler {
+	return bindMultipart(statusCode, fn, nil, options...)
+}
+
+func bindMultipart[In any, Out any](statusCode int, fn BindFunc[In, Out], groups []string, options ...servletmultipart.Option) arkweb.Handler {
+	validationGroups := cloneValidationGroups(groups)
 	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
-		input, err := Multipart[In](ctx, options...)
+		input, err := MultipartGroups[In](ctx, validationGroups, options...)
 		if err != nil {
 			return nil, err
 		}
@@ -97,8 +112,13 @@ func BindMultipart[In any, Out any](statusCode int, fn BindFunc[In, Out], option
 
 // BindMultipartEntity 绑定并校验 multipart/form-data 请求体，再写出响应实体。
 func BindMultipartEntity[In any, Out any](fn BindEntityFunc[In, Out], options ...servletmultipart.Option) arkweb.Handler {
+	return bindMultipartEntity(fn, nil, options...)
+}
+
+func bindMultipartEntity[In any, Out any](fn BindEntityFunc[In, Out], groups []string, options ...servletmultipart.Option) arkweb.Handler {
+	validationGroups := cloneValidationGroups(groups)
 	return arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
-		input, err := Multipart[In](ctx, options...)
+		input, err := MultipartGroups[In](ctx, validationGroups, options...)
 		if err != nil {
 			return nil, err
 		}
