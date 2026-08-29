@@ -86,6 +86,11 @@ func implicitModelResult(ctx *arkweb.Context, statusCode int, model Model) arkwe
 	return NewModelAndView(DefaultViewName(ctx), model, WithViewStatus(resolveResponseStatus(ctx, statusCode, http.StatusOK)))
 }
 
+func mergeModelAndView(ctx *arkweb.Context, value ModelAndView) ModelAndView {
+	value.model = mergeCurrentModel(ctx, value.model)
+	return value
+}
+
 func normalizeModel(model any) Model {
 	switch value := model.(type) {
 	case nil:

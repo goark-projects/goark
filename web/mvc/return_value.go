@@ -41,25 +41,25 @@ func adviceReturnValue(ctx *arkweb.Context, statusCode int, value any) arkweb.Re
 func returnValueByKind(ctx *arkweb.Context, statusCode int, value any, kind ControllerKind) arkweb.Result {
 	switch typed := value.(type) {
 	case ModelAndView:
-		return typed
+		return mergeModelAndView(ctx, typed)
 	case *ModelAndView:
 		if typed == nil {
 			return responseBodyResult(ctx, statusCode, nil)
 		}
-		return *typed
+		return mergeModelAndView(ctx, *typed)
 	case Model:
-		return implicitModelResult(ctx, statusCode, typed)
+		return implicitModelResult(ctx, statusCode, mergeCurrentModel(ctx, typed))
 	case *Model:
 		if typed == nil {
 			return responseBodyResult(ctx, statusCode, nil)
 		}
-		return implicitModelResult(ctx, statusCode, *typed)
+		return implicitModelResult(ctx, statusCode, mergeCurrentModel(ctx, *typed))
 	}
 	if kind == ControllerKindREST {
 		return responseBodyResult(ctx, statusCode, value)
 	}
 	if name, ok := value.(string); ok {
-		return view.Render(name, nil, view.WithStatus(resolveResponseStatus(ctx, statusCode, http.StatusOK)))
+		return view.Render(name, modelForView(ctx), view.WithStatus(resolveResponseStatus(ctx, statusCode, http.StatusOK)))
 	}
 	return responseBodyResult(ctx, statusCode, value)
 }

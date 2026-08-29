@@ -29,6 +29,7 @@ type Controller struct {
 	methods     []string
 	conditions  Conditions
 	crossOrigin *cors.Config
+	modelAttrs  []ModelAttributeInitializer
 }
 
 // NewController 创建控制器描述。
@@ -60,6 +61,11 @@ func (c Controller) Kind() ControllerKind {
 // Routes 返回控制器路由快照。
 func (c Controller) Routes() []Route {
 	return append([]Route(nil), c.routes...)
+}
+
+// ModelAttributes 返回控制器级模型初始化器快照。
+func (c Controller) ModelAttributes() []ModelAttributeInitializer {
+	return append([]ModelAttributeInitializer(nil), c.modelAttrs...)
 }
 
 // Methods 返回控制器级 HTTP method 限定快照。
