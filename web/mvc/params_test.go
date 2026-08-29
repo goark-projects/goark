@@ -505,6 +505,90 @@ func TestModelAttributeBindsNestedProperties(t *testing.T) {
 	}
 }
 
+func TestModelAttributeBindsIndexedProperties(t *testing.T) {
+	t.Parallel()
+
+	type owner struct {
+		Name    string   `form:"name" json:"name"`
+		Age     int      `form:"age" json:"age"`
+		Aliases []string `form:"aliases" json:"aliases"`
+	}
+	type userSearchCriteria struct {
+		Owners []owner `form:"owners" json:"owners"`
+		Page   int     `form:"page" json:"page"`
+	}
+
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/users/search", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]any, error) {
+		criteria, err := mvc.ModelAttribute[userSearchCriteria](ctx)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{
+			"firstName":   criteria.Owners[0].Name,
+			"firstAge":    criteria.Owners[0].Age,
+			"firstAlias":  criteria.Owners[0].Aliases[0],
+			"secondName":  criteria.Owners[1].Name,
+			"secondAge":   criteria.Owners[1].Age,
+			"secondAlias": criteria.Owners[1].Aliases[0],
+			"page":        criteria.Page,
+		}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/users/search?"+
+		"owners[0].name=ada&owners[0].age=37&owners[0].aliases[0]=lead&"+
+		"owners[1].name=linus&owners[1].age=55&owners[1].aliases[0]=kernel&page=2", nil)
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"firstName":"ada"`) ||
+		!strings.Contains(recorder.Body.String(), `"firstAge":37`) ||
+		!strings.Contains(recorder.Body.String(), `"firstAlias":"lead"`) ||
+		!strings.Contains(recorder.Body.String(), `"secondName":"linus"`) ||
+		!strings.Contains(recorder.Body.String(), `"secondAge":55`) ||
+		!strings.Contains(recorder.Body.String(), `"secondAlias":"kernel"`) ||
+		!strings.Contains(recorder.Body.String(), `"page":2`) {
+		t.Fatalf("body = %s, want indexed model attribute values", recorder.Body.String())
+	}
+}
+
+func TestModelAttributeRejectsOversizedIndexedProperties(t *testing.T) {
+	t.Parallel()
+
+	type owner struct {
+		Name string `form:"name" json:"name"`
+	}
+	type userSearchCriteria struct {
+		Owners []owner `form:"owners" json:"owners"`
+	}
+
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/users/search", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]int, error) {
+		criteria, err := mvc.ModelAttribute[userSearchCriteria](ctx)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]int{"owners": len(criteria.Owners)}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/users/search?owners[256].name=ada", nil)
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400, body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
 func TestModelAttributeReadsFormContentFilterValues(t *testing.T) {
 	t.Parallel()
 

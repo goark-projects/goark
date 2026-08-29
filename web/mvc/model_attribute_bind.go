@@ -118,12 +118,19 @@ func (b modelAttributeBinder) bindStruct(value reflect.Value, values url.Values,
 			}
 			continue
 		}
-		list, exists := values[name]
-		if !exists || len(list) == 0 || !fieldValue.CanSet() {
+		if !fieldValue.CanSet() {
 			continue
 		}
-		if err := b.setField(name, fieldValue, list); err != nil {
-			return err
+		if list, exists := values[name]; exists && len(list) > 0 {
+			if err := b.setField(name, fieldValue, list); err != nil {
+				return err
+			}
+			continue
+		}
+		if shouldBindIndexedModelAttributeField(fieldValue, values, name) {
+			if err := b.bindIndexedSliceField(name, fieldValue, values); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
