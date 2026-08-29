@@ -53,6 +53,41 @@ func (r *Response) Header() http.Header {
 	return r.header.Clone()
 }
 
+// HeaderValue 返回响应头第一个值。
+func (r *Response) HeaderValue(name string) string {
+	if r == nil {
+		return ""
+	}
+	return r.header.Get(name)
+}
+
+// HeaderValues 返回响应头全部值副本。
+func (r *Response) HeaderValues(name string) []string {
+	if r == nil {
+		return nil
+	}
+	return append([]string(nil), r.header.Values(name)...)
+}
+
+// Cookies 返回响应 Set-Cookie 头解析结果。
+func (r *Response) Cookies() []*http.Cookie {
+	if r == nil {
+		return nil
+	}
+	response := http.Response{Header: r.header.Clone()}
+	return response.Cookies()
+}
+
+// Cookie 返回指定名称的响应 Cookie。
+func (r *Response) Cookie(name string) (*http.Cookie, bool) {
+	for _, cookie := range r.Cookies() {
+		if cookie != nil && cookie.Name == name {
+			return cookie, true
+		}
+	}
+	return nil, false
+}
+
 // BodyBytes 返回响应体副本。
 func (r *Response) BodyBytes() []byte {
 	if r == nil {

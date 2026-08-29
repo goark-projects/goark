@@ -350,6 +350,9 @@ func TestGetJSONDecodesTypedBody(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Add("X-Mode", "first")
+		writer.Header().Add("X-Mode", "second")
+		http.SetCookie(writer, &http.Cookie{Name: "sid", Value: "abc", HttpOnly: true})
 		if err := writeJSON(writer, http.StatusOK, jobPayload{ID: "7", Name: "typed"}); err != nil {
 			t.Errorf("write json failed: %v", err)
 		}
@@ -369,6 +372,16 @@ func TestGetJSONDecodesTypedBody(t *testing.T) {
 	}
 	if typed.Body != (jobPayload{ID: "7", Name: "typed"}) {
 		t.Fatalf("body = %#v", typed.Body)
+	}
+	if typed.Response.HeaderValue("X-Mode") != "first" {
+		t.Fatalf("X-Mode = %q, want first", typed.Response.HeaderValue("X-Mode"))
+	}
+	if values := typed.Response.HeaderValues("X-Mode"); !reflect.DeepEqual(values, []string{"first", "second"}) {
+		t.Fatalf("X-Mode values = %#v, want two values", values)
+	}
+	cookie, ok := typed.Response.Cookie("sid")
+	if !ok || cookie.Value != "abc" || !cookie.HttpOnly {
+		t.Fatalf("sid cookie = %#v/%v, want abc HttpOnly", cookie, ok)
 	}
 }
 
