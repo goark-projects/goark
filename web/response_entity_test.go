@@ -1,6 +1,7 @@
 package web_test
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	arkweb "goark.dev/arkarta/web"
 	"goark.dev/goark/web"
 	"goark.dev/goark/web/message"
+	"goark.dev/goark/web/uri"
 )
 
 func TestResponseEntityWritesStatusHeadersAndJSONBody(t *testing.T) {
@@ -111,6 +113,66 @@ func TestResponseEntitySpringStyleConstructors(t *testing.T) {
 	}
 	if web.NotFound().StatusCode() != http.StatusNotFound {
 		t.Fatal("not found should use 404")
+	}
+}
+
+func TestResponseEntityCreatedFromCurrentRequest(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	if err := registry.POST("/jobs", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+		return web.CreatedFromCurrentRequest(ctx, "/{id}", map[string]string{"id": "a/b"}, map[string]string{"state": "created"})
+	})); err != nil {
+		t.Fatalf("POST failed: %v", err)
+	}
+
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "https://api.example.com/jobs?draft=true", nil)
+	request.Header.Set("Accept", arkjson.ContentType)
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201", recorder.Code)
+	}
+	if got := recorder.Header().Get("Location"); got != "https://api.example.com/jobs/a%2Fb" {
+		t.Fatalf("Location = %q, want current request created URI", got)
+	}
+	var body map[string]string
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if body["state"] != "created" {
+		t.Fatalf("state = %q, want created", body["state"])
+	}
+}
+
+func TestResponseEntityCreatedFromCurrentRequestReturnsURIErrors(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	if err := registry.POST("/jobs", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+		entity, err := web.CreatedNoBodyFromCurrentRequest(ctx, "/{id}", nil)
+		if !errors.Is(err, uri.ErrMissingPathVariable) {
+			t.Fatalf("error = %v, want ErrMissingPathVariable", err)
+		}
+		return entity, err
+	})); err != nil {
+		t.Fatalf("POST failed: %v", err)
+	}
+
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "https://api.example.com/jobs", nil))
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", recorder.Code)
 	}
 }
 
