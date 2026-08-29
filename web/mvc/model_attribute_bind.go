@@ -31,6 +31,7 @@ func bindModelAttribute(ctx *arkweb.Context, target any) error {
 	if err != nil {
 		return err
 	}
+	values = modelAttributeValuesForCurrentBinder(ctx, values)
 	binder, err := newModelAttributeBinder(target, ConversionServiceFromContext(ctx))
 	if err != nil {
 		return err

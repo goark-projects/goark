@@ -8,6 +8,8 @@ import (
 // DataBinder 封装控制器本地的数据绑定扩展点。
 type DataBinder struct {
 	conversionService *convert.Service
+	allowedFields     []string
+	disallowedFields  []string
 }
 
 func newDataBinder(service *convert.Service) *DataBinder {

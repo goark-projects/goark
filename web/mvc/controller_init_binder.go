@@ -49,10 +49,16 @@ func handleWithInitBinders(ctx *arkweb.Context, handler arkweb.Handler, initiali
 		return nil, err
 	}
 	binder := newDataBinder(scoped)
+	if parent, ok := dataBinderFromContext(ctx); ok {
+		binder.inheritFieldRules(parent)
+	}
 	request := ctx.Request()
 	previous, existed := request.Attribute(AttributeConversionService)
 	request.SetAttribute(AttributeConversionService, binder.ConversionService())
-	defer restoreConversionServiceAttribute(ctx, previous, existed)
+	defer restoreRequestAttribute(ctx, AttributeConversionService, previous, existed)
+	previousBinder, binderExisted := request.Attribute(attributeDataBinder)
+	request.SetAttribute(attributeDataBinder, binder)
+	defer restoreRequestAttribute(ctx, attributeDataBinder, previousBinder, binderExisted)
 	for _, initializer := range initializers {
 		if initializer == nil {
 			return nil, ErrNilBinderInitializer
@@ -64,13 +70,13 @@ func handleWithInitBinders(ctx *arkweb.Context, handler arkweb.Handler, initiali
 	return handler.Handle(ctx)
 }
 
-func restoreConversionServiceAttribute(ctx *arkweb.Context, previous any, existed bool) {
+func restoreRequestAttribute(ctx *arkweb.Context, name string, previous any, existed bool) {
 	if ctx == nil || ctx.Request() == nil {
 		return
 	}
 	if existed {
-		ctx.Request().SetAttribute(AttributeConversionService, previous)
+		ctx.Request().SetAttribute(name, previous)
 		return
 	}
-	ctx.Request().SetAttribute(AttributeConversionService, nil)
+	ctx.Request().SetAttribute(name, nil)
 }
