@@ -18,3 +18,21 @@ func ModelAttributeGroups[T any](ctx *arkweb.Context, groups ...string) (T, erro
 	}
 	return out, validateBound(ctx, &out, groups)
 }
+
+// ModelAttributeResult 绑定 query/form 聚合参数，并返回可由调用方处理的绑定和验证结果。
+func ModelAttributeResult[T any](ctx *arkweb.Context) (T, BindingResult, error) {
+	return ModelAttributeResultGroups[T](ctx)
+}
+
+// ModelAttributeResultGroups 绑定 query/form 聚合参数，并按显式分组返回绑定和验证结果。
+func ModelAttributeResultGroups[T any](ctx *arkweb.Context, groups ...string) (T, BindingResult, error) {
+	var out T
+	if ctx == nil {
+		return out, BindingResult{}, arkweb.ErrNilContext
+	}
+	if err := bindModelAttribute(ctx, &out); err != nil {
+		return out, newBindingErrorResult(err), nil
+	}
+	result, err := validateBindingResult(ctx, &out, groups)
+	return out, result, err
+}

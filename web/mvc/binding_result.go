@@ -1,20 +1,29 @@
 package mvc
 
-import "goark.dev/arkarta/validation"
+import (
+	"errors"
+
+	"goark.dev/arkarta/validation"
+)
 
 // BindingResult 表示绑定成功后的结构体验证结果。
 type BindingResult struct {
-	result validation.Result
+	result       validation.Result
+	bindingError error
 }
 
 // NewBindingResult 创建绑定结果。
-func NewBindingResult(result validation.Result) BindingResult {
-	return BindingResult{result: result}
+func NewBindingResult(result validation.Result, bindingErrors ...error) BindingResult {
+	return BindingResult{result: result, bindingError: errors.Join(bindingErrors...)}
+}
+
+func newBindingErrorResult(err error) BindingResult {
+	return BindingResult{bindingError: err}
 }
 
 // Valid 返回绑定对象是否通过验证。
 func (r BindingResult) Valid() bool {
-	return r.result.Valid()
+	return r.bindingError == nil && r.result.Valid()
 }
 
 // HasErrors 返回绑定对象是否存在验证错误。
@@ -57,7 +66,12 @@ func (r BindingResult) FieldErrors(path string) []validation.Violation {
 	return matched
 }
 
+// BindingError 返回绑定阶段错误；没有绑定错误时返回 nil。
+func (r BindingResult) BindingError() error {
+	return r.bindingError
+}
+
 // Err 将验证失败结果转换为 error。
 func (r BindingResult) Err() error {
-	return r.result.Error()
+	return errors.Join(r.bindingError, r.result.Error())
 }
