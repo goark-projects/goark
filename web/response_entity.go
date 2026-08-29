@@ -56,6 +56,11 @@ func (e ResponseEntity[T]) Headers() http.Header {
 
 // WithHeader 设置单值响应头。
 func (e ResponseEntity[T]) WithHeader(name, value string) ResponseEntity[T] {
+	name = cleanHeaderName(name)
+	value = cleanHeaderValue(value)
+	if name == "" || value == "" {
+		return e
+	}
 	headers := cloneEntityHeadersForWrite(e.headers)
 	headers.Set(name, value)
 	e.headers = headers
@@ -64,6 +69,11 @@ func (e ResponseEntity[T]) WithHeader(name, value string) ResponseEntity[T] {
 
 // WithAddedHeader 追加响应头值。
 func (e ResponseEntity[T]) WithAddedHeader(name, value string) ResponseEntity[T] {
+	name = cleanHeaderName(name)
+	value = cleanHeaderValue(value)
+	if name == "" || value == "" {
+		return e
+	}
 	headers := cloneEntityHeadersForWrite(e.headers)
 	headers.Add(name, value)
 	e.headers = headers
@@ -77,7 +87,12 @@ func (e ResponseEntity[T]) WithHeaders(headers http.Header) ResponseEntity[T] {
 	}
 	dst := cloneEntityHeadersForWrite(e.headers)
 	for name, values := range headers {
-		dst[http.CanonicalHeaderKey(name)] = append([]string(nil), values...)
+		name = cleanHeaderName(name)
+		values = cleanEntityHeaderValues(values)
+		if name == "" || len(values) == 0 {
+			continue
+		}
+		dst[name] = values
 	}
 	e.headers = dst
 	return e
@@ -177,7 +192,26 @@ func cloneEntityHeaders(src http.Header) http.Header {
 	}
 	dst := make(http.Header, len(src))
 	for name, values := range src {
-		dst[http.CanonicalHeaderKey(name)] = append([]string(nil), values...)
+		name = cleanHeaderName(name)
+		values = cleanEntityHeaderValues(values)
+		if name == "" || len(values) == 0 {
+			continue
+		}
+		dst[name] = values
 	}
 	return dst
+}
+
+func cleanEntityHeaderValues(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = cleanHeaderValue(value)
+		if value != "" {
+			out = append(out, value)
+		}
+	}
+	return out
 }
