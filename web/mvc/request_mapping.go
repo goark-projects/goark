@@ -3,9 +3,12 @@ package mvc
 import (
 	"net/http"
 	"strings"
+	"sync/atomic"
 
 	arkweb "goark.dev/arkarta/web"
 )
+
+var requestMappingSequence atomic.Uint64
 
 var defaultRequestMappingMethods = [...]string{
 	http.MethodGet,
@@ -24,10 +27,18 @@ func RequestMapping(pattern string, handler arkweb.Handler, options ...RouteOpti
 
 // RequestMappingMethods 创建限定到指定 HTTP method 集合的 MVC 路由。
 func RequestMappingMethods(methods []string, pattern string, handler arkweb.Handler, options ...RouteOption) []Route {
+	implicitMethods := len(methods) == 0
 	normalized := normalizeRequestMappingMethods(methods)
+	groupID := uint64(0)
+	if implicitMethods {
+		groupID = requestMappingSequence.Add(1)
+	}
 	routes := make([]Route, 0, len(normalized))
 	for _, method := range normalized {
-		routes = append(routes, Handle(method, pattern, handler, options...))
+		route := Handle(method, pattern, handler, options...)
+		route.implicitMethods = implicitMethods
+		route.methodGroupID = groupID
+		routes = append(routes, route)
 	}
 	return routes
 }
@@ -43,7 +54,10 @@ func normalizeExplicitRequestMethods(methods []string) []string {
 	out := make([]string, 0, len(methods))
 	seen := make(map[string]struct{}, len(methods))
 	for _, method := range methods {
-		method = strings.ToUpper(strings.TrimSpace(method))
+		method = normalizeSingleRouteMethod(method)
+		if method == "" {
+			continue
+		}
 		if _, exists := seen[method]; exists {
 			continue
 		}
@@ -54,11 +68,15 @@ func normalizeExplicitRequestMethods(methods []string) []string {
 }
 
 func hasRequestMethod(methods []string, method string) bool {
-	method = strings.ToUpper(strings.TrimSpace(method))
+	method = normalizeSingleRouteMethod(method)
 	for _, item := range methods {
 		if item == method {
 			return true
 		}
 	}
 	return false
+}
+
+func normalizeSingleRouteMethod(method string) string {
+	return strings.ToUpper(strings.TrimSpace(method))
 }

@@ -15,7 +15,9 @@ type Route struct {
 	Handler    arkweb.Handler
 	Conditions Conditions
 
-	crossOrigin *cors.Config
+	crossOrigin     *cors.Config
+	implicitMethods bool
+	methodGroupID   uint64
 }
 
 // RouteOption 定制 MVC 路由描述。
