@@ -13,6 +13,8 @@ const (
 	MediaTypeTextPlain = "text/plain; charset=utf-8"
 	// MediaTypeOctetStream 是默认二进制响应媒体类型。
 	MediaTypeOctetStream = "application/octet-stream"
+	// MediaTypeFormURLEncoded 是 URL 编码表单媒体类型。
+	MediaTypeFormURLEncoded = "application/x-www-form-urlencoded"
 )
 
 // NegotiateContentType 按请求 Accept 头选择最合适的响应媒体类型。

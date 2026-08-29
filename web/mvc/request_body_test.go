@@ -3,6 +3,7 @@ package mvc_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -110,6 +111,29 @@ func TestBindBodyReadsTextRequest(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), `"body":"arkhos"`) {
 		t.Fatalf("body = %s, want bound text JSON response", recorder.Body.String())
+	}
+}
+
+func TestBindBodyReadsURLEncodedFormRequest(t *testing.T) {
+	t.Parallel()
+
+	router := arkweb.NewRouter()
+	if err := router.Handle(http.MethodPost, "/body", mvc.BindBody(http.StatusCreated, func(_ *arkweb.Context, input url.Values) (map[string][]string, error) {
+		return map[string][]string(input), nil
+	})); err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/body", strings.NewReader("name=goark&tag=web&tag=mvc"))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"name":["goark"]`) ||
+		!strings.Contains(recorder.Body.String(), `"tag":["web","mvc"]`) {
+		t.Fatalf("body = %s, want bound form JSON response", recorder.Body.String())
 	}
 }
 

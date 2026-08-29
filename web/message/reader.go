@@ -83,6 +83,7 @@ func DefaultReadConverters() []ReadConverter {
 	return []ReadConverter{
 		StringConverter{},
 		BytesConverter{},
+		FormConverter{},
 		JSONConverter{},
 	}
 }

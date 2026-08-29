@@ -77,6 +77,7 @@ func DefaultConverters() []Converter {
 		BytesConverter{},
 		StringConverter{},
 		ReaderConverter{},
+		FormConverter{},
 		JSONConverter{},
 	}
 }
