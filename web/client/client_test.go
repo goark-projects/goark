@@ -306,6 +306,57 @@ func TestClientStatusHandlersRunInDefaultThenRequestOrder(t *testing.T) {
 	}
 }
 
+func TestGetJSONDecodesTypedBody(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		if err := writeJSON(writer, http.StatusOK, jobPayload{ID: "7", Name: "typed"}); err != nil {
+			t.Errorf("write json failed: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	client, err := webclient.New()
+	if err != nil {
+		t.Fatalf("client new failed: %v", err)
+	}
+	typed, err := webclient.GetJSON[jobPayload](client, t.Context(), server.URL)
+	if err != nil {
+		t.Fatalf("get json failed: %v", err)
+	}
+	if typed.Response.StatusCode() != http.StatusOK {
+		t.Fatalf("status = %d, want 200", typed.Response.StatusCode())
+	}
+	if typed.Body != (jobPayload{ID: "7", Name: "typed"}) {
+		t.Fatalf("body = %#v", typed.Body)
+	}
+}
+
+func TestRetrieveJSONReturnsResponseWhenStatusHandlerFails(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		http.Error(writer, "missing", http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	client, err := webclient.New(webclient.WithStatusHandlerFunc(webclient.IsErrorStatus, webclient.RaiseStatusError))
+	if err != nil {
+		t.Fatalf("client new failed: %v", err)
+	}
+	typed, err := webclient.GetJSON[jobPayload](client, t.Context(), server.URL)
+	var statusErr *webclient.StatusError
+	if !errors.As(err, &statusErr) {
+		t.Fatalf("err = %v, want StatusError", err)
+	}
+	if typed.Response == nil || typed.Response.StatusCode() != http.StatusNotFound {
+		t.Fatalf("response = %#v, want 404 response", typed.Response)
+	}
+	if typed.Body != (jobPayload{}) {
+		t.Fatalf("typed body = %#v, want zero", typed.Body)
+	}
+}
+
 func TestClientRejectsInvalidStatusHandlers(t *testing.T) {
 	t.Parallel()
 
