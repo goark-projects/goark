@@ -104,6 +104,30 @@ func TestModelAndViewRedirectExpandsModelAttributes(t *testing.T) {
 	}
 }
 
+func TestRedirectAttributesBuildRedirectModelAndView(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	if err := mvc.NewController("pages",
+		mvc.GET("/accounts", mvc.Return(0, func(_ *arkweb.Context) (mvc.ModelAndView, error) {
+			attributes := mvc.NewRedirectAttributes().
+				AddAttribute("id", "42").
+				AddAttribute("tab", "profile")
+			return mvc.Redirect("/users/{id}", attributes, mvc.WithViewStatus(http.StatusTemporaryRedirect)), nil
+		})),
+	).Register(registry); err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+
+	recorder := serveMVC(t, registry, http.MethodGet, "/accounts", "")
+	if recorder.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("status = %d, want 307", recorder.Code)
+	}
+	if got := recorder.Header().Get("Location"); got != "/users/42?tab=profile" {
+		t.Fatalf("Location = %q, want redirect attributes", got)
+	}
+}
+
 func TestModelAndViewRedirectReportsMissingPathVariable(t *testing.T) {
 	t.Parallel()
 

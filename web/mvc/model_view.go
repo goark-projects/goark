@@ -110,6 +110,13 @@ func normalizeModel(model any) Model {
 			return NewModel()
 		}
 		return *value
+	case RedirectAttributes:
+		return value.Model()
+	case *RedirectAttributes:
+		if value == nil {
+			return NewModel()
+		}
+		return value.Model()
 	case map[string]any:
 		return NewModel().AddAllAttributes(value)
 	default:

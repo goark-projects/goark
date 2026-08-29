@@ -8,6 +8,43 @@ import (
 	"goark.dev/goark/web/uri"
 )
 
+// RedirectAttributes 表示重定向 URI 展开和查询参数使用的非 Flash 属性。
+type RedirectAttributes struct {
+	model Model
+}
+
+// NewRedirectAttributes 创建空重定向属性集合。
+func NewRedirectAttributes() RedirectAttributes {
+	return RedirectAttributes{model: NewModel()}
+}
+
+// AddAttribute 添加一个重定向属性。
+func (a RedirectAttributes) AddAttribute(name string, value any) RedirectAttributes {
+	a.model = a.Model().AddAttribute(name, value)
+	return a
+}
+
+// AddAllAttributes 添加多个重定向属性。
+func (a RedirectAttributes) AddAllAttributes(attributes map[string]any) RedirectAttributes {
+	a.model = a.Model().AddAllAttributes(attributes)
+	return a
+}
+
+// Model 返回可用于 ModelAndView 的模型副本。
+func (a RedirectAttributes) Model() Model {
+	return NewModel().AddAllAttributes(a.model.Values())
+}
+
+// Values 返回重定向属性副本。
+func (a RedirectAttributes) Values() map[string]any {
+	return a.model.Values()
+}
+
+// Redirect 创建 redirect: ModelAndView，并使用属性展开路径变量和查询参数。
+func Redirect(location string, attributes RedirectAttributes, options ...ModelAndViewOption) ModelAndView {
+	return NewModelAndView(prefixedViewControllerName(RedirectViewNamePrefix, location), attributes, options...)
+}
+
 func redirectLocationWithModel(location string, model Model) (string, error) {
 	location = strings.TrimSpace(location)
 	if location == "" {
