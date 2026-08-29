@@ -15,6 +15,8 @@ var (
 	ErrNilResponseAdvice = errors.New("goark/web: response advice is nil")
 	// ErrNilMessageConverter 表示消息转换器为空。
 	ErrNilMessageConverter = errors.New("goark/web: message converter is nil")
+	// ErrNilValidator 表示校验器为空。
+	ErrNilValidator = errors.New("goark/web: validator is nil")
 	// ErrNilInterceptor 表示 Web 拦截器为空。
 	ErrNilInterceptor = errors.New("goark/web: interceptor is nil")
 	// ErrInvalidInterceptorMapping 表示拦截器路径映射非法。

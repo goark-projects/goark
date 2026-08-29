@@ -6,6 +6,7 @@ import (
 
 	"goark.dev/arkarta/servlet"
 	servletcontainer "goark.dev/arkarta/servlet/container"
+	"goark.dev/arkarta/validation"
 	arkweb "goark.dev/arkarta/web"
 	"goark.dev/goark/web/message"
 )
@@ -20,6 +21,7 @@ type Registry struct {
 	messageWriter     *message.Writer
 	readConverters    []message.ReadConverter
 	writeConverters   []message.Converter
+	validator         validation.Validator
 	filters           []filterRegistration
 	profiles          []servletcontainer.Profile
 	servlets          []servletMapping
@@ -135,6 +137,13 @@ func (r *Registry) AddMessageConverter(converter message.Converter) {
 	}
 }
 
+// UseValidator 设置当前 Web 注册表的请求校验器。
+func (r *Registry) UseValidator(validator validation.Validator) {
+	if r != nil && !isNilValidator(validator) {
+		r.validator = validator
+	}
+}
+
 // AddFilter 添加 Servlet 过滤器。
 func (r *Registry) AddFilter(filter servlet.Filter) {
 	if !isNilFilter(filter) {
@@ -172,7 +181,7 @@ func (r *Registry) Router(options ...arkweb.Option) (*arkweb.Router, error) {
 	if r == nil {
 		return nil, ErrNilRegistry
 	}
-	routerOptions := appendRouterOptions(r.errorMappers, options)
+	routerOptions := appendRouterOptions(r.errorMappers, r.validator, options)
 	router := arkweb.NewRouter(routerOptions...)
 	if r.hasMessageIO() {
 		router.Use(message.ContextInterceptor(r.currentMessageReader(), r.currentMessageWriter()))
@@ -221,6 +230,14 @@ func (r *Registry) MessageConverters() []message.Converter {
 		return nil
 	}
 	return append([]message.Converter(nil), r.writeConverters...)
+}
+
+// Validator 返回当前 Web 注册表的校验器。
+func (r *Registry) Validator() validation.Validator {
+	if r == nil {
+		return nil
+	}
+	return r.validator
 }
 
 // Filters 返回 Servlet 过滤器快照。
@@ -275,12 +292,17 @@ func hasProfile(profiles []servletcontainer.Profile, target servletcontainer.Pro
 	return false
 }
 
-func appendRouterOptions(mappers []arkweb.ErrorMapper, options []arkweb.Option) []arkweb.Option {
-	if len(mappers) == 0 {
+func appendRouterOptions(mappers []arkweb.ErrorMapper, validator validation.Validator, options []arkweb.Option) []arkweb.Option {
+	if len(mappers) == 0 && isNilValidator(validator) {
 		return options
 	}
-	routerOptions := make([]arkweb.Option, 0, len(options)+1)
-	routerOptions = append(routerOptions, arkweb.WithErrorMapper(NewErrorMapperChain(mappers...)))
+	routerOptions := make([]arkweb.Option, 0, len(options)+2)
+	if len(mappers) > 0 {
+		routerOptions = append(routerOptions, arkweb.WithErrorMapper(NewErrorMapperChain(mappers...)))
+	}
+	if !isNilValidator(validator) {
+		routerOptions = append(routerOptions, arkweb.WithValidator(validator))
+	}
 	routerOptions = append(routerOptions, options...)
 	return routerOptions
 }
