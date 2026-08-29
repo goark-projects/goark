@@ -10,6 +10,11 @@ func BindJSONGroups[In any, Out any](statusCode int, fn BindFunc[In, Out], group
 	return bindJSON(statusCode, fn, groups)
 }
 
+// BindJSONResultGroups 绑定 JSON 请求体，并按显式校验分组传入 BindingResult。
+func BindJSONResultGroups[In any, Out any](statusCode int, fn BindResultFunc[In, Out], groups ...string) arkweb.Handler {
+	return bindJSONResult(statusCode, fn, groups)
+}
+
 // BindBodyGroups 绑定请求体，并按显式校验分组写出 JSON 响应。
 func BindBodyGroups[In any, Out any](statusCode int, fn BindFunc[In, Out], groups ...string) arkweb.Handler {
 	return bindBody(statusCode, fn, groups, nil)

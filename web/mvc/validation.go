@@ -29,6 +29,17 @@ func bindAndValidateBody(ctx *arkweb.Context, target any, groups []string, media
 }
 
 func validateBound(ctx *arkweb.Context, target any, groups []string) error {
+	result, err := validateBindingResult(ctx, target, groups)
+	if err != nil {
+		return err
+	}
+	return result.Err()
+}
+
+func validateBindingResult(ctx *arkweb.Context, target any, groups []string) (BindingResult, error) {
+	if !supportsValidation(target) {
+		return BindingResult{}, nil
+	}
 	var (
 		result validation.Result
 		err    error
@@ -39,9 +50,9 @@ func validateBound(ctx *arkweb.Context, target any, groups []string) error {
 		result, err = ctx.ValidateGroups(target, groups...)
 	}
 	if err != nil {
-		return err
+		return BindingResult{}, err
 	}
-	return result.Error()
+	return NewBindingResult(result), nil
 }
 
 func cloneValidationGroups(groups []string) []string {
