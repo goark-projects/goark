@@ -31,6 +31,31 @@ func requestPart(ctx *arkweb.Context, name string, options ...ParamOption) (serv
 	return zero, false, nil
 }
 
+// RequestPartsByName 返回 multipart/form-data 中指定字段名的全部文件段。
+func RequestPartsByName(ctx *arkweb.Context, name string, options ...ParamOption) ([]servletmultipart.Part, error) {
+	if ctx == nil || ctx.Request() == nil {
+		return nil, arkweb.ErrNilContext
+	}
+	paramOptions := newParamOptions(ctx, options)
+	parts, err := servletmultipart.Parts(ctx.Request(), servletmultipart.NewParser())
+	if err != nil {
+		return nil, err
+	}
+	matched := make([]servletmultipart.Part, 0, len(parts))
+	for _, part := range parts {
+		if part.Name() == name {
+			matched = append(matched, part)
+		}
+	}
+	if len(matched) > 0 {
+		return matched, nil
+	}
+	if paramOptions.required {
+		return nil, missingParameterError("请求Part", name)
+	}
+	return nil, nil
+}
+
 // RequestParts 返回 multipart/form-data 中的全部文件段。
 func RequestParts(ctx *arkweb.Context) ([]servletmultipart.Part, error) {
 	if ctx == nil || ctx.Request() == nil {
