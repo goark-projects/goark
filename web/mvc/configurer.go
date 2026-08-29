@@ -46,10 +46,5 @@ func (c Configurer) ConfigureWeb(ctx context.Context, registry *goweb.Registry) 
 			return err
 		}
 	}
-	for _, controller := range c.controllers {
-		if err := controller.Register(registry); err != nil {
-			return err
-		}
-	}
-	return nil
+	return registerControllers(registry, c.controllers)
 }

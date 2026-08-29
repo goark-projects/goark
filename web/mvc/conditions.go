@@ -42,6 +42,10 @@ func (c Conditions) empty() bool {
 	return len(c.Consumes) == 0 && len(c.Produces) == 0 && len(c.Params) == 0 && len(c.Headers) == 0
 }
 
+func (c Conditions) specificity() int {
+	return len(c.Params)*8 + len(c.Headers)*8 + len(c.Consumes)*4 + len(c.Produces)*4
+}
+
 func (c Conditions) match(ctx *arkweb.Context) error {
 	if ctx == nil || ctx.Request() == nil {
 		return arkweb.ErrNilContext

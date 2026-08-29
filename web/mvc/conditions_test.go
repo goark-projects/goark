@@ -117,6 +117,71 @@ func TestRouteProducesControlsMVCEntityContentType(t *testing.T) {
 	}
 }
 
+func TestRouteConditionsDispatchMatchingCandidate(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	configurer := mvc.NewConfigurer(mvc.NewRestController("jobs",
+		mvc.GET("/jobs", mvc.JSON(http.StatusOK, func(*arkweb.Context) (map[string]string, error) {
+			return map[string]string{"mode": "fast"}, nil
+		}), mvc.WithParams("mode=fast")),
+		mvc.GET("/jobs", mvc.JSON(http.StatusOK, func(*arkweb.Context) (map[string]string, error) {
+			return map[string]string{"mode": "slow"}, nil
+		}), mvc.WithParams("mode=slow")),
+		mvc.GET("/jobs", mvc.JSON(http.StatusOK, func(*arkweb.Context) (map[string]string, error) {
+			return map[string]string{"mode": "default"}, nil
+		})),
+	))
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		path string
+		want string
+	}{
+		{name: "fast", path: "/jobs?mode=fast", want: `"mode":"fast"`},
+		{name: "slow", path: "/jobs?mode=slow", want: `"mode":"slow"`},
+		{name: "fallback", path: "/jobs", want: `"mode":"default"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, tt.path, nil))
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), tt.want) {
+				t.Fatalf("body = %s, want %s", recorder.Body.String(), tt.want)
+			}
+		})
+	}
+}
+
+func TestRouteConditionsRejectAmbiguousCandidates(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	configurer := mvc.NewConfigurer(mvc.NewRestController("jobs",
+		mvc.GET("/jobs", mvc.NoContent(func(*arkweb.Context) error {
+			return nil
+		})),
+		mvc.GET("/jobs", mvc.NoContent(func(*arkweb.Context) error {
+			return nil
+		})),
+	))
+
+	err := configurer.ConfigureWeb(t.Context(), registry)
+	if err == nil || !strings.Contains(err.Error(), "ambiguous route conditions") {
+		t.Fatalf("ConfigureWeb err = %v, want ambiguous route conditions", err)
+	}
+}
+
 func TestRouteConditionsRejectMismatches(t *testing.T) {
 	t.Parallel()
 

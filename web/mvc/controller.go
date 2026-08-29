@@ -78,64 +78,7 @@ func (c Controller) Register(registry *goweb.Registry) error {
 	if registry == nil {
 		return goweb.ErrNilRegistry
 	}
-	var implicitGroups map[uint64]struct{}
-	for _, route := range c.routes {
-		if c.skipImplicitRoute(route, implicitGroups) {
-			continue
-		}
-		if route.implicitMethods && len(c.methods) > 0 && route.methodGroupID != 0 {
-			if implicitGroups == nil {
-				implicitGroups = make(map[uint64]struct{})
-			}
-			implicitGroups[route.methodGroupID] = struct{}{}
-		}
-		for _, method := range c.routeMethods(route) {
-			resolvedRoute := route
-			resolvedRoute.Method = method
-			if err := c.registerRoute(registry, resolvedRoute); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (c Controller) registerRoute(registry *goweb.Registry, route Route) error {
-	if config, ok := c.crossOriginFor(route); ok {
-		if err := registry.AddCORSMapping(route.Pattern, crossOriginMethods(route.Method), *config); err != nil {
-			return err
-		}
-	}
-	conditions := mergeControllerRouteConditions(c.conditions, route.Conditions)
-	handler := conditions.wrap(bindControllerKind(c.kind, route.Handler))
-	return registry.Handle(route.Method, route.Pattern, handler)
-}
-
-func (c Controller) skipImplicitRoute(route Route, groups map[uint64]struct{}) bool {
-	if !route.implicitMethods || len(c.methods) == 0 || route.methodGroupID == 0 {
-		return false
-	}
-	_, exists := groups[route.methodGroupID]
-	return exists
-}
-
-func (c Controller) routeMethods(route Route) []string {
-	if len(c.methods) == 0 {
-		return []string{route.Method}
-	}
-	if route.implicitMethods {
-		return c.methods
-	}
-	methods := make([]string, 0, len(c.methods)+1)
-	if method := normalizeSingleRouteMethod(route.Method); method != "" {
-		methods = append(methods, method)
-	}
-	for _, method := range c.methods {
-		if !hasRequestMethod(methods, method) {
-			methods = append(methods, method)
-		}
-	}
-	return methods
+	return registerControllers(registry, []Controller{c})
 }
 
 func (c Controller) crossOriginFor(route Route) (*cors.Config, bool) {
