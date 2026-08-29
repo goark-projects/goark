@@ -19,6 +19,7 @@ type config struct {
 	welcomeFiles    []string
 	welcomeFilesSet bool
 	cacheControl    string
+	contentVersion  bool
 }
 
 // Option 定制静态资源配置器。
@@ -71,6 +72,14 @@ func WithCacheMaxAge(maxAge time.Duration) Option {
 		}
 		seconds := int64(maxAge / time.Second)
 		cfg.cacheControl = "public, max-age=" + strconv.FormatInt(seconds, 10)
+		return nil
+	}
+}
+
+// WithContentVersioning 启用静态资源内容哈希版本路径解析。
+func WithContentVersioning() Option {
+	return func(cfg *config) error {
+		cfg.contentVersion = true
 		return nil
 	}
 }

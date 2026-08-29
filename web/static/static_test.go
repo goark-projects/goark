@@ -102,6 +102,58 @@ func TestConfigurerAppliesCacheControlToStaticResource(t *testing.T) {
 	}
 }
 
+func TestConfigurerServesContentVersionedResource(t *testing.T) {
+	t.Parallel()
+
+	root := fstest.MapFS{
+		"app.js": &fstest.MapFile{
+			Data:    []byte("console.log('goark')"),
+			Mode:    0o644,
+			ModTime: time.Unix(10, 0),
+		},
+	}
+	versioned, err := static.ContentVersionPath(t.Context(), root, "app.js")
+	if err != nil {
+		t.Fatalf("ContentVersionPath failed: %v", err)
+	}
+	configurer, err := static.New("/assets/*", root, static.WithContentVersioning(), static.WithCacheMaxAge(time.Hour))
+	if err != nil {
+		t.Fatalf("static.New failed: %v", err)
+	}
+	registry := web.NewRegistry()
+	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
+		t.Fatalf("ConfigureWeb failed: %v", err)
+	}
+
+	recorder := serveStaticRegistry(t, registry, http.MethodGet, "/assets/"+versioned)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if recorder.Body.String() != "console.log('goark')" {
+		t.Fatalf("body = %q", recorder.Body.String())
+	}
+	if got := recorder.Header().Get("Cache-Control"); got != "public, max-age=3600" {
+		t.Fatalf("Cache-Control = %q, want public max-age", got)
+	}
+
+	missing := serveStaticRegistry(t, registry, http.MethodGet, "/assets/app-deadbeef.js")
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("missing status = %d, want %d", missing.Code, http.StatusNotFound)
+	}
+}
+
+func TestContentVersionPathRejectsInvalidPath(t *testing.T) {
+	t.Parallel()
+
+	root := fstest.MapFS{"app.js": &fstest.MapFile{Data: []byte("ok")}}
+	if _, err := static.ContentVersionPath(t.Context(), root, "../app.js"); !errors.Is(err, static.ErrInvalidResourcePath) {
+		t.Fatalf("err = %v, want ErrInvalidResourcePath", err)
+	}
+	if _, err := static.ContentVersionPath(t.Context(), nil, "app.js"); !errors.Is(err, servletresource.ErrNilFileSystem) {
+		t.Fatalf("err = %v, want ErrNilFileSystem", err)
+	}
+}
+
 func TestConfigurerAppliesGlobalFiltersToStaticResource(t *testing.T) {
 	t.Parallel()
 
