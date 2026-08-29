@@ -25,6 +25,15 @@ func (m Model) AddAttribute(name string, value any) Model {
 	return m
 }
 
+// AddAttributeValue 添加模型属性，并按值类型推导属性名。
+func (m Model) AddAttributeValue(value any) Model {
+	name, ok := inferModelAttributeName(value)
+	if !ok {
+		return m
+	}
+	return m.AddAttribute(name, value)
+}
+
 // AddAllAttributes 添加多个模型属性。
 func (m Model) AddAllAttributes(attributes map[string]any) Model {
 	if len(attributes) == 0 {

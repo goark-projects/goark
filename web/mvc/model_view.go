@@ -120,7 +120,7 @@ func normalizeModel(model any) Model {
 	case map[string]any:
 		return NewModel().AddAllAttributes(value)
 	default:
-		return NewModel().AddAttribute("value", value)
+		return NewModel().AddAttributeValue(value)
 	}
 }
 

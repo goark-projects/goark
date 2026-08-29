@@ -24,6 +24,12 @@ func (a RedirectAttributes) AddAttribute(name string, value any) RedirectAttribu
 	return a
 }
 
+// AddAttributeValue 添加重定向属性，并按值类型推导属性名。
+func (a RedirectAttributes) AddAttributeValue(value any) RedirectAttributes {
+	a.model = a.Model().AddAttributeValue(value)
+	return a
+}
+
 // AddAllAttributes 添加多个重定向属性。
 func (a RedirectAttributes) AddAllAttributes(attributes map[string]any) RedirectAttributes {
 	a.model = a.Model().AddAllAttributes(attributes)
