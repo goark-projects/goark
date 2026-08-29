@@ -11,49 +11,49 @@ import (
 // RequestAttributeString 绑定字符串请求属性。
 func RequestAttributeString(ctx *arkweb.Context, name string, options ...ParamOption) (string, error) {
 	value, ok, err := requestAttributeValue(ctx, name)
-	return resolveStringParameter("请求属性", name, value, ok, err, newParamOptions(options))
+	return resolveStringParameter("请求属性", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestAttributeInt 绑定 int 请求属性。
 func RequestAttributeInt(ctx *arkweb.Context, name string, options ...ParamOption) (int, error) {
 	value, ok, err := requestAttributeValue(ctx, name)
-	return resolveIntParameter("请求属性", name, value, ok, err, newParamOptions(options))
+	return resolveIntParameter("请求属性", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestAttributeInt64 绑定 int64 请求属性。
 func RequestAttributeInt64(ctx *arkweb.Context, name string, options ...ParamOption) (int64, error) {
 	value, ok, err := requestAttributeValue(ctx, name)
-	return resolveInt64Parameter("请求属性", name, value, ok, err, newParamOptions(options))
+	return resolveInt64Parameter("请求属性", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestAttributeBool 绑定 bool 请求属性。
 func RequestAttributeBool(ctx *arkweb.Context, name string, options ...ParamOption) (bool, error) {
 	value, ok, err := requestAttributeValue(ctx, name)
-	return resolveBoolParameter("请求属性", name, value, ok, err, newParamOptions(options))
+	return resolveBoolParameter("请求属性", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // SessionAttributeString 绑定字符串 Session 属性。
 func SessionAttributeString(ctx *arkweb.Context, name string, options ...ParamOption) (string, error) {
 	value, ok, err := sessionAttributeValue(ctx, name)
-	return resolveStringParameter("Session属性", name, value, ok, err, newParamOptions(options))
+	return resolveStringParameter("Session属性", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // SessionAttributeInt 绑定 int Session 属性。
 func SessionAttributeInt(ctx *arkweb.Context, name string, options ...ParamOption) (int, error) {
 	value, ok, err := sessionAttributeValue(ctx, name)
-	return resolveIntParameter("Session属性", name, value, ok, err, newParamOptions(options))
+	return resolveIntParameter("Session属性", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // SessionAttributeInt64 绑定 int64 Session 属性。
 func SessionAttributeInt64(ctx *arkweb.Context, name string, options ...ParamOption) (int64, error) {
 	value, ok, err := sessionAttributeValue(ctx, name)
-	return resolveInt64Parameter("Session属性", name, value, ok, err, newParamOptions(options))
+	return resolveInt64Parameter("Session属性", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // SessionAttributeBool 绑定 bool Session 属性。
 func SessionAttributeBool(ctx *arkweb.Context, name string, options ...ParamOption) (bool, error) {
 	value, ok, err := sessionAttributeValue(ctx, name)
-	return resolveBoolParameter("Session属性", name, value, ok, err, newParamOptions(options))
+	return resolveBoolParameter("Session属性", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 func requestAttributeValue(ctx *arkweb.Context, name string) (string, bool, error) {

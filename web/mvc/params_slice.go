@@ -1,7 +1,6 @@
 package mvc
 
 import (
-	"strconv"
 	"strings"
 	"time"
 
@@ -11,109 +10,109 @@ import (
 // RequestParamStrings 绑定字符串切片请求参数，支持重复参数和逗号分隔值。
 func RequestParamStrings(ctx *arkweb.Context, name string, options ...ParamOption) ([]string, error) {
 	values, ok, err := formValues(ctx, name)
-	return resolveStringSliceParameter("请求参数", name, values, ok, err, newParamOptions(options))
+	return resolveStringSliceParameter("请求参数", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestParamInts 绑定 int 切片请求参数。
 func RequestParamInts(ctx *arkweb.Context, name string, options ...ParamOption) ([]int, error) {
 	values, ok, err := formValues(ctx, name)
-	return resolveIntSliceParameter("请求参数", name, values, ok, err, newParamOptions(options))
+	return resolveIntSliceParameter("请求参数", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestParamInt64s 绑定 int64 切片请求参数。
 func RequestParamInt64s(ctx *arkweb.Context, name string, options ...ParamOption) ([]int64, error) {
 	values, ok, err := formValues(ctx, name)
-	return resolveInt64SliceParameter("请求参数", name, values, ok, err, newParamOptions(options))
+	return resolveInt64SliceParameter("请求参数", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestParamBools 绑定 bool 切片请求参数。
 func RequestParamBools(ctx *arkweb.Context, name string, options ...ParamOption) ([]bool, error) {
 	values, ok, err := formValues(ctx, name)
-	return resolveBoolSliceParameter("请求参数", name, values, ok, err, newParamOptions(options))
+	return resolveBoolSliceParameter("请求参数", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestParamFloat64s 绑定 float64 切片请求参数。
 func RequestParamFloat64s(ctx *arkweb.Context, name string, options ...ParamOption) ([]float64, error) {
 	values, ok, err := formValues(ctx, name)
-	return resolveFloat64SliceParameter("请求参数", name, values, ok, err, newParamOptions(options))
+	return resolveFloat64SliceParameter("请求参数", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestParamTimes 绑定 time.Time 切片请求参数。
 func RequestParamTimes(ctx *arkweb.Context, name string, options ...ParamOption) ([]time.Time, error) {
 	values, ok, err := formValues(ctx, name)
-	return resolveTimeSliceParameter("请求参数", name, values, ok, err, newParamOptions(options))
+	return resolveTimeSliceParameter("请求参数", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestHeaderStrings 绑定字符串切片请求头，支持重复头和值内逗号分隔。
 func RequestHeaderStrings(ctx *arkweb.Context, name string, options ...ParamOption) ([]string, error) {
 	values, ok, err := headerValues(ctx, name)
-	return resolveStringSliceParameter("请求头", name, values, ok, err, newParamOptions(options))
+	return resolveStringSliceParameter("请求头", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestHeaderInts 绑定 int 切片请求头。
 func RequestHeaderInts(ctx *arkweb.Context, name string, options ...ParamOption) ([]int, error) {
 	values, ok, err := headerValues(ctx, name)
-	return resolveIntSliceParameter("请求头", name, values, ok, err, newParamOptions(options))
+	return resolveIntSliceParameter("请求头", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestHeaderInt64s 绑定 int64 切片请求头。
 func RequestHeaderInt64s(ctx *arkweb.Context, name string, options ...ParamOption) ([]int64, error) {
 	values, ok, err := headerValues(ctx, name)
-	return resolveInt64SliceParameter("请求头", name, values, ok, err, newParamOptions(options))
+	return resolveInt64SliceParameter("请求头", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestHeaderBools 绑定 bool 切片请求头。
 func RequestHeaderBools(ctx *arkweb.Context, name string, options ...ParamOption) ([]bool, error) {
 	values, ok, err := headerValues(ctx, name)
-	return resolveBoolSliceParameter("请求头", name, values, ok, err, newParamOptions(options))
+	return resolveBoolSliceParameter("请求头", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestHeaderFloat64s 绑定 float64 切片请求头。
 func RequestHeaderFloat64s(ctx *arkweb.Context, name string, options ...ParamOption) ([]float64, error) {
 	values, ok, err := headerValues(ctx, name)
-	return resolveFloat64SliceParameter("请求头", name, values, ok, err, newParamOptions(options))
+	return resolveFloat64SliceParameter("请求头", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestHeaderTimes 绑定 time.Time 切片请求头。
 func RequestHeaderTimes(ctx *arkweb.Context, name string, options ...ParamOption) ([]time.Time, error) {
 	values, ok, err := headerValues(ctx, name)
-	return resolveTimeSliceParameter("请求头", name, values, ok, err, newParamOptions(options))
+	return resolveTimeSliceParameter("请求头", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // CookieValueStrings 绑定字符串切片 Cookie 值，支持逗号分隔值。
 func CookieValueStrings(ctx *arkweb.Context, name string, options ...ParamOption) ([]string, error) {
 	values, ok, err := cookieValues(ctx, name)
-	return resolveStringSliceParameter("Cookie", name, values, ok, err, newParamOptions(options))
+	return resolveStringSliceParameter("Cookie", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // CookieValueInts 绑定 int 切片 Cookie 值。
 func CookieValueInts(ctx *arkweb.Context, name string, options ...ParamOption) ([]int, error) {
 	values, ok, err := cookieValues(ctx, name)
-	return resolveIntSliceParameter("Cookie", name, values, ok, err, newParamOptions(options))
+	return resolveIntSliceParameter("Cookie", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // CookieValueInt64s 绑定 int64 切片 Cookie 值。
 func CookieValueInt64s(ctx *arkweb.Context, name string, options ...ParamOption) ([]int64, error) {
 	values, ok, err := cookieValues(ctx, name)
-	return resolveInt64SliceParameter("Cookie", name, values, ok, err, newParamOptions(options))
+	return resolveInt64SliceParameter("Cookie", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // CookieValueBools 绑定 bool 切片 Cookie 值。
 func CookieValueBools(ctx *arkweb.Context, name string, options ...ParamOption) ([]bool, error) {
 	values, ok, err := cookieValues(ctx, name)
-	return resolveBoolSliceParameter("Cookie", name, values, ok, err, newParamOptions(options))
+	return resolveBoolSliceParameter("Cookie", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // CookieValueFloat64s 绑定 float64 切片 Cookie 值。
 func CookieValueFloat64s(ctx *arkweb.Context, name string, options ...ParamOption) ([]float64, error) {
 	values, ok, err := cookieValues(ctx, name)
-	return resolveFloat64SliceParameter("Cookie", name, values, ok, err, newParamOptions(options))
+	return resolveFloat64SliceParameter("Cookie", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 // CookieValueTimes 绑定 time.Time 切片 Cookie 值。
 func CookieValueTimes(ctx *arkweb.Context, name string, options ...ParamOption) ([]time.Time, error) {
 	values, ok, err := cookieValues(ctx, name)
-	return resolveTimeSliceParameter("Cookie", name, values, ok, err, newParamOptions(options))
+	return resolveTimeSliceParameter("Cookie", name, values, ok, err, newParamOptions(ctx, options))
 }
 
 func formValues(ctx *arkweb.Context, name string) ([]string, bool, error) {
@@ -164,23 +163,19 @@ func resolveStringSliceParameter(kind, name string, values []string, ok bool, er
 }
 
 func resolveIntSliceParameter(kind, name string, values []string, ok bool, err error, options paramOptions) ([]int, error) {
-	return resolveConvertedSliceParameter(kind, name, values, ok, err, options, "[]int", strconv.Atoi)
+	return resolveConvertedSliceParameter(kind, name, values, ok, err, options, "[]int", convertParamValue[int](options))
 }
 
 func resolveInt64SliceParameter(kind, name string, values []string, ok bool, err error, options paramOptions) ([]int64, error) {
-	return resolveConvertedSliceParameter(kind, name, values, ok, err, options, "[]int64", func(value string) (int64, error) {
-		return strconv.ParseInt(value, 10, 64)
-	})
+	return resolveConvertedSliceParameter(kind, name, values, ok, err, options, "[]int64", convertParamValue[int64](options))
 }
 
 func resolveBoolSliceParameter(kind, name string, values []string, ok bool, err error, options paramOptions) ([]bool, error) {
-	return resolveConvertedSliceParameter(kind, name, values, ok, err, options, "[]bool", strconv.ParseBool)
+	return resolveConvertedSliceParameter(kind, name, values, ok, err, options, "[]bool", convertParamValue[bool](options))
 }
 
 func resolveFloat64SliceParameter(kind, name string, values []string, ok bool, err error, options paramOptions) ([]float64, error) {
-	return resolveConvertedSliceParameter(kind, name, values, ok, err, options, "[]float64", func(value string) (float64, error) {
-		return strconv.ParseFloat(value, 64)
-	})
+	return resolveConvertedSliceParameter(kind, name, values, ok, err, options, "[]float64", convertParamValue[float64](options))
 }
 
 func resolveTimeSliceParameter(kind, name string, values []string, ok bool, err error, options paramOptions) ([]time.Time, error) {

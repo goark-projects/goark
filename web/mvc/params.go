@@ -3,20 +3,21 @@ package mvc
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"goark.dev/arkarta/servlet"
 	arkweb "goark.dev/arkarta/web"
+	"goark.dev/goark/core/convert"
 )
 
 // ParamOption 定制 MVC 参数绑定行为。
 type ParamOption func(*paramOptions)
 
 type paramOptions struct {
-	required     bool
-	hasDefault   bool
-	defaultValue string
-	timeLayouts  []string
+	required          bool
+	hasDefault        bool
+	defaultValue      string
+	timeLayouts       []string
+	conversionService *convert.Service
 }
 
 // WithRequired 设置参数是否必须存在。
@@ -42,7 +43,7 @@ func PathString(ctx *arkweb.Context, name string, options ...ParamOption) (strin
 	}
 	value, ok := ctx.Param(name)
 	value = stripMatrixSegment(value)
-	return resolveStringParameter("路径变量", name, value, ok, nil, newParamOptions(options))
+	return resolveStringParameter("路径变量", name, value, ok, nil, newParamOptions(ctx, options))
 }
 
 // PathInt 绑定 int 路径变量。
@@ -52,7 +53,7 @@ func PathInt(ctx *arkweb.Context, name string, options ...ParamOption) (int, err
 	}
 	value, ok := ctx.Param(name)
 	value = stripMatrixSegment(value)
-	return resolveIntParameter("路径变量", name, value, ok, nil, newParamOptions(options))
+	return resolveIntParameter("路径变量", name, value, ok, nil, newParamOptions(ctx, options))
 }
 
 // PathInt64 绑定 int64 路径变量。
@@ -62,7 +63,7 @@ func PathInt64(ctx *arkweb.Context, name string, options ...ParamOption) (int64,
 	}
 	value, ok := ctx.Param(name)
 	value = stripMatrixSegment(value)
-	return resolveInt64Parameter("路径变量", name, value, ok, nil, newParamOptions(options))
+	return resolveInt64Parameter("路径变量", name, value, ok, nil, newParamOptions(ctx, options))
 }
 
 // PathBool 绑定 bool 路径变量。
@@ -72,87 +73,93 @@ func PathBool(ctx *arkweb.Context, name string, options ...ParamOption) (bool, e
 	}
 	value, ok := ctx.Param(name)
 	value = stripMatrixSegment(value)
-	return resolveBoolParameter("路径变量", name, value, ok, nil, newParamOptions(options))
+	return resolveBoolParameter("路径变量", name, value, ok, nil, newParamOptions(ctx, options))
 }
 
 // RequestParamString 绑定字符串请求参数，参数视图包含 query 和 urlencoded form。
 func RequestParamString(ctx *arkweb.Context, name string, options ...ParamOption) (string, error) {
 	value, ok, err := formValue(ctx, name)
-	return resolveStringParameter("请求参数", name, value, ok, err, newParamOptions(options))
+	return resolveStringParameter("请求参数", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestParamInt 绑定 int 请求参数，参数视图包含 query 和 urlencoded form。
 func RequestParamInt(ctx *arkweb.Context, name string, options ...ParamOption) (int, error) {
 	value, ok, err := formValue(ctx, name)
-	return resolveIntParameter("请求参数", name, value, ok, err, newParamOptions(options))
+	return resolveIntParameter("请求参数", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestParamInt64 绑定 int64 请求参数，参数视图包含 query 和 urlencoded form。
 func RequestParamInt64(ctx *arkweb.Context, name string, options ...ParamOption) (int64, error) {
 	value, ok, err := formValue(ctx, name)
-	return resolveInt64Parameter("请求参数", name, value, ok, err, newParamOptions(options))
+	return resolveInt64Parameter("请求参数", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestParamBool 绑定 bool 请求参数，参数视图包含 query 和 urlencoded form。
 func RequestParamBool(ctx *arkweb.Context, name string, options ...ParamOption) (bool, error) {
 	value, ok, err := formValue(ctx, name)
-	return resolveBoolParameter("请求参数", name, value, ok, err, newParamOptions(options))
+	return resolveBoolParameter("请求参数", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestHeaderString 绑定字符串请求头。
 func RequestHeaderString(ctx *arkweb.Context, name string, options ...ParamOption) (string, error) {
 	value, ok, err := headerValue(ctx, name)
-	return resolveStringParameter("请求头", name, value, ok, err, newParamOptions(options))
+	return resolveStringParameter("请求头", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestHeaderInt 绑定 int 请求头。
 func RequestHeaderInt(ctx *arkweb.Context, name string, options ...ParamOption) (int, error) {
 	value, ok, err := headerValue(ctx, name)
-	return resolveIntParameter("请求头", name, value, ok, err, newParamOptions(options))
+	return resolveIntParameter("请求头", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestHeaderInt64 绑定 int64 请求头。
 func RequestHeaderInt64(ctx *arkweb.Context, name string, options ...ParamOption) (int64, error) {
 	value, ok, err := headerValue(ctx, name)
-	return resolveInt64Parameter("请求头", name, value, ok, err, newParamOptions(options))
+	return resolveInt64Parameter("请求头", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestHeaderBool 绑定 bool 请求头。
 func RequestHeaderBool(ctx *arkweb.Context, name string, options ...ParamOption) (bool, error) {
 	value, ok, err := headerValue(ctx, name)
-	return resolveBoolParameter("请求头", name, value, ok, err, newParamOptions(options))
+	return resolveBoolParameter("请求头", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // CookieValueString 绑定字符串 Cookie 值。
 func CookieValueString(ctx *arkweb.Context, name string, options ...ParamOption) (string, error) {
 	value, ok, err := cookieValue(ctx, name)
-	return resolveStringParameter("Cookie", name, value, ok, err, newParamOptions(options))
+	return resolveStringParameter("Cookie", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // CookieValueInt 绑定 int Cookie 值。
 func CookieValueInt(ctx *arkweb.Context, name string, options ...ParamOption) (int, error) {
 	value, ok, err := cookieValue(ctx, name)
-	return resolveIntParameter("Cookie", name, value, ok, err, newParamOptions(options))
+	return resolveIntParameter("Cookie", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // CookieValueInt64 绑定 int64 Cookie 值。
 func CookieValueInt64(ctx *arkweb.Context, name string, options ...ParamOption) (int64, error) {
 	value, ok, err := cookieValue(ctx, name)
-	return resolveInt64Parameter("Cookie", name, value, ok, err, newParamOptions(options))
+	return resolveInt64Parameter("Cookie", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // CookieValueBool 绑定 bool Cookie 值。
 func CookieValueBool(ctx *arkweb.Context, name string, options ...ParamOption) (bool, error) {
 	value, ok, err := cookieValue(ctx, name)
-	return resolveBoolParameter("Cookie", name, value, ok, err, newParamOptions(options))
+	return resolveBoolParameter("Cookie", name, value, ok, err, newParamOptions(ctx, options))
 }
 
-func newParamOptions(options []ParamOption) paramOptions {
-	out := paramOptions{required: true}
+func newParamOptions(ctx *arkweb.Context, options []ParamOption) paramOptions {
+	out := paramOptions{
+		required:          true,
+		conversionService: ConversionServiceFromContext(ctx),
+	}
 	for _, option := range options {
 		if option != nil {
 			option(&out)
 		}
+	}
+	if out.conversionService == nil {
+		out.conversionService = DefaultConversionService()
 	}
 	return out
 }
@@ -195,39 +202,15 @@ func resolveStringParameter(kind, name, value string, ok bool, err error, option
 }
 
 func resolveIntParameter(kind, name, value string, ok bool, err error, options paramOptions) (int, error) {
-	value, ok, err = resolveRawParameter(kind, name, value, ok, err, options)
-	if err != nil || !ok {
-		return 0, err
-	}
-	parsed, parseErr := strconv.Atoi(value)
-	if parseErr != nil {
-		return 0, invalidParameterError(name, value, "int", parseErr)
-	}
-	return parsed, nil
+	return resolveConvertedParameter(kind, name, value, ok, err, options, "int", convertParamValue[int](options))
 }
 
 func resolveInt64Parameter(kind, name, value string, ok bool, err error, options paramOptions) (int64, error) {
-	value, ok, err = resolveRawParameter(kind, name, value, ok, err, options)
-	if err != nil || !ok {
-		return 0, err
-	}
-	parsed, parseErr := strconv.ParseInt(value, 10, 64)
-	if parseErr != nil {
-		return 0, invalidParameterError(name, value, "int64", parseErr)
-	}
-	return parsed, nil
+	return resolveConvertedParameter(kind, name, value, ok, err, options, "int64", convertParamValue[int64](options))
 }
 
 func resolveBoolParameter(kind, name, value string, ok bool, err error, options paramOptions) (bool, error) {
-	value, ok, err = resolveRawParameter(kind, name, value, ok, err, options)
-	if err != nil || !ok {
-		return false, err
-	}
-	parsed, parseErr := strconv.ParseBool(value)
-	if parseErr != nil {
-		return false, invalidParameterError(name, value, "bool", parseErr)
-	}
-	return parsed, nil
+	return resolveConvertedParameter(kind, name, value, ok, err, options, "bool", convertParamValue[bool](options))
 }
 
 func resolveRawParameter(kind, name, value string, ok bool, err error, options paramOptions) (string, bool, error) {

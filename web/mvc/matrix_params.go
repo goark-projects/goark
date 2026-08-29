@@ -10,25 +10,25 @@ import (
 // MatrixVariableString 绑定字符串矩阵变量。
 func MatrixVariableString(ctx *arkweb.Context, name string, options ...ParamOption) (string, error) {
 	value, ok, err := matrixValue(ctx, name)
-	return resolveStringParameter("矩阵变量", name, value, ok, err, newParamOptions(options))
+	return resolveStringParameter("矩阵变量", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // MatrixVariableInt 绑定 int 矩阵变量。
 func MatrixVariableInt(ctx *arkweb.Context, name string, options ...ParamOption) (int, error) {
 	value, ok, err := matrixValue(ctx, name)
-	return resolveIntParameter("矩阵变量", name, value, ok, err, newParamOptions(options))
+	return resolveIntParameter("矩阵变量", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // MatrixVariableInt64 绑定 int64 矩阵变量。
 func MatrixVariableInt64(ctx *arkweb.Context, name string, options ...ParamOption) (int64, error) {
 	value, ok, err := matrixValue(ctx, name)
-	return resolveInt64Parameter("矩阵变量", name, value, ok, err, newParamOptions(options))
+	return resolveInt64Parameter("矩阵变量", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // MatrixVariableBool 绑定 bool 矩阵变量。
 func MatrixVariableBool(ctx *arkweb.Context, name string, options ...ParamOption) (bool, error) {
 	value, ok, err := matrixValue(ctx, name)
-	return resolveBoolParameter("矩阵变量", name, value, ok, err, newParamOptions(options))
+	return resolveBoolParameter("矩阵变量", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 func matrixValue(ctx *arkweb.Context, name string) (string, bool, error) {

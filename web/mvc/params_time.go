@@ -33,43 +33,43 @@ func PathTime(ctx *arkweb.Context, name string, options ...ParamOption) (time.Ti
 	}
 	value, ok := ctx.Param(name)
 	value = stripMatrixSegment(value)
-	return resolveTimeParameter("路径变量", name, value, ok, nil, newParamOptions(options))
+	return resolveTimeParameter("路径变量", name, value, ok, nil, newParamOptions(ctx, options))
 }
 
 // RequestParamTime 绑定 time.Time 请求参数，参数视图包含 query 和 urlencoded form。
 func RequestParamTime(ctx *arkweb.Context, name string, options ...ParamOption) (time.Time, error) {
 	value, ok, err := formValue(ctx, name)
-	return resolveTimeParameter("请求参数", name, value, ok, err, newParamOptions(options))
+	return resolveTimeParameter("请求参数", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestHeaderTime 绑定 time.Time 请求头。
 func RequestHeaderTime(ctx *arkweb.Context, name string, options ...ParamOption) (time.Time, error) {
 	value, ok, err := headerValue(ctx, name)
-	return resolveTimeParameter("请求头", name, value, ok, err, newParamOptions(options))
+	return resolveTimeParameter("请求头", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // CookieValueTime 绑定 time.Time Cookie 值。
 func CookieValueTime(ctx *arkweb.Context, name string, options ...ParamOption) (time.Time, error) {
 	value, ok, err := cookieValue(ctx, name)
-	return resolveTimeParameter("Cookie", name, value, ok, err, newParamOptions(options))
+	return resolveTimeParameter("Cookie", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // MatrixVariableTime 绑定 time.Time 矩阵变量。
 func MatrixVariableTime(ctx *arkweb.Context, name string, options ...ParamOption) (time.Time, error) {
 	value, ok, err := matrixValue(ctx, name)
-	return resolveTimeParameter("矩阵变量", name, value, ok, err, newParamOptions(options))
+	return resolveTimeParameter("矩阵变量", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // RequestAttributeTime 绑定 time.Time 请求属性。
 func RequestAttributeTime(ctx *arkweb.Context, name string, options ...ParamOption) (time.Time, error) {
 	value, ok, err := requestAttributeValue(ctx, name)
-	return resolveTimeParameter("请求属性", name, value, ok, err, newParamOptions(options))
+	return resolveTimeParameter("请求属性", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 // SessionAttributeTime 绑定 time.Time Session 属性。
 func SessionAttributeTime(ctx *arkweb.Context, name string, options ...ParamOption) (time.Time, error) {
 	value, ok, err := sessionAttributeValue(ctx, name)
-	return resolveTimeParameter("Session属性", name, value, ok, err, newParamOptions(options))
+	return resolveTimeParameter("Session属性", name, value, ok, err, newParamOptions(ctx, options))
 }
 
 func resolveTimeParameter(kind, name, value string, ok bool, err error, options paramOptions) (time.Time, error) {

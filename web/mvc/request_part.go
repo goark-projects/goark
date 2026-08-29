@@ -16,7 +16,7 @@ func requestPart(ctx *arkweb.Context, name string, options ...ParamOption) (serv
 	if ctx == nil || ctx.Request() == nil {
 		return zero, false, arkweb.ErrNilContext
 	}
-	paramOptions := newParamOptions(options)
+	paramOptions := newParamOptions(ctx, options)
 	parser := servletmultipart.NewParser()
 	part, ok, err := servletmultipart.RequestPart(ctx.Request(), name, parser)
 	if err != nil {
