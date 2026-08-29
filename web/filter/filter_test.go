@@ -199,6 +199,61 @@ func TestFormContentRejectsOversizedBody(t *testing.T) {
 	}
 }
 
+func TestCharacterEncodingAppliesRequestDefault(t *testing.T) {
+	t.Parallel()
+
+	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, req *servlet.Request, res servlet.Response) error {
+		res.Header().Set("X-Request-Encoding", req.CharacterEncoding())
+		_, err := res.WriteString("ok")
+		return err
+	}), filter.CharacterEncoding())
+
+	request := httptest.NewRequest(http.MethodPost, "/encoding", strings.NewReader("{}"))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(handler).ServeHTTP(recorder, request)
+
+	if !strings.EqualFold(recorder.Header().Get("X-Request-Encoding"), filter.DefaultCharacterEncoding) {
+		t.Fatalf("encoding = %q, want %s", recorder.Header().Get("X-Request-Encoding"), filter.DefaultCharacterEncoding)
+	}
+}
+
+func TestCharacterEncodingPreservesExistingRequestEncoding(t *testing.T) {
+	t.Parallel()
+
+	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, req *servlet.Request, res servlet.Response) error {
+		res.Header().Set("X-Request-Encoding", req.CharacterEncoding())
+		_, err := res.WriteString("ok")
+		return err
+	}), filter.CharacterEncoding())
+
+	request := httptest.NewRequest(http.MethodPost, "/encoding", strings.NewReader("{}"))
+	request.Header.Set("Content-Type", "application/json; charset=gbk")
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(handler).ServeHTTP(recorder, request)
+
+	if !strings.EqualFold(recorder.Header().Get("X-Request-Encoding"), "gbk") {
+		t.Fatalf("encoding = %q, want gbk", recorder.Header().Get("X-Request-Encoding"))
+	}
+}
+
+func TestCharacterEncodingForcesResponseEncodingBeforeWrite(t *testing.T) {
+	t.Parallel()
+
+	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, _ *servlet.Request, res servlet.Response) error {
+		res.Header().Set("Content-Type", "text/plain; charset=iso-8859-1")
+		_, err := res.WriteString("ok")
+		return err
+	}), filter.CharacterEncoding(filter.WithForceResponseEncoding(true)))
+
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(handler).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/encoding", nil))
+
+	if got := recorder.Header().Get("Content-Type"); !strings.Contains(strings.ToLower(got), "charset=utf-8") {
+		t.Fatalf("Content-Type = %q, want forced UTF-8 charset", got)
+	}
+}
+
 func TestShallowETagWritesValidatorAndHonorsIfNoneMatch(t *testing.T) {
 	t.Parallel()
 
