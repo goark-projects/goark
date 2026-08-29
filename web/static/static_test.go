@@ -210,6 +210,55 @@ func TestConfigurerServesCombinedVersionedResource(t *testing.T) {
 	}
 }
 
+func TestResourceURLProviderBuildsVersionedURL(t *testing.T) {
+	t.Parallel()
+
+	root := fstest.MapFS{
+		"app.js": &fstest.MapFile{
+			Data:    []byte("console.log('goark')"),
+			Mode:    0o644,
+			ModTime: time.Unix(10, 0),
+		},
+	}
+	provider, err := static.NewURLProvider(root,
+		static.WithURLPathPrefix("/assets"),
+		static.WithURLContentVersioning(),
+		static.WithURLFixedVersion("v1"),
+	)
+	if err != nil {
+		t.Fatalf("NewURLProvider failed: %v", err)
+	}
+
+	got, err := provider.URL(t.Context(), "app.js")
+	if err != nil {
+		t.Fatalf("URL failed: %v", err)
+	}
+	if !strings.HasPrefix(got, "/assets/v1/app-") || !strings.HasSuffix(got, ".js") {
+		t.Fatalf("url = %q, want versioned assets URL", got)
+	}
+}
+
+func TestResourceURLProviderRejectsInvalidPath(t *testing.T) {
+	t.Parallel()
+
+	provider, err := static.NewURLProvider(nil, static.WithURLPathPrefix("/assets"))
+	if err != nil {
+		t.Fatalf("NewURLProvider failed: %v", err)
+	}
+	if _, err := provider.URL(t.Context(), "../app.js"); !errors.Is(err, static.ErrInvalidResourcePath) {
+		t.Fatalf("err = %v, want ErrInvalidResourcePath", err)
+	}
+}
+
+func TestResourceURLProviderRejectsInvalidPrefix(t *testing.T) {
+	t.Parallel()
+
+	_, err := static.NewURLProvider(nil, static.WithURLPathPrefix("/assets?bad=true"))
+	if !errors.Is(err, static.ErrInvalidResourcePath) {
+		t.Fatalf("err = %v, want ErrInvalidResourcePath", err)
+	}
+}
+
 func TestContentVersionPathRejectsInvalidPath(t *testing.T) {
 	t.Parallel()
 
