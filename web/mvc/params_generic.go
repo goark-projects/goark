@@ -37,8 +37,8 @@ func CookieValueAs[T any](ctx *arkweb.Context, name string, options ...ParamOpti
 
 // MatrixVariableAs 将矩阵变量转换为目标类型。
 func MatrixVariableAs[T any](ctx *arkweb.Context, name string, options ...ParamOption) (T, error) {
-	value, ok, err := matrixValue(ctx, name)
 	paramOptions := newParamOptions(ctx, options)
+	value, ok, err := matrixValue(ctx, name, paramOptions.matrixPathVariable)
 	return resolveConvertedParameter("矩阵变量", name, value, ok, err, paramOptions, paramTargetType[T](), convertParamValue[T](paramOptions))
 }
 

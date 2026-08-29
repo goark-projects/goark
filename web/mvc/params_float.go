@@ -32,8 +32,9 @@ func CookieValueFloat64(ctx *arkweb.Context, name string, options ...ParamOption
 
 // MatrixVariableFloat64 绑定 float64 矩阵变量。
 func MatrixVariableFloat64(ctx *arkweb.Context, name string, options ...ParamOption) (float64, error) {
-	value, ok, err := matrixValue(ctx, name)
-	return resolveFloat64Parameter("矩阵变量", name, value, ok, err, newParamOptions(ctx, options))
+	paramOptions := newParamOptions(ctx, options)
+	value, ok, err := matrixValue(ctx, name, paramOptions.matrixPathVariable)
+	return resolveFloat64Parameter("矩阵变量", name, value, ok, err, paramOptions)
 }
 
 // RequestAttributeFloat64 绑定 float64 请求属性。

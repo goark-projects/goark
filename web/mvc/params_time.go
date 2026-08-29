@@ -56,8 +56,9 @@ func CookieValueTime(ctx *arkweb.Context, name string, options ...ParamOption) (
 
 // MatrixVariableTime 绑定 time.Time 矩阵变量。
 func MatrixVariableTime(ctx *arkweb.Context, name string, options ...ParamOption) (time.Time, error) {
-	value, ok, err := matrixValue(ctx, name)
-	return resolveTimeParameter("矩阵变量", name, value, ok, err, newParamOptions(ctx, options))
+	paramOptions := newParamOptions(ctx, options)
+	value, ok, err := matrixValue(ctx, name, paramOptions.matrixPathVariable)
+	return resolveTimeParameter("矩阵变量", name, value, ok, err, paramOptions)
 }
 
 // RequestAttributeTime 绑定 time.Time 请求属性。

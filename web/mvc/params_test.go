@@ -383,6 +383,41 @@ func TestParameterHelpersBindMatrixVariables(t *testing.T) {
 	}
 }
 
+func TestMatrixVariableCanBindFromNamedPathVariable(t *testing.T) {
+	t.Parallel()
+
+	router := arkweb.NewRouter()
+	err := router.Handle(http.MethodGet, "/owners/{ownerId}/pets/{petId}", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]any, error) {
+		ownerQ, err := mvc.MatrixVariableString(ctx, "q", mvc.WithMatrixPathVariable("ownerId"))
+		if err != nil {
+			return nil, err
+		}
+		petQ, err := mvc.MatrixVariableString(ctx, "q", mvc.WithMatrixPathVariable("petId"))
+		if err != nil {
+			return nil, err
+		}
+		color, err := mvc.MatrixVariableString(ctx, "color", mvc.WithMatrixPathVariable("petId"))
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"owner": ownerQ, "pet": petQ, "color": color}, nil
+	}))
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/owners/42;q=owner/pets/21;q=pet;color=black", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"owner":"owner"`) ||
+		!strings.Contains(recorder.Body.String(), `"pet":"pet"`) ||
+		!strings.Contains(recorder.Body.String(), `"color":"black"`) {
+		t.Fatalf("body = %s, want path-scoped matrix variables", recorder.Body.String())
+	}
+}
+
 func TestModelAttributeBindsQueryAndFormValues(t *testing.T) {
 	t.Parallel()
 

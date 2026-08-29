@@ -13,11 +13,12 @@ import (
 type ParamOption func(*paramOptions)
 
 type paramOptions struct {
-	required          bool
-	hasDefault        bool
-	defaultValue      string
-	timeLayouts       []string
-	conversionService *convert.Service
+	required           bool
+	hasDefault         bool
+	defaultValue       string
+	timeLayouts        []string
+	matrixPathVariable string
+	conversionService  *convert.Service
 }
 
 // WithRequired 设置参数是否必须存在。
