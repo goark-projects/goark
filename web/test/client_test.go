@@ -91,6 +91,28 @@ func TestResponseJSONPathAssertionsSupportArraysAndQuotedKeys(t *testing.T) {
 		ExpectJSONPathAbsent(t, "$.items[1]")
 }
 
+func TestResponseStatusClassAndHeaderAssertions(t *testing.T) {
+	t.Parallel()
+
+	router := arkweb.NewRouter()
+	if err := router.GET("/metadata", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+		ctx.Response().Header().Add("Vary", "Accept")
+		ctx.Response().Header().Add("Vary", "Origin")
+		ctx.Response().Header().Set("X-Trace", "trace-1")
+		return goweb.NoBody(http.StatusAccepted), nil
+	})); err != nil {
+		t.Fatalf("register route failed: %v", err)
+	}
+
+	client, err := webtest.NewRouter(router)
+	client = webtest.Must(t, client, err)
+	client.Perform(t, http.MethodGet, "/metadata").
+		ExpectStatus2xx(t).
+		ExpectHeaderExists(t, "X-Trace").
+		ExpectHeaderValues(t, "Vary", "Accept", "Origin").
+		ExpectHeaderAbsent(t, "X-Missing")
+}
+
 func TestRegistryClientRunsFiltersAndStaticServlet(t *testing.T) {
 	t.Parallel()
 

@@ -28,6 +28,31 @@ func (r *Response) ExpectStatus(t testing.TB, statusCode int) *Response {
 	return r
 }
 
+// ExpectStatus1xx 断言 HTTP 状态码属于 1xx 信息响应。
+func (r *Response) ExpectStatus1xx(t testing.TB) *Response {
+	return r.expectStatusRange(t, 100, 200, "1xx")
+}
+
+// ExpectStatus2xx 断言 HTTP 状态码属于 2xx 成功响应。
+func (r *Response) ExpectStatus2xx(t testing.TB) *Response {
+	return r.expectStatusRange(t, 200, 300, "2xx")
+}
+
+// ExpectStatus3xx 断言 HTTP 状态码属于 3xx 重定向响应。
+func (r *Response) ExpectStatus3xx(t testing.TB) *Response {
+	return r.expectStatusRange(t, 300, 400, "3xx")
+}
+
+// ExpectStatus4xx 断言 HTTP 状态码属于 4xx 客户端错误响应。
+func (r *Response) ExpectStatus4xx(t testing.TB) *Response {
+	return r.expectStatusRange(t, 400, 500, "4xx")
+}
+
+// ExpectStatus5xx 断言 HTTP 状态码属于 5xx 服务端错误响应。
+func (r *Response) ExpectStatus5xx(t testing.TB) *Response {
+	return r.expectStatusRange(t, 500, 600, "5xx")
+}
+
 // ExpectHeader 断言响应头第一个值。
 func (r *Response) ExpectHeader(t testing.TB, name string, value string) *Response {
 	t.Helper()
@@ -44,6 +69,37 @@ func (r *Response) ExpectHeaderContains(t testing.TB, name string, fragment stri
 	r.ExpectNoError(t)
 	if got := r.Header().Get(name); !strings.Contains(got, fragment) {
 		t.Fatalf("%s header = %q, want fragment %q", name, got, fragment)
+	}
+	return r
+}
+
+// ExpectHeaderValues 断言响应头完整值列表。
+func (r *Response) ExpectHeaderValues(t testing.TB, name string, values ...string) *Response {
+	t.Helper()
+	r.ExpectNoError(t)
+	got := r.Header().Values(name)
+	if !reflect.DeepEqual(got, values) {
+		t.Fatalf("%s header values = %#v, want %#v", name, got, values)
+	}
+	return r
+}
+
+// ExpectHeaderExists 断言响应头存在。
+func (r *Response) ExpectHeaderExists(t testing.TB, name string) *Response {
+	t.Helper()
+	r.ExpectNoError(t)
+	if got := r.Header().Values(name); len(got) == 0 {
+		t.Fatalf("%s header missing", name)
+	}
+	return r
+}
+
+// ExpectHeaderAbsent 断言响应头不存在。
+func (r *Response) ExpectHeaderAbsent(t testing.TB, name string) *Response {
+	t.Helper()
+	r.ExpectNoError(t)
+	if got := r.Header().Values(name); len(got) > 0 {
+		t.Fatalf("%s header exists: %#v", name, got)
 	}
 	return r
 }
@@ -194,6 +250,15 @@ func DecodeJSON[T any](t testing.TB, response *Response) T {
 		t.Fatalf("decode json failed: %v, body = %q", err, response.BodyString())
 	}
 	return target
+}
+
+func (r *Response) expectStatusRange(t testing.TB, lower int, upper int, label string) *Response {
+	t.Helper()
+	r.ExpectNoError(t)
+	if got := r.StatusCode(); got < lower || got >= upper {
+		t.Fatalf("status = %d, want %s, body = %q", got, label, r.BodyString())
+	}
+	return r
 }
 
 func (r *Response) expectCookieNamed(t testing.TB, name string) *http.Cookie {
