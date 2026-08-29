@@ -182,6 +182,25 @@ func TestRouteConditionsRejectAmbiguousCandidates(t *testing.T) {
 	}
 }
 
+func TestRouteConditionsRejectAmbiguousCandidatesWithDifferentExpressionOrder(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	configurer := mvc.NewConfigurer(mvc.NewRestController("jobs",
+		mvc.GET("/jobs", mvc.NoContent(func(*arkweb.Context) error {
+			return nil
+		}), mvc.WithParams("tenant=admin", "mode=fast")),
+		mvc.GET("/jobs", mvc.NoContent(func(*arkweb.Context) error {
+			return nil
+		}), mvc.WithParams("mode=fast", "tenant=admin")),
+	))
+
+	err := configurer.ConfigureWeb(t.Context(), registry)
+	if err == nil || !strings.Contains(err.Error(), "ambiguous route conditions") {
+		t.Fatalf("ConfigureWeb err = %v, want ambiguous route conditions", err)
+	}
+}
+
 func TestRouteConditionsDispatchPreservesSelectedProduces(t *testing.T) {
 	t.Parallel()
 

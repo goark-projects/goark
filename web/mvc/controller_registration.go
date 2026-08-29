@@ -2,6 +2,7 @@ package mvc
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	arkweb "goark.dev/arkarta/web"
@@ -112,11 +113,20 @@ func rejectAmbiguousRouteConditions(key routeRegistrationKey, registrations []ro
 
 func conditionSignature(conditions Conditions) string {
 	return strings.Join([]string{
-		strings.Join(conditions.Consumes, "\x00"),
-		strings.Join(conditions.Produces, "\x00"),
-		strings.Join(conditions.Params, "\x00"),
-		strings.Join(conditions.Headers, "\x00"),
+		conditionSignaturePart(conditions.Consumes),
+		conditionSignaturePart(conditions.Produces),
+		conditionSignaturePart(conditions.Params),
+		conditionSignaturePart(conditions.Headers),
 	}, "\x01")
+}
+
+func conditionSignaturePart(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	copied := append([]string(nil), values...)
+	sort.Strings(copied)
+	return strings.Join(copied, "\x00")
 }
 
 func (c Controller) skipImplicitRoute(route Route, groups map[uint64]struct{}) bool {
