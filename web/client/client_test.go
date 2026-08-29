@@ -189,6 +189,43 @@ func TestClientSendsDefaultAndRequestCookies(t *testing.T) {
 	}
 }
 
+func TestClientSendsConditionalHeaders(t *testing.T) {
+	t.Parallel()
+
+	modified := time.Date(2026, time.August, 29, 8, 30, 0, 900, time.FixedZone("CST", 8*60*60))
+	serverErrors := make(chan error, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Header.Get("If-None-Match") != `"job-1", W/"list"` {
+			failServer(serverErrors, writer, "If-None-Match = %q", request.Header.Get("If-None-Match"))
+			return
+		}
+		if request.Header.Get("If-Modified-Since") != "Sat, 29 Aug 2026 00:30:00 GMT" {
+			failServer(serverErrors, writer, "If-Modified-Since = %q", request.Header.Get("If-Modified-Since"))
+			return
+		}
+		writer.WriteHeader(http.StatusNotModified)
+	}))
+	defer server.Close()
+
+	client, err := webclient.New(webclient.WithBaseURL(server.URL))
+	if err != nil {
+		t.Fatalf("client new failed: %v", err)
+	}
+	response, err := client.Get(
+		t.Context(),
+		"/jobs/1",
+		webclient.WithIfNoneMatch("job-1", `W/"list"`),
+		webclient.WithIfModifiedSince(modified),
+	)
+	if err != nil {
+		t.Fatalf("get failed: %v", err)
+	}
+	assertNoServerError(t, serverErrors)
+	if response.StatusCode() != http.StatusNotModified {
+		t.Fatalf("status = %d, want 304", response.StatusCode())
+	}
+}
+
 func TestNilBuilderBuildsDefaultClient(t *testing.T) {
 	t.Parallel()
 
@@ -493,6 +530,15 @@ func TestClientRejectsInvalidRequestConfiguration(t *testing.T) {
 	}
 	if _, err := client.Get(t.Context(), "http://example.com", webclient.WithCookieValue("bad name", "x")); !errors.Is(err, webclient.ErrInvalidCookie) {
 		t.Fatalf("request cookie err = %v, want ErrInvalidCookie", err)
+	}
+	if _, err := client.Get(t.Context(), "http://example.com", webclient.WithIfNoneMatch(`bad"etag`)); !errors.Is(err, webclient.ErrInvalidHeader) {
+		t.Fatalf("If-None-Match err = %v, want ErrInvalidHeader", err)
+	}
+	if _, err := client.Get(t.Context(), "http://example.com", webclient.WithIfNoneMatch("*", "job-1")); !errors.Is(err, webclient.ErrInvalidHeader) {
+		t.Fatalf("If-None-Match wildcard err = %v, want ErrInvalidHeader", err)
+	}
+	if _, err := client.Get(t.Context(), "http://example.com", webclient.WithIfModifiedSince(time.Time{})); !errors.Is(err, webclient.ErrInvalidHeader) {
+		t.Fatalf("If-Modified-Since err = %v, want ErrInvalidHeader", err)
 	}
 }
 
