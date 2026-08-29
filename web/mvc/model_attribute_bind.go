@@ -28,7 +28,7 @@ func bindModelAttribute(ctx *arkweb.Context, target any) ([]string, error) {
 	if err := ensureModelAttributeContentType(ctx); err != nil {
 		return nil, err
 	}
-	values, err := requestParameters(ctx)
+	values, err := modelAttributeBindingValues(ctx, target)
 	if err != nil {
 		return nil, err
 	}
