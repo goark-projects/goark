@@ -1,6 +1,7 @@
 package mvc
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -185,7 +186,7 @@ func cookieValue(ctx *arkweb.Context, name string) (string, bool, error) {
 	if err == nil {
 		return cookie.Value, true, nil
 	}
-	if err == http.ErrNoCookie {
+	if errors.Is(err, servlet.ErrNoCookie) {
 		return "", false, nil
 	}
 	return "", false, err

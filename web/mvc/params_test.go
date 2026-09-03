@@ -74,6 +74,30 @@ func TestParameterHelpersBindRequestSources(t *testing.T) {
 	}
 }
 
+func TestCookieValueStringAllowsMissingOptionalCookie(t *testing.T) {
+	t.Parallel()
+
+	router := arkweb.NewRouter()
+	if err := router.Handle(http.MethodGet, "/optional-cookie", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]string, error) {
+		theme, err := mvc.CookieValueString(ctx, "theme", mvc.WithRequired(false))
+		if err != nil {
+			return nil, err
+		}
+		return map[string]string{"theme": theme}, nil
+	})); err != nil {
+		t.Fatalf("GET failed: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(
+		recorder,
+		httptest.NewRequest(http.MethodGet, "/optional-cookie", nil),
+	)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
 func TestParameterHelpersBindExtendedConversions(t *testing.T) {
 	t.Parallel()
 
