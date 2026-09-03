@@ -13,21 +13,22 @@ import (
 
 // Registry 收集 Web 路由、拦截器和部署选项。
 type Registry struct {
-	routes            []Route
-	interceptors      []interceptorRegistration
-	advice            []arkweb.ResponseAdvice
-	errorMappers      []arkweb.ErrorMapper
-	messageReader     *message.Reader
-	messageWriter     *message.Writer
-	requestBodyAdvice []message.ReadAdvice
-	readConverters    []message.ReadConverter
-	writeConverters   []message.Converter
-	validator         validation.Validator
-	filters           []filterRegistration
-	corsMappings      []CORSMapping
-	profiles          []servletcontainer.Profile
-	servlets          []servletMapping
-	deploymentOptions []servletcontainer.DeploymentOption
+	routes              []Route
+	interceptors        []interceptorRegistration
+	advice              []arkweb.ResponseAdvice
+	errorMappers        []arkweb.ErrorMapper
+	fallbackErrorMapper arkweb.ErrorMapper
+	messageReader       *message.Reader
+	messageWriter       *message.Writer
+	requestBodyAdvice   []message.ReadAdvice
+	readConverters      []message.ReadConverter
+	writeConverters     []message.Converter
+	validator           validation.Validator
+	filters             []filterRegistration
+	corsMappings        []CORSMapping
+	profiles            []servletcontainer.Profile
+	servlets            []servletMapping
+	deploymentOptions   []servletcontainer.DeploymentOption
 }
 
 // NewRegistry 创建空 Web 注册表。
@@ -123,6 +124,13 @@ func (r *Registry) UseErrorMapper(mapper arkweb.ErrorMapper) {
 	}
 }
 
+// UseFallbackErrorMapper 设置普通错误映射器均未命中时执行的兜底映射器。
+func (r *Registry) UseFallbackErrorMapper(mapper arkweb.ErrorMapper) {
+	if r != nil && !isNilErrorMapper(mapper) {
+		r.fallbackErrorMapper = mapper
+	}
+}
+
 // UseMessageReader 设置当前 Web 注册表的请求体读取器。
 func (r *Registry) UseMessageReader(reader message.Reader) {
 	if r != nil {
@@ -195,7 +203,7 @@ func (r *Registry) Router(options ...arkweb.Option) (*arkweb.Router, error) {
 	if r == nil {
 		return nil, ErrNilRegistry
 	}
-	routerOptions := appendRouterOptions(r.errorMappers, r.validator, options)
+	routerOptions := appendRouterOptions(r.errorMappers, r.fallbackErrorMapper, r.validator, options)
 	router := arkweb.NewRouter(routerOptions...)
 	if r.hasMessageIO() {
 		router.Use(message.ContextInterceptor(r.currentMessageReader(), r.currentMessageWriter()))
@@ -318,13 +326,13 @@ func hasProfile(profiles []servletcontainer.Profile, target servletcontainer.Pro
 	return false
 }
 
-func appendRouterOptions(mappers []arkweb.ErrorMapper, validator validation.Validator, options []arkweb.Option) []arkweb.Option {
-	if len(mappers) == 0 && isNilValidator(validator) {
+func appendRouterOptions(mappers []arkweb.ErrorMapper, fallback arkweb.ErrorMapper, validator validation.Validator, options []arkweb.Option) []arkweb.Option {
+	if len(mappers) == 0 && isNilErrorMapper(fallback) && isNilValidator(validator) {
 		return options
 	}
 	routerOptions := make([]arkweb.Option, 0, len(options)+2)
-	if len(mappers) > 0 {
-		routerOptions = append(routerOptions, arkweb.WithErrorMapper(NewErrorMapperChain(mappers...)))
+	if len(mappers) > 0 || !isNilErrorMapper(fallback) {
+		routerOptions = append(routerOptions, arkweb.WithErrorMapper(newErrorMapperChain(fallback, mappers)))
 	}
 	if !isNilValidator(validator) {
 		routerOptions = append(routerOptions, arkweb.WithValidator(validator))

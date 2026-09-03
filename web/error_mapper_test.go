@@ -68,6 +68,41 @@ func TestRegistryErrorMapperFallsBackToDefault(t *testing.T) {
 	}
 }
 
+func TestRegistryUsesConfiguredFallbackAfterSpecificMappers(t *testing.T) {
+	t.Parallel()
+
+	specificErr := errors.New("specific")
+	registry := web.NewRegistry()
+	registry.UseFallbackErrorMapper(web.ErrorMapperFunc(func(_ *arkweb.Context, _ error) arkweb.Result {
+		return arkweb.Text(http.StatusInternalServerError, "fallback")
+	}))
+	registry.UseErrorMapper(web.ErrorMapperFunc(func(_ *arkweb.Context, err error) arkweb.Result {
+		if errors.Is(err, specificErr) {
+			return arkweb.Text(http.StatusNotFound, "specific")
+		}
+		return nil
+	}))
+	if err := registry.GET("/specific", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+		return nil, specificErr
+	})); err != nil {
+		t.Fatalf("GET specific failed: %v", err)
+	}
+	if err := registry.GET("/fallback", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+		return nil, errors.New("unknown")
+	})); err != nil {
+		t.Fatalf("GET fallback failed: %v", err)
+	}
+
+	specific := serveRegistry(t, registry, http.MethodGet, "/specific")
+	if specific.Code != http.StatusNotFound || specific.Body.String() != "specific" {
+		t.Fatalf("specific response = %d %q, want 404 specific", specific.Code, specific.Body.String())
+	}
+	fallback := serveRegistry(t, registry, http.MethodGet, "/fallback")
+	if fallback.Code != http.StatusInternalServerError || fallback.Body.String() != "fallback" {
+		t.Fatalf("fallback response = %d %q, want 500 fallback", fallback.Code, fallback.Body.String())
+	}
+}
+
 func TestDefaultErrorMapperMapsWebStatusError(t *testing.T) {
 	t.Parallel()
 
@@ -154,6 +189,14 @@ func TestRegisterErrorMapperRejectsNilMapper(t *testing.T) {
 	t.Parallel()
 
 	if err := web.RegisterErrorMapper(container.NewRegistry(), "nilErrorMapper", nil); !errors.Is(err, web.ErrNilErrorMapper) {
+		t.Fatalf("err = %v, want ErrNilErrorMapper", err)
+	}
+}
+
+func TestRegisterFallbackErrorMapperRejectsNilMapper(t *testing.T) {
+	t.Parallel()
+
+	if err := web.RegisterFallbackErrorMapper(container.NewRegistry(), "nilFallbackErrorMapper", nil); !errors.Is(err, web.ErrNilErrorMapper) {
 		t.Fatalf("err = %v, want ErrNilErrorMapper", err)
 	}
 }

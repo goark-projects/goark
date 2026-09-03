@@ -15,12 +15,17 @@ type ErrorMapperFunc = arkweb.ErrorMapperFunc
 
 // ErrorMapperChain 按注册顺序组合多个错误映射器。
 type ErrorMapperChain struct {
-	mappers []arkweb.ErrorMapper
+	mappers  []arkweb.ErrorMapper
+	fallback arkweb.ErrorMapper
 }
 
 // NewErrorMapperChain 创建错误映射器链；未命中时回退到 Arkarta 默认映射器。
 func NewErrorMapperChain(mappers ...arkweb.ErrorMapper) ErrorMapperChain {
-	chain := ErrorMapperChain{}
+	return newErrorMapperChain(nil, mappers)
+}
+
+func newErrorMapperChain(fallback arkweb.ErrorMapper, mappers []arkweb.ErrorMapper) ErrorMapperChain {
+	chain := ErrorMapperChain{fallback: fallback}
 	for _, mapper := range mappers {
 		if isNilErrorMapper(mapper) {
 			continue
@@ -39,6 +44,9 @@ func (c ErrorMapperChain) MapError(ctx *arkweb.Context, err error) arkweb.Result
 		if result := mapper.MapError(ctx, err); result != nil {
 			return result
 		}
+	}
+	if !isNilErrorMapper(c.fallback) {
+		return c.fallback.MapError(ctx, err)
 	}
 	return arkweb.DefaultErrorMapper{}.MapError(ctx, err)
 }
@@ -61,6 +69,23 @@ func RegisterErrorMapper(registry *container.Registry, name string, mapper arkwe
 			return ErrNilRegistry
 		}
 		webRegistry.UseErrorMapper(mapper)
+		return nil
+	}), options...)
+}
+
+// RegisterFallbackErrorMapper 注册仅在普通错误映射器均未命中时执行的兜底映射器。
+func RegisterFallbackErrorMapper(registry *container.Registry, name string, mapper arkweb.ErrorMapper, options ...container.Option) error {
+	if isNilErrorMapper(mapper) {
+		return ErrNilErrorMapper
+	}
+	return RegisterConfigurer(registry, name, ConfigurerFunc(func(ctx context.Context, webRegistry *Registry) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if webRegistry == nil {
+			return ErrNilRegistry
+		}
+		webRegistry.UseFallbackErrorMapper(mapper)
 		return nil
 	}), options...)
 }
