@@ -20,7 +20,7 @@ Goark 注解是写在 Go 注释中的编译期元数据，由 `goark` CLI 扫描
 - 不支持 Java 注解语法，例如 `@Service`。
 - 不支持运行时扫描包、类型或方法。
 - 不支持隐藏式全局 Bean 注册。
-- V1 不实现 `boot` 自动配置、`ConfigurationProperties`、项目启动约定或 starter 机制。
+- V1 不实现 `boot` 自动配置、项目启动约定或 starter 机制。
 - V1 不实现事务、SQL、OpenAPI、权限元数据。
 - 不执行 Spring SpEL；`value` 使用 Goark 自有的受控 GaEL 表达式。
 
@@ -293,6 +293,7 @@ goark: qualifier targets missing parameter "userDao" on AdminConfiguration.UserS
 | `scope` | Spring `@Scope` | 类型、Bean 方法 | 声明 Bean 作用域 |
 | `property-source` | Spring `@PropertySource` | Configuration 类型 | 加载属性资源 |
 | `property-sources` | Spring `@PropertySources` | Configuration 类型 | 加载多个属性资源 |
+| `configuration-properties` | Spring Boot `@ConfigurationProperties` | 结构体类型 | 生成类型安全配置 Binder 与 Bean 注册 |
 
 ### component
 
@@ -811,7 +812,7 @@ type AppConfiguration struct{}
 4. `ignoreResourceNotFound=false` 时资源不存在必须报错。
 5. 未携带扩展名的资源路径按 `yml`、`properties`、`toml`、`yaml` 顺序查找。
 
-V1 默认支持 YAML、Java `.properties`、TOML 三类配置文件。默认配置基础名称是 `app`，即 `app.yml`、`app.properties`、`app.toml`、`app.yaml`。格式解析由 Koanf 驱动；`.yml` 优先，`.properties` 次之，`.toml` 再次，`.yaml` 作为 YAML 兼容兜底。
+V1 支持 YAML、Java `.properties`、TOML 三类配置格式。默认配置基础名称是 `app`，且只发现 `app.yml`、`app.properties`、`app.toml`；显式资源路径仍可使用 `.yaml`。默认优先级依次为 `.yml`、`.properties`、`.toml`。
 
 ### property-sources
 
@@ -845,6 +846,62 @@ type AppConfiguration struct{}
 ```
 
 重复 `property-source` 与 `property-sources` 的语义一致。
+
+### configuration-properties
+
+对齐 Spring Boot `@ConfigurationProperties` 的批量、类型安全绑定职责。Goark CLI 在编译期分析结构体并生成普通 Go 赋值代码，运行期不扫描结构体，也不创建动态代理。
+
+位置：命名结构体类型上方。
+
+参数：
+
+| 参数 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `prefix` / `value` | string | 空 | 配置属性前缀 |
+| `ignoreUnknownFields` | bool | `true` | 是否忽略前缀下未声明的属性 |
+
+示例：
+
+```go
+type TLSProperties struct {
+	Enabled bool `goark:",default=true"`
+}
+
+//goark:configuration-properties(prefix="server.hertz", ignoreUnknownFields=false)
+type HertzProperties struct {
+	ReadTimeout time.Duration `goark:"read-timeout,default=30s"`
+	MaxBodySize int64         `goark:"max-request-body-size,required"`
+	TLS         *TLSProperties
+	Labels      map[string]string
+}
+
+func (p *HertzProperties) Validate() error {
+	if p.MaxBodySize == 0 {
+		return errors.New("max body size must not be zero")
+	}
+	return nil
+}
+```
+
+字段标签格式：
+
+```text
+goark:"property-name"
+goark:",default=value"
+goark:",required"
+goark:"-"
+```
+
+规则：
+
+1. 未显式命名的字段按 relaxed kebab-case 推导，例如 `HTTPReadTimeout` 对应 `http-read-timeout`。
+2. 支持导出标量、命名转换类型、指针值、切片、本地嵌套结构体、嵌套结构体指针和 `map[string]T`。
+3. `map[string]T` 绑定前缀下的动态键，例如 `logging.level.root` 绑定为键 `root`。
+4. `required` 与 `default` 互斥；缺少必需属性时返回 `NOT_FOUND`。
+5. `ignoreUnknownFields=false` 时，Binder 拒绝前缀下未声明的属性；map 字段对应动态允许范围。
+6. 结构体实现 `goark.ConfigurationPropertiesValidator` 时，生成 Binder 在全部字段绑定后调用 `Validate()`。
+7. CLI 生成 `Bind<Type>(Environment)`、`<Type>ConfigurationMetadata()` 和确定性的 Bean 注册代码。
+8. map 键仅支持 `string`；递归结构体引用在生成期拒绝。
 
 ### autowired
 
@@ -1690,6 +1747,7 @@ func (a *AdminAdvice) NotFound(ctx *arkweb.Context, err *UserNotFoundError) arkw
 | `//goark:scope` | `@Scope` | Spring Framework | 实现 |
 | `//goark:property-source` | `@PropertySource` | Spring Framework | 实现 |
 | `//goark:property-sources` | `@PropertySources` | Spring Framework | 实现 |
+| `//goark:configuration-properties` | `@ConfigurationProperties` | Spring Boot | 实现 |
 | `//goark:autowired` | `@Autowired` | Spring Framework | 实现 |
 | `//goark:qualifier` | `@Qualifier` | Spring Framework | 实现 |
 | `//goark:value` | `@Value` | Spring Framework | 实现 |

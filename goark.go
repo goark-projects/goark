@@ -171,7 +171,7 @@ var WithIgnoreResourceNotFound = coreenv.WithIgnoreResourceNotFound
 // LoadConfigPropertySource 从资源位置加载 yml/properties/toml 配置源。
 var LoadConfigPropertySource = coreenv.LoadConfigPropertySource
 
-// LoadDefaultConfigPropertySource 按默认名称加载 app.yml/app.properties/app.toml/app.yaml 配置源。
+// LoadDefaultConfigPropertySource 按默认名称加载 app.yml、app.properties 或 app.toml 配置源。
 var LoadDefaultConfigPropertySource = coreenv.LoadDefaultConfigPropertySource
 
 // LoadPropertiesPropertySource 从资源位置加载 .properties 配置源。

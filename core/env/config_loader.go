@@ -51,7 +51,6 @@ var configSearchOrder = []struct {
 	{extension: ".yml", format: ConfigFormatYAML},
 	{extension: ".properties", format: ConfigFormatProperties},
 	{extension: ".toml", format: ConfigFormatTOML},
-	{extension: ".yaml", format: ConfigFormatYAML},
 }
 
 // WithPropertySourceName 指定加载后的 PropertySource 名称。
@@ -117,7 +116,7 @@ func LoadConfigPropertySource(ctx context.Context, loader resource.Loader, locat
 	return nil, arkerrors.Newf(arkerrors.CodeNotFound, "config property source %q not found; tried: %s", location, strings.Join(tried, ", "))
 }
 
-// LoadDefaultConfigPropertySource 按默认名称加载 app.yml/app.properties/app.toml/app.yaml 配置源。
+// LoadDefaultConfigPropertySource 按默认名称加载 app.yml、app.properties 或 app.toml 配置源。
 func LoadDefaultConfigPropertySource(ctx context.Context, loader resource.Loader, options ...PropertySourceLoadOption) (*ConfigPropertySource, error) {
 	return LoadConfigPropertySource(ctx, loader, DefaultConfigBaseName, options...)
 }

@@ -150,23 +150,6 @@ func TestLoadConfigPropertySource_whenLocationHasNoExtension_shouldUsePriority(t
 			wantSource: "app.toml",
 			wantValue:  "toml",
 		},
-		{
-			name: "toml before yaml fallback",
-			files: map[string]string{
-				"app.toml": "selected = \"toml\"\n",
-				"app.yaml": "selected: yaml\n",
-			},
-			wantSource: "app.toml",
-			wantValue:  "toml",
-		},
-		{
-			name: "yaml fallback",
-			files: map[string]string{
-				"app.yaml": "selected: yaml\n",
-			},
-			wantSource: "app.yaml",
-			wantValue:  "yaml",
-		},
 	}
 
 	for _, tt := range tests {
@@ -191,6 +174,20 @@ func TestLoadConfigPropertySource_whenLocationHasNoExtension_shouldUsePriority(t
 			}
 			assertAnyProperty(t, source, "selected", tt.wantValue)
 		})
+	}
+}
+
+func TestLoadDefaultConfigPropertySource_whenOnlyAppYAMLExists_shouldNotDiscoverIt(t *testing.T) {
+	tempDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tempDir, "app.yaml"), []byte("selected: yaml\n"), 0o644); err != nil {
+		t.Fatalf("write app.yaml failed: %v", err)
+	}
+	loader, err := resource.NewLoader(resource.WithFileBase(tempDir))
+	if err != nil {
+		t.Fatalf("create loader failed: %v", err)
+	}
+	if _, err := env.LoadDefaultConfigPropertySource(context.Background(), loader); !arkerrors.Is(err, arkerrors.CodeNotFound) {
+		t.Fatalf("LoadDefaultConfigPropertySource() error = %v, want not found", err)
 	}
 }
 
