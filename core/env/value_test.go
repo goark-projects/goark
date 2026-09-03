@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"goark.dev/goark/core/env"
-	arkerrors "goark.dev/goark/errors"
 )
 
 func TestResolveValue_whenPlaceholderExists_shouldResolveAndConvert(t *testing.T) {
@@ -71,17 +70,41 @@ func TestResolveValue_whenLiteral_shouldConvertLiteral(t *testing.T) {
 	}
 }
 
-func TestResolveValue_whenSpELExpression_shouldReturnError(t *testing.T) {
+func TestResolveValue_whenStringLiteralHasWhitespace_shouldPreserveWhitespace(t *testing.T) {
+	environment := env.MustNewStandardEnvironment()
+	value, err := env.ResolveValueAs[string](environment, "  value  ")
+	if err != nil {
+		t.Fatalf("resolve literal failed: %v", err)
+	}
+	if value != "  value  " {
+		t.Fatalf("expected preserved whitespace, got %q", value)
+	}
+}
+
+func TestResolveValue_whenGaELExpression_shouldEvaluateAndConvert(t *testing.T) {
 	environment, err := env.NewStandardEnvironment()
 	if err != nil {
 		t.Fatalf("create environment failed: %v", err)
 	}
-
-	_, err = env.ResolveValueAs[string](environment, "#{systemProperties['user.home']}")
-	if err == nil {
-		t.Fatal("expected SpEL error")
+	source, err := env.NewMapPropertySource("test", map[string]any{"feature.enabled": "true"})
+	if err != nil {
+		t.Fatalf("create source failed: %v", err)
 	}
-	if !arkerrors.Is(err, arkerrors.CodeInvalidArgument) {
-		t.Fatalf("expected invalid argument, got %v", err)
+	if err := environment.PropertySources().AddFirst(source); err != nil {
+		t.Fatalf("add source failed: %v", err)
+	}
+	value, err := env.ResolveValueAs[bool](environment, "#{environment['feature.enabled'] == 'true'}")
+	if err != nil {
+		t.Fatalf("resolve GaEL failed: %v", err)
+	}
+	if !value {
+		t.Fatal("expected GaEL result true")
+	}
+}
+
+func TestResolveValue_whenGaELIsMixedWithLiteral_shouldReturnError(t *testing.T) {
+	environment := env.MustNewStandardEnvironment()
+	if _, err := env.ResolveValueAs[string](environment, "prefix-#{true}"); err == nil {
+		t.Fatal("expected complete GaEL expression error")
 	}
 }

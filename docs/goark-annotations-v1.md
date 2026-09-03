@@ -22,7 +22,7 @@ Goark 注解是写在 Go 注释中的编译期元数据，由 `goark` CLI 扫描
 - 不支持隐藏式全局 Bean 注册。
 - V1 不实现 `boot` 自动配置、`ConfigurationProperties`、项目启动约定或 starter 机制。
 - V1 不实现事务、SQL、OpenAPI、权限元数据。
-- V1 不实现 SpEL 表达式执行，`value` 只支持属性占位符和字面量转换。
+- 不执行 Spring SpEL；`value` 使用 Goark 自有的受控 GaEL 表达式。
 
 ## 基础语法
 
@@ -279,7 +279,7 @@ goark: qualifier targets missing parameter "userDao" on AdminConfiguration.UserS
 | `bean` | Spring `@Bean` | 方法 | 在 Configuration 中注册 Bean |
 | `autowired` | Spring `@Autowired` | 字段、方法参数 | 按类型注入，支持可选依赖 |
 | `qualifier` | Spring `@Qualifier` | 字段、方法参数 | 指定 Bean 名 |
-| `value` | Spring `@Value` | 字段、方法参数 | 注入属性占位符或字面量 |
+| `value` | Spring `@Value` | 字段、方法参数 | 注入属性占位符、GaEL 表达式或字面量 |
 | `inject` | JSR-330 `@Inject` | 字段、方法参数 | 按类型注入，始终必需 |
 | `named` | JSR-330 `@Named` | 字段、方法参数 | 指定 Bean 名 |
 | `resource` | JSR-250 `@Resource` | 字段、方法参数 | 按名称优先注入 |
@@ -957,7 +957,7 @@ func (AdminConfiguration) UserService(userDao UserDao) *UserService {
 
 ### value
 
-对齐 Spring `@Value`，从 Environment 注入属性占位符或字面量。
+对齐 Spring `@Value`，从 Environment 注入属性占位符、GaEL 表达式或字面量。
 
 位置：
 
@@ -968,7 +968,7 @@ func (AdminConfiguration) UserService(userDao UserDao) *UserService {
 
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `value` | string | 无 | 属性占位符或字面量 |
+| `value` | string | 无 | 属性占位符、GaEL 表达式或字面量 |
 
 字段示例：
 
@@ -995,6 +995,7 @@ func (ServerConfiguration) HTTPServer(port int) *HTTPServer {
 ```go
 //goark:value("${app.name}")
 //goark:value("${server.port:8080}")
+//goark:value("#{environment['feature.enabled'] == 'true'}")
 //goark:value("literal-value")
 ```
 
@@ -1004,7 +1005,9 @@ func (ServerConfiguration) HTTPServer(port int) *HTTPServer {
 2. `${key:default}` 在属性不存在时使用默认值。
 3. 解析后的字符串由 `core/convert.ConversionService` 转成字段或参数的 Go 类型。
 4. 字面量直接进入类型转换流程。
-5. V1 不执行 SpEL，遇到 `#{...}` 必须报错。
+5. `#{...}` 表示完整 GaEL 表达式，不允许和表达式外的字面量混写。
+6. GaEL 支持字面量、算术、比较、逻辑、括号、变量、索引、属性读取和显式注册函数。
+7. GaEL 不允许任意方法调用，也不提供文件、网络、进程或系统命令访问能力。
 
 ### inject
 

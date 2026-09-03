@@ -7,6 +7,7 @@ import (
 	"goark.dev/goark/container"
 	appcontext "goark.dev/goark/context"
 	coreenv "goark.dev/goark/core/env"
+	"goark.dev/goark/core/gael"
 	arkerrors "goark.dev/goark/errors"
 )
 
@@ -30,6 +31,21 @@ type ConfigPropertySource = coreenv.ConfigPropertySource
 
 // ConfigFormat 是配置文件格式类型别名。
 type ConfigFormat = coreenv.ConfigFormat
+
+// Expression 是已解析的 GaEL 表达式。
+type Expression = gael.Expression
+
+// ExpressionParser 定义 GaEL 解析契约。
+type ExpressionParser = gael.Parser
+
+// EvaluationContext 定义 GaEL 求值上下文。
+type EvaluationContext = gael.EvaluationContext
+
+// ExpressionFunction 是显式注册的 GaEL 安全函数。
+type ExpressionFunction = gael.Function
+
+// EvaluationContextOption 配置 GaEL 默认求值上下文。
+type EvaluationContextOption = gael.ContextOption
 
 // BeanDefinition 是 Bean 定义类型别名。
 type BeanDefinition = container.Definition
@@ -151,6 +167,18 @@ var LoadDefaultConfigPropertySource = coreenv.LoadDefaultConfigPropertySource
 
 // LoadPropertiesPropertySource 从资源位置加载 .properties 配置源。
 var LoadPropertiesPropertySource = coreenv.LoadPropertiesPropertySource
+
+// NewExpressionParser 创建 GaEL 默认解析器。
+var NewExpressionParser = gael.NewParser
+
+// NewEvaluationContext 创建 GaEL 默认求值上下文。
+var NewEvaluationContext = gael.NewEvaluationContext
+
+// WithExpressionVariable 注册 GaEL 只读变量。
+var WithExpressionVariable = gael.WithVariable
+
+// WithExpressionFunction 注册 GaEL 白名单函数。
+var WithExpressionFunction = gael.WithFunction
 
 // WithConfiguration 注册应用配置单元。
 var WithConfiguration = appcontext.WithConfiguration

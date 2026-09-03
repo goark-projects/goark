@@ -1,10 +1,12 @@
 package env
 
 import (
+	"context"
 	"reflect"
 	"strings"
 
 	"goark.dev/goark/core/convert"
+	"goark.dev/goark/core/gael"
 	"goark.dev/goark/core/lang"
 	arkerrors "goark.dev/goark/errors"
 )
@@ -17,22 +19,41 @@ func ResolveValue(environment Environment, expression string, targetType reflect
 	if targetType == nil {
 		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "value target type is nil")
 	}
-	if strings.Contains(expression, "#{") {
-		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "SpEL expressions are not supported")
-	}
 	resolved := expression
 	var err error
-	if strings.Contains(expression, "${") {
-		resolved, err = environment.ResolveRequiredPlaceholders(expression)
+	if strings.Contains(resolved, "${") {
+		resolved, err = environment.ResolveRequiredPlaceholders(resolved)
 		if err != nil {
 			return nil, err
 		}
 	}
-	converted, err := conversionServiceOf(environment).Convert(resolved, targetType)
+	value := any(resolved)
+	trimmed := strings.TrimSpace(resolved)
+	if strings.HasPrefix(trimmed, "#{") && strings.HasSuffix(trimmed, "}") {
+		value, err = evaluateGaEL(environment, trimmed[2:len(trimmed)-1])
+		if err != nil {
+			return nil, arkerrors.Wrapf(arkerrors.CodeInvalidArgument, err, "failed to evaluate GaEL expression %q", expression)
+		}
+	} else if strings.Contains(resolved, "#{") {
+		return nil, arkerrors.Newf(arkerrors.CodeInvalidArgument, "GaEL expression must occupy the complete value: %q", expression)
+	}
+	converted, err := conversionServiceOf(environment).Convert(value, targetType)
 	if err != nil {
 		return nil, arkerrors.Wrapf(arkerrors.CodeConversion, err, "failed to resolve value %q as %s", expression, targetType)
 	}
 	return converted, nil
+}
+
+func evaluateGaEL(environment Environment, expression string) (any, error) {
+	evaluationContext, err := gael.NewEvaluationContext(environment)
+	if err != nil {
+		return nil, err
+	}
+	parsed, err := gael.NewParser().Parse(expression)
+	if err != nil {
+		return nil, err
+	}
+	return parsed.Evaluate(context.Background(), evaluationContext)
 }
 
 // ResolveValueAs 按泛型目标类型解析 goark:value 表达式。
