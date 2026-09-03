@@ -264,6 +264,11 @@ func ResolveValueAs[T any](environment Environment, expression string) (T, error
 	return coreenv.ResolveValueAs[T](environment, expression)
 }
 
+// GetPropertyMapAsValue 按属性名前缀绑定字符串键映射。
+func GetPropertyMapAsValue[T any](resolver coreenv.PropertyResolver, prefix string) (map[string]T, bool, error) {
+	return coreenv.GetPropertyMapAsValue[T](resolver, prefix)
+}
+
 // Register 注册类型安全 Bean 工厂。
 func Register[T any](app *ApplicationContext, name string, provider Provider[T], options ...BeanOption) error {
 	if app == nil {

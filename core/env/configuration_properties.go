@@ -1,9 +1,11 @@
 package env
 
 import (
+	"reflect"
 	"sort"
 	"strings"
 
+	"goark.dev/goark/core/lang"
 	arkerrors "goark.dev/goark/errors"
 )
 
@@ -48,7 +50,7 @@ func ValidateConfigurationPropertyNames(resolver PropertyResolver, prefix string
 		if !propertyHasPrefix(name, prefix) {
 			continue
 		}
-		if _, exists := allowedSet[name]; !exists {
+		if !configurationPropertyAllowed(name, allowedSet) {
 			unknown = append(unknown, name)
 		}
 	}
@@ -57,6 +59,59 @@ func ValidateConfigurationPropertyNames(resolver PropertyResolver, prefix string
 	}
 	sort.Strings(unknown)
 	return arkerrors.Newf(arkerrors.CodeInvalidArgument, "unknown configuration properties: %s", strings.Join(unknown, ", "))
+}
+
+// GetPropertyMapAsValue 按属性名前缀绑定字符串键映射。
+func GetPropertyMapAsValue[V any](resolver PropertyResolver, prefix string) (map[string]V, bool, error) {
+	if resolver == nil {
+		return nil, false, arkerrors.New(arkerrors.CodeInvalidArgument, "property resolver is nil")
+	}
+	enumerable, ok := resolver.(EnumerablePropertyResolver)
+	if !ok {
+		return nil, false, arkerrors.New(arkerrors.CodeInvalidArgument, "property resolver does not support property name enumeration")
+	}
+	prefix = strings.Trim(strings.TrimSpace(prefix), ".")
+	propertyPrefix := prefix
+	if propertyPrefix != "" {
+		propertyPrefix += "."
+	}
+	names := enumerable.PropertyNames()
+	sort.Strings(names)
+	result := make(map[string]V)
+	for _, name := range names {
+		if !strings.HasPrefix(name, propertyPrefix) || len(name) == len(propertyPrefix) {
+			continue
+		}
+		key := strings.TrimPrefix(name, propertyPrefix)
+		value, found, err := resolver.GetPropertyAs(name, lang.TypeOf[V]())
+		if err != nil {
+			return nil, false, arkerrors.Wrapf(arkerrors.CodeConversion, err, "failed to bind map configuration property %q", name)
+		}
+		if !found {
+			continue
+		}
+		typed, ok := value.(V)
+		if !ok {
+			return nil, false, arkerrors.Newf(arkerrors.CodeTypeMismatch, "configuration property %q is %T, expected %s", name, value, reflect.TypeOf((*V)(nil)).Elem())
+		}
+		result[key] = typed
+	}
+	if len(result) == 0 {
+		return nil, false, nil
+	}
+	return result, true, nil
+}
+
+func configurationPropertyAllowed(name string, allowed map[string]struct{}) bool {
+	if _, exists := allowed[name]; exists {
+		return true
+	}
+	for candidate := range allowed {
+		if strings.HasSuffix(candidate, ".*") && propertyHasPrefix(name, strings.TrimSuffix(candidate, ".*")) {
+			return true
+		}
+	}
+	return false
 }
 
 func propertyHasPrefix(name string, prefix string) bool {

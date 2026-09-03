@@ -39,6 +39,31 @@ func TestValidateConfigurationPropertyNames_whenPropertyUnknown_shouldReturnSort
 	}
 }
 
+func TestValidateConfigurationPropertyNames_whenDynamicPrefixAllowed_shouldPass(t *testing.T) {
+	environment := environmentWithProperties(t, map[string]any{
+		"logging.level.root":                   "INFO",
+		"logging.level.goark.dev.arkhos.hertz": "WARN",
+	})
+	if err := env.ValidateConfigurationPropertyNames(environment, "logging", []string{"logging.level.*"}); err != nil {
+		t.Fatalf("ValidateConfigurationPropertyNames() error = %v", err)
+	}
+}
+
+func TestGetPropertyMapAsValue_whenDynamicPropertiesExist_shouldBindValues(t *testing.T) {
+	environment := environmentWithProperties(t, map[string]any{
+		"logging.level.root":                   "INFO",
+		"logging.level.goark.dev.arkhos.hertz": "WARN",
+		"logging.pattern.console":              "%m%n",
+	})
+	levels, found, err := env.GetPropertyMapAsValue[string](environment, "logging.level")
+	if err != nil {
+		t.Fatalf("GetPropertyMapAsValue() error = %v", err)
+	}
+	if !found || len(levels) != 2 || levels["root"] != "INFO" || levels["goark.dev.arkhos.hertz"] != "WARN" {
+		t.Fatalf("GetPropertyMapAsValue() = %#v, %v", levels, found)
+	}
+}
+
 func environmentWithProperties(t *testing.T, properties map[string]any) *env.StandardEnvironment {
 	t.Helper()
 	environment := env.MustNewStandardEnvironment()
