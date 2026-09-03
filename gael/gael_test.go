@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"goark.dev/goark/core/env"
-	"goark.dev/goark/core/gael"
+	"goark.dev/goark/gael"
 )
 
 func TestExpression_whenUsingPropertiesVariablesAndOperators_shouldEvaluate(t *testing.T) {

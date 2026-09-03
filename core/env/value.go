@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"goark.dev/goark/core/convert"
-	"goark.dev/goark/core/gael"
 	"goark.dev/goark/core/lang"
 	arkerrors "goark.dev/goark/errors"
+	"goark.dev/goark/gael"
 )
 
 // ResolveValue 解析 goark:value 表达式，并转换为目标 Go 类型。

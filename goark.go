@@ -7,8 +7,8 @@ import (
 	"goark.dev/goark/container"
 	appcontext "goark.dev/goark/context"
 	coreenv "goark.dev/goark/core/env"
-	"goark.dev/goark/core/gael"
 	arkerrors "goark.dev/goark/errors"
+	"goark.dev/goark/gael"
 )
 
 // ApplicationContext 是 Goark 应用上下文类型别名。
