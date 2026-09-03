@@ -95,7 +95,7 @@ func newCaptureResponse(parent servlet.Response, maxBodyBytes int64) *captureRes
 	}
 }
 
-func (r *captureResponse) Header() http.Header {
+func (r *captureResponse) Header() servlet.Header {
 	return r.parent.Header()
 }
 
@@ -170,7 +170,7 @@ func (r *captureResponse) finish(req *servlet.Request, weak bool) error {
 	etag := makeETag(body, weak)
 	r.Header().Set("ETag", etag)
 	if ifNoneMatch(req.Header().Values("If-None-Match"), etag) {
-		r.Header().Del("Content-Length")
+		r.Header().Delete("Content-Length")
 		r.parent.SetStatus(http.StatusNotModified)
 		return nil
 	}

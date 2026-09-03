@@ -114,7 +114,7 @@ type characterEncodingResponse struct {
 	force    bool
 }
 
-func (r *characterEncodingResponse) Header() http.Header {
+func (r *characterEncodingResponse) Header() servlet.Header {
 	return r.parent.Header()
 }
 
@@ -157,7 +157,7 @@ func (r *characterEncodingResponse) apply() {
 	applyCharset(r.Header(), r.encoding, r.force)
 }
 
-func applyCharset(header http.Header, encoding string, force bool) {
+func applyCharset(header servlet.Header, encoding string, force bool) {
 	if header == nil {
 		return
 	}

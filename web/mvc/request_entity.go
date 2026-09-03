@@ -1,6 +1,8 @@
 package mvc
 
 import (
+	"net/http"
+
 	"goark.dev/arkarta/servlet"
 	arkweb "goark.dev/arkarta/web"
 	goweb "goark.dev/goark/web"
@@ -57,9 +59,24 @@ func requestEntityMetadata(ctx *arkweb.Context) (goweb.RequestMetadata, bool, er
 		URL:           requestEntityURL(request),
 		RequestURI:    request.RequestURI(),
 		Path:          request.Path(),
-		Headers:       request.Header(),
+		Headers:       snapshotRequestHeaders(request.Header()),
 		ContentLength: request.ContentLength(),
 	}, requestEntityHasBody(request), nil
+}
+
+func snapshotRequestHeaders(header servlet.Header) http.Header {
+	if header == nil {
+		return nil
+	}
+	result := make(http.Header)
+	header.Visit(func(name, value string) bool {
+		result.Add(name, value)
+		return true
+	})
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
 
 func requestEntityURL(request *servlet.Request) string {

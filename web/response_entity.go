@@ -169,12 +169,18 @@ func entityStatusAllowsBody(statusCode int) bool {
 	return statusCode >= http.StatusOK && statusCode != http.StatusNoContent && statusCode != http.StatusNotModified
 }
 
-func applyEntityHeaders(dst http.Header, src http.Header) {
+func applyEntityHeaders(dst servlet.Header, src http.Header) {
 	if len(src) == 0 {
 		return
 	}
 	for name, values := range src {
-		dst[http.CanonicalHeaderKey(name)] = append([]string(nil), values...)
+		if len(values) == 0 {
+			continue
+		}
+		dst.Set(name, values[0])
+		for _, value := range values[1:] {
+			dst.Add(name, value)
+		}
 	}
 }
 

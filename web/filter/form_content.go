@@ -82,7 +82,7 @@ func (f formContentFilter) Filter(ctx context.Context, req *servlet.Request, res
 	if !f.shouldParse(req) {
 		return chain.Next(ctx, req, res)
 	}
-	values, ok, err := parseFormContent(req.HTTPRequest(), f.maxBodyBytes)
+	values, ok, err := parseFormContent(req, f.maxBodyBytes)
 	if err != nil {
 		return err
 	}
@@ -128,11 +128,11 @@ func FormContentValues(req *servlet.Request) (url.Values, bool) {
 	return cloneFormContentValues(values), true
 }
 
-func parseFormContent(request *http.Request, maxBodyBytes int64) (url.Values, bool, error) {
-	if request == nil || request.Body == nil || request.Body == http.NoBody {
+func parseFormContent(request *servlet.Request, maxBodyBytes int64) (url.Values, bool, error) {
+	if request == nil || request.Body() == nil {
 		return nil, false, nil
 	}
-	if maxBodyBytes >= 0 && request.ContentLength > maxBodyBytes {
+	if maxBodyBytes >= 0 && request.ContentLength() > maxBodyBytes {
 		return nil, false, formContentTooLarge()
 	}
 	body, err := readAndRestoreBody(request, maxBodyBytes)
@@ -149,13 +149,14 @@ func parseFormContent(request *http.Request, maxBodyBytes int64) (url.Values, bo
 	return values, true, nil
 }
 
-func readAndRestoreBody(request *http.Request, maxBodyBytes int64) ([]byte, error) {
-	reader := io.Reader(request.Body)
+func readAndRestoreBody(request *servlet.Request, maxBodyBytes int64) ([]byte, error) {
+	bodyReader := request.Body()
+	reader := io.Reader(bodyReader)
 	if maxBodyBytes >= 0 {
-		reader = io.LimitReader(request.Body, maxBodyBytes+1)
+		reader = io.LimitReader(bodyReader, maxBodyBytes+1)
 	}
 	body, err := io.ReadAll(reader)
-	request.Body = io.NopCloser(bytes.NewReader(body))
+	request.SetBody(io.NopCloser(bytes.NewReader(body)), request.ContentLength())
 	if err != nil {
 		return nil, servlet.NewHTTPError(http.StatusBadRequest, "表单请求体读取失败", err)
 	}

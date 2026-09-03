@@ -32,7 +32,6 @@ func (forwardedHeadersFilter) Filter(ctx context.Context, req *servlet.Request, 
 	if chain == nil {
 		return ErrNilChain
 	}
-	httpRequest := req.HTTPRequest()
 	req.SetAttribute(AttributeOriginalScheme, req.Scheme())
 	req.SetAttribute(AttributeOriginalHost, req.Host())
 	req.SetAttribute(AttributeOriginalRemoteAddr, req.RemoteAddr())
@@ -42,17 +41,14 @@ func (forwardedHeadersFilter) Filter(ctx context.Context, req *servlet.Request, 
 	host := firstNonEmpty(fields["host"], forwardedHost(req.Header()))
 	remote := firstNonEmpty(fields["for"], firstForwardedFor(req.Header().Get("X-Forwarded-For")))
 
-	if scheme = cleanScheme(scheme); scheme != "" && httpRequest.URL != nil {
-		httpRequest.URL.Scheme = scheme
+	if scheme = cleanScheme(scheme); scheme != "" {
+		req.SetScheme(scheme)
 	}
 	if host = cleanHost(host); host != "" {
-		httpRequest.Host = host
-		if httpRequest.URL != nil {
-			httpRequest.URL.Host = host
-		}
+		req.SetHost(host)
 	}
 	if remote = cleanRemoteAddr(remote); remote != "" {
-		httpRequest.RemoteAddr = remote
+		req.SetRemoteAddr(remote)
 	}
 	return chain.Next(ctx, req, res)
 }
@@ -77,7 +73,7 @@ func forwardedFields(value string) map[string]string {
 	return out
 }
 
-func forwardedHost(header http.Header) string {
+func forwardedHost(header servlet.Header) string {
 	host := firstHeaderValue(header.Get("X-Forwarded-Host"))
 	port := firstHeaderValue(header.Get("X-Forwarded-Port"))
 	if host == "" || port == "" || strings.Contains(host, ":") {

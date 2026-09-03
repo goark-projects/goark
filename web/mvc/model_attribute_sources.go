@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	"goark.dev/arkarta/servlet"
 	arkweb "goark.dev/arkarta/web"
 )
 
@@ -35,7 +36,9 @@ func appendModelAttributeHeaderValues(values url.Values, ctx *arkweb.Context, fa
 	if ctx == nil || ctx.Request() == nil || len(fallbackNames) == 0 {
 		return
 	}
-	for name, list := range ctx.Request().Header() {
+	header := ctx.Request().Header()
+	for _, name := range servlet.HeaderNames(header) {
+		list := header.Values(name)
 		addFallbackModelAttributeValues(values, name, list, fallbackNames)
 		if lowerName := strings.ToLower(name); lowerName != name {
 			addFallbackModelAttributeValues(values, lowerName, list, fallbackNames)

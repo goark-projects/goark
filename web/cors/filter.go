@@ -105,7 +105,7 @@ func (f *Filter) handleActual(ctx context.Context, req *servlet.Request, res ser
 	return chain.Next(ctx, req, res)
 }
 
-func (f *Filter) writeAllowOrigin(header http.Header, origin string) {
+func (f *Filter) writeAllowOrigin(header servlet.Header, origin string) {
 	if f.config.allowAllOrigins && !f.config.allowCredentials {
 		header.Set(headerAllowOrigin, AllOrigins)
 		return
@@ -113,13 +113,13 @@ func (f *Filter) writeAllowOrigin(header http.Header, origin string) {
 	header.Set(headerAllowOrigin, origin)
 }
 
-func (f *Filter) writeAllowCredentials(header http.Header) {
+func (f *Filter) writeAllowCredentials(header servlet.Header) {
 	if f.config.allowCredentials {
 		header.Set(headerAllowCredentials, allowCredentialsValue)
 	}
 }
 
-func (f *Filter) writeAllowMethods(header http.Header, requestedMethod string) {
+func (f *Filter) writeAllowMethods(header servlet.Header, requestedMethod string) {
 	if f.config.allowAllMethods {
 		header.Set(headerAllowMethods, requestedMethod)
 		return
@@ -127,7 +127,7 @@ func (f *Filter) writeAllowMethods(header http.Header, requestedMethod string) {
 	header.Set(headerAllowMethods, strings.Join(f.config.allowedMethods, ", "))
 }
 
-func (f *Filter) writeAllowHeaders(header http.Header, requestedHeaders []string) {
+func (f *Filter) writeAllowHeaders(header servlet.Header, requestedHeaders []string) {
 	if f.config.allowAllHeaders {
 		if len(requestedHeaders) == 0 {
 			header.Set(headerAllowHeaders, AllHeaders)
@@ -146,13 +146,13 @@ func isPreflight(req *servlet.Request) bool {
 		strings.TrimSpace(req.Header().Get(headerRequestMethod)) != ""
 }
 
-func addCorsVaryHeaders(header http.Header) {
+func addCorsVaryHeaders(header servlet.Header) {
 	addVary(header, varyOrigin)
 	addVary(header, varyAccessControlRequestMethod)
 	addVary(header, varyAccessControlRequestHeaders)
 }
 
-func addVary(header http.Header, value string) {
+func addVary(header servlet.Header, value string) {
 	for _, existing := range header.Values(headerVary) {
 		for _, item := range strings.Split(existing, ",") {
 			if strings.EqualFold(strings.TrimSpace(item), value) {

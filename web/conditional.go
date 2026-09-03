@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"goark.dev/arkarta/servlet"
 	arkweb "goark.dev/arkarta/web"
 )
 
@@ -25,7 +26,7 @@ func CheckNotModified(ctx *arkweb.Context, etag string, lastModified time.Time) 
 	if !validator.notModified(req.Header()) {
 		return false
 	}
-	ctx.Response().Header().Del("Content-Length")
+	ctx.Response().Header().Delete("Content-Length")
 	ctx.Response().SetStatus(http.StatusNotModified)
 	return true
 }
@@ -46,7 +47,7 @@ func (v conditionalValidator) empty() bool {
 	return v.etag == "" && v.lastModified.IsZero()
 }
 
-func (v conditionalValidator) write(header http.Header) {
+func (v conditionalValidator) write(header servlet.Header) {
 	if v.etag != "" {
 		header.Set("ETag", v.etag)
 	}
@@ -55,7 +56,7 @@ func (v conditionalValidator) write(header http.Header) {
 	}
 }
 
-func (v conditionalValidator) notModified(header http.Header) bool {
+func (v conditionalValidator) notModified(header servlet.Header) bool {
 	if len(header.Values("If-None-Match")) > 0 {
 		return conditionalETagMatch(header.Values("If-None-Match"), v.etag)
 	}

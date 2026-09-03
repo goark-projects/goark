@@ -85,11 +85,11 @@ func (f hiddenMethodFilter) Filter(ctx context.Context, req *servlet.Request, re
 	if !ok {
 		return chain.Next(ctx, req, res)
 	}
-	original := req.HTTPRequest().Method
+	original := req.Method()
 	req.SetAttribute(AttributeOriginalMethod, original)
-	req.HTTPRequest().Method = method
+	req.SetMethod(method)
 	defer func() {
-		req.HTTPRequest().Method = original
+		req.SetMethod(original)
 		req.SetAttribute(AttributeOriginalMethod, nil)
 	}()
 	return chain.Next(ctx, req, res)

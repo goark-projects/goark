@@ -3,6 +3,7 @@ package mvc
 import (
 	"strings"
 
+	"goark.dev/arkarta/servlet"
 	arkweb "goark.dev/arkarta/web"
 )
 
@@ -80,14 +81,19 @@ func requestHeaders(ctx *arkweb.Context) (map[string][]string, error) {
 	if ctx == nil || ctx.Request() == nil {
 		return nil, arkweb.ErrNilContext
 	}
-	return cloneStringValuesMap(ctx.Request().Header()), nil
+	header := ctx.Request().Header()
+	values := make(map[string][]string)
+	for _, name := range servlet.HeaderNames(header) {
+		values[name] = append([]string(nil), header.Values(name)...)
+	}
+	return values, nil
 }
 
 func requestCookieValues(ctx *arkweb.Context) (map[string][]string, error) {
 	if ctx == nil || ctx.Request() == nil {
 		return nil, arkweb.ErrNilContext
 	}
-	cookies := ctx.Request().HTTPRequest().Cookies()
+	cookies := ctx.Request().Cookies()
 	if len(cookies) == 0 {
 		return map[string][]string{}, nil
 	}
