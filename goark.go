@@ -8,7 +8,7 @@ import (
 	appcontext "goark.dev/goark/context"
 	coreenv "goark.dev/goark/core/env"
 	arkerrors "goark.dev/goark/errors"
-	"goark.dev/goark/gael"
+	"goark.dev/goark/expression"
 )
 
 // ApplicationContext 是 Goark 应用上下文类型别名。
@@ -33,19 +33,19 @@ type ConfigPropertySource = coreenv.ConfigPropertySource
 type ConfigFormat = coreenv.ConfigFormat
 
 // Expression 是已解析的 GaEL 表达式。
-type Expression = gael.Expression
+type Expression = expression.Expression
 
 // ExpressionParser 定义 GaEL 解析契约。
-type ExpressionParser = gael.Parser
+type ExpressionParser = expression.Parser
 
 // EvaluationContext 定义 GaEL 求值上下文。
-type EvaluationContext = gael.EvaluationContext
+type EvaluationContext = expression.EvaluationContext
 
 // ExpressionFunction 是显式注册的 GaEL 安全函数。
-type ExpressionFunction = gael.Function
+type ExpressionFunction = expression.Function
 
 // EvaluationContextOption 配置 GaEL 默认求值上下文。
-type EvaluationContextOption = gael.ContextOption
+type EvaluationContextOption = expression.ContextOption
 
 // BeanDefinition 是 Bean 定义类型别名。
 type BeanDefinition = container.Definition
@@ -169,16 +169,16 @@ var LoadDefaultConfigPropertySource = coreenv.LoadDefaultConfigPropertySource
 var LoadPropertiesPropertySource = coreenv.LoadPropertiesPropertySource
 
 // NewExpressionParser 创建 GaEL 默认解析器。
-var NewExpressionParser = gael.NewParser
+var NewExpressionParser = expression.NewParser
 
 // NewEvaluationContext 创建 GaEL 默认求值上下文。
-var NewEvaluationContext = gael.NewEvaluationContext
+var NewEvaluationContext = expression.NewEvaluationContext
 
 // WithExpressionVariable 注册 GaEL 只读变量。
-var WithExpressionVariable = gael.WithVariable
+var WithExpressionVariable = expression.WithVariable
 
 // WithExpressionFunction 注册 GaEL 白名单函数。
-var WithExpressionFunction = gael.WithFunction
+var WithExpressionFunction = expression.WithFunction
 
 // WithConfiguration 注册应用配置单元。
 var WithConfiguration = appcontext.WithConfiguration

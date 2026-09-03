@@ -1,11 +1,11 @@
-package gael_test
+package expression_test
 
 import (
 	"context"
 	"testing"
 
 	"goark.dev/goark/core/env"
-	"goark.dev/goark/gael"
+	"goark.dev/goark/expression"
 )
 
 func TestExpression_whenUsingPropertiesVariablesAndOperators_shouldEvaluate(t *testing.T) {
@@ -17,15 +17,15 @@ func TestExpression_whenUsingPropertiesVariablesAndOperators_shouldEvaluate(t *t
 	if err := environment.PropertySources().AddFirst(source); err != nil {
 		t.Fatalf("AddFirst() error = %v", err)
 	}
-	evaluationContext, err := gael.NewEvaluationContext(environment, gael.WithVariable("minimum", int64(8000)))
+	evaluationContext, err := expression.NewEvaluationContext(environment, expression.WithVariable("minimum", int64(8000)))
 	if err != nil {
 		t.Fatalf("NewEvaluationContext() error = %v", err)
 	}
-	expression, err := gael.NewParser().Parse(`environment['server.port'] == '8080' && minimum + 80 == 8080`)
+	parsed, err := expression.NewParser().Parse(`environment['server.port'] == '8080' && minimum + 80 == 8080`)
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	value, err := expression.Evaluate(context.Background(), evaluationContext)
+	value, err := parsed.Evaluate(context.Background(), evaluationContext)
 	if err != nil {
 		t.Fatalf("Evaluate() error = %v", err)
 	}
@@ -35,29 +35,29 @@ func TestExpression_whenUsingPropertiesVariablesAndOperators_shouldEvaluate(t *t
 }
 
 func TestExpression_whenFunctionIsNotRegistered_shouldRejectInvocation(t *testing.T) {
-	evaluationContext, err := gael.NewEvaluationContext(env.MustNewStandardEnvironment())
+	evaluationContext, err := expression.NewEvaluationContext(env.MustNewStandardEnvironment())
 	if err != nil {
 		t.Fatalf("NewEvaluationContext() error = %v", err)
 	}
-	expression, err := gael.NewParser().Parse(`execute('command')`)
+	parsed, err := expression.NewParser().Parse(`execute('command')`)
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	if _, err := expression.Evaluate(context.Background(), evaluationContext); err == nil {
+	if _, err := parsed.Evaluate(context.Background(), evaluationContext); err == nil {
 		t.Fatal("Evaluate() error = nil, want unregistered function error")
 	}
 }
 
 func TestExpression_whenLogicalLeftDeterminesResult_shouldShortCircuit(t *testing.T) {
-	evaluationContext, err := gael.NewEvaluationContext(env.MustNewStandardEnvironment())
+	evaluationContext, err := expression.NewEvaluationContext(env.MustNewStandardEnvironment())
 	if err != nil {
 		t.Fatalf("NewEvaluationContext() error = %v", err)
 	}
-	expression, err := gael.NewParser().Parse(`true || missing()`)
+	parsed, err := expression.NewParser().Parse(`true || missing()`)
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	value, err := expression.Evaluate(context.Background(), evaluationContext)
+	value, err := parsed.Evaluate(context.Background(), evaluationContext)
 	if err != nil {
 		t.Fatalf("Evaluate() error = %v", err)
 	}
@@ -67,20 +67,20 @@ func TestExpression_whenLogicalLeftDeterminesResult_shouldShortCircuit(t *testin
 }
 
 func TestExpression_whenFunctionIsRegistered_shouldInvokeIt(t *testing.T) {
-	evaluationContext, err := gael.NewEvaluationContext(
+	evaluationContext, err := expression.NewEvaluationContext(
 		env.MustNewStandardEnvironment(),
-		gael.WithFunction("double", func(_ context.Context, arguments ...any) (any, error) {
+		expression.WithFunction("double", func(_ context.Context, arguments ...any) (any, error) {
 			return arguments[0].(int64) * 2, nil
 		}),
 	)
 	if err != nil {
 		t.Fatalf("NewEvaluationContext() error = %v", err)
 	}
-	expression, err := gael.NewParser().Parse(`double(21) == 42`)
+	parsed, err := expression.NewParser().Parse(`double(21) == 42`)
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	value, err := expression.Evaluate(context.Background(), evaluationContext)
+	value, err := parsed.Evaluate(context.Background(), evaluationContext)
 	if err != nil {
 		t.Fatalf("Evaluate() error = %v", err)
 	}

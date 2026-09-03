@@ -8,7 +8,7 @@ import (
 	"goark.dev/goark/core/convert"
 	"goark.dev/goark/core/lang"
 	arkerrors "goark.dev/goark/errors"
-	"goark.dev/goark/gael"
+	"goark.dev/goark/expression"
 )
 
 // ResolveValue 解析 goark:value 表达式，并转换为目标 Go 类型。
@@ -44,12 +44,12 @@ func ResolveValue(environment Environment, expression string, targetType reflect
 	return converted, nil
 }
 
-func evaluateGaEL(environment Environment, expression string) (any, error) {
-	evaluationContext, err := gael.NewEvaluationContext(environment)
+func evaluateGaEL(environment Environment, source string) (any, error) {
+	evaluationContext, err := expression.NewEvaluationContext(environment)
 	if err != nil {
 		return nil, err
 	}
-	parsed, err := gael.NewParser().Parse(expression)
+	parsed, err := expression.NewParser().Parse(source)
 	if err != nil {
 		return nil, err
 	}

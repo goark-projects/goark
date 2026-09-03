@@ -1,5 +1,5 @@
 // Package gael 提供 Goark Expression Language 的解析与安全求值能力。
-package gael
+package expression
 
 import (
 	"context"
