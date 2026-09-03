@@ -126,45 +126,45 @@ func TestLoadConfigPropertySource_whenLocationHasNoExtension_shouldUsePriority(t
 		{
 			name: "yml first",
 			files: map[string]string{
-				"application.yml":        "selected: yml\n",
-				"application.properties": "selected=properties\n",
-				"application.toml":       "selected = \"toml\"\n",
+				"app.yml":        "selected: yml\n",
+				"app.properties": "selected=properties\n",
+				"app.toml":       "selected = \"toml\"\n",
 			},
-			wantSource: "application.yml",
+			wantSource: "app.yml",
 			wantValue:  "yml",
 		},
 		{
 			name: "properties before toml",
 			files: map[string]string{
-				"application.properties": "selected=properties\n",
-				"application.toml":       "selected = \"toml\"\n",
+				"app.properties": "selected=properties\n",
+				"app.toml":       "selected = \"toml\"\n",
 			},
-			wantSource: "application.properties",
+			wantSource: "app.properties",
 			wantValue:  "properties",
 		},
 		{
 			name: "toml last",
 			files: map[string]string{
-				"application.toml": "selected = \"toml\"\n",
+				"app.toml": "selected = \"toml\"\n",
 			},
-			wantSource: "application.toml",
+			wantSource: "app.toml",
 			wantValue:  "toml",
 		},
 		{
 			name: "toml before yaml fallback",
 			files: map[string]string{
-				"application.toml": "selected = \"toml\"\n",
-				"application.yaml": "selected: yaml\n",
+				"app.toml": "selected = \"toml\"\n",
+				"app.yaml": "selected: yaml\n",
 			},
-			wantSource: "application.toml",
+			wantSource: "app.toml",
 			wantValue:  "toml",
 		},
 		{
 			name: "yaml fallback",
 			files: map[string]string{
-				"application.yaml": "selected: yaml\n",
+				"app.yaml": "selected: yaml\n",
 			},
-			wantSource: "application.yaml",
+			wantSource: "app.yaml",
 			wantValue:  "yaml",
 		},
 	}
@@ -182,7 +182,7 @@ func TestLoadConfigPropertySource_whenLocationHasNoExtension_shouldUsePriority(t
 				t.Fatalf("create loader failed: %v", err)
 			}
 
-			source, err := env.LoadConfigPropertySource(context.Background(), loader, "application")
+			source, err := env.LoadConfigPropertySource(context.Background(), loader, "app")
 			if err != nil {
 				t.Fatalf("load config property source failed: %v", err)
 			}

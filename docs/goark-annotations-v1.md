@@ -50,7 +50,7 @@ Goark 注解统一使用下面两种形式：
 ```go
 //goark:service
 //goark:profile("dev")
-//goark:property-source("classpath:application.properties")
+//goark:property-source("classpath:app.properties")
 //goark:depends-on("database")
 ```
 
@@ -192,13 +192,13 @@ property-sources
 `property-source` 的简写：
 
 ```go
-//goark:property-source("classpath:application.properties")
+//goark:property-source("classpath:app.properties")
 ```
 
 等价于：
 
 ```go
-//goark:property-source(value="classpath:application.properties")
+//goark:property-source(value="classpath:app.properties")
 ```
 
 ## 参数选择器
@@ -831,7 +831,7 @@ V1 默认支持 YAML、Java `.properties`、TOML 三类配置文件。默认配�
 
 ```go
 //goark:configuration
-//goark:property-sources("classpath:application.properties;classpath:admin.properties")
+//goark:property-sources("classpath:app.properties;classpath:admin.properties")
 type AppConfiguration struct{}
 ```
 
@@ -839,7 +839,7 @@ type AppConfiguration struct{}
 
 ```go
 //goark:configuration
-//goark:property-source("classpath:application.properties")
+//goark:property-source("classpath:app.properties")
 //goark:property-source("classpath:admin.properties")
 type AppConfiguration struct{}
 ```
@@ -1394,7 +1394,7 @@ import (
 //goark:configuration("admin")
 //goark:order(0)
 //goark:profile("dev | prod")
-//goark:property-source("classpath:application.properties")
+//goark:property-source("classpath:app.properties")
 type AdminConfiguration struct{}
 
 //goark:bean("database")
