@@ -2,6 +2,7 @@ package env_test
 
 import (
 	"reflect"
+	"sort"
 	"sync"
 	"testing"
 
@@ -46,6 +47,53 @@ func TestStandardEnvironment_whenSourcesHaveSameKey_shouldUseHigherPriority(t *t
 	if got := environment.GetPropertyOrDefault("missing", "fallback"); got != "fallback" {
 		t.Fatalf("expected fallback, got %q", got)
 	}
+}
+
+func TestStandardEnvironmentPropertyNames_whenSourcesOverlap_shouldReturnSortedUniqueNames(t *testing.T) {
+	environment, err := env.NewStandardEnvironment()
+	if err != nil {
+		t.Fatalf("NewStandardEnvironment() error = %v", err)
+	}
+	first, err := env.NewMapPropertySource("first", map[string]any{
+		"logging.level.root": "info",
+		"server.port":        8080,
+	})
+	if err != nil {
+		t.Fatalf("NewMapPropertySource(first) error = %v", err)
+	}
+	second, err := env.NewMapPropertySource("second", map[string]any{
+		"logging.level.root":          "debug",
+		"logging.level.goark.dev.web": "warn",
+	})
+	if err != nil {
+		t.Fatalf("NewMapPropertySource(second) error = %v", err)
+	}
+	if err := environment.PropertySources().AddFirst(first); err != nil {
+		t.Fatalf("AddFirst(first) error = %v", err)
+	}
+	if err := environment.PropertySources().AddLast(second); err != nil {
+		t.Fatalf("AddLast(second) error = %v", err)
+	}
+
+	got := environment.PropertyNames()
+	if !sort.StringsAreSorted(got) {
+		t.Fatalf("PropertyNames() is not sorted: %#v", got)
+	}
+	for _, want := range []string{"logging.level.goark.dev.web", "logging.level.root", "server.port"} {
+		if count := countString(got, want); count != 1 {
+			t.Fatalf("PropertyNames() contains %q %d times, want once", want, count)
+		}
+	}
+}
+
+func countString(values []string, target string) int {
+	count := 0
+	for _, value := range values {
+		if value == target {
+			count++
+		}
+	}
+	return count
 }
 
 func TestPropertyResolver_whenPlaceholdersHaveDefaults_shouldResolve(t *testing.T) {

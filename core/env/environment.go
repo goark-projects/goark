@@ -94,6 +94,14 @@ func (e *StandardEnvironment) PropertySources() *MutablePropertySources {
 	return e.propertySources
 }
 
+// PropertyNames 返回所有可枚举配置源中的属性名。
+func (e *StandardEnvironment) PropertyNames() []string {
+	if e == nil || e.propertySources == nil {
+		return nil
+	}
+	return e.propertySources.PropertyNames()
+}
+
 func (e *StandardEnvironment) ContainsProperty(key string) bool {
 	return e != nil && e.resolver.ContainsProperty(key)
 }
