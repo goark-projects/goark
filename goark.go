@@ -32,6 +32,15 @@ type ConfigPropertySource = coreenv.ConfigPropertySource
 // ConfigFormat 是配置文件格式类型别名。
 type ConfigFormat = coreenv.ConfigFormat
 
+// EnumerablePropertyResolver 表示可以枚举全部属性名的解析器。
+type EnumerablePropertyResolver = coreenv.EnumerablePropertyResolver
+
+// ConfigurationPropertiesValidator 定义配置属性绑定后的校验契约。
+type ConfigurationPropertiesValidator = coreenv.ConfigurationPropertiesValidator
+
+// ConfigurationProperty 描述一个编译期生成的配置属性。
+type ConfigurationProperty = coreenv.ConfigurationProperty
+
 // Expression 是已解析的 GaEL 表达式。
 type Expression = expression.Expression
 
@@ -167,6 +176,9 @@ var LoadDefaultConfigPropertySource = coreenv.LoadDefaultConfigPropertySource
 
 // LoadPropertiesPropertySource 从资源位置加载 .properties 配置源。
 var LoadPropertiesPropertySource = coreenv.LoadPropertiesPropertySource
+
+// ValidateConfigurationPropertyNames 校验指定前缀下不存在未声明属性。
+var ValidateConfigurationPropertyNames = coreenv.ValidateConfigurationPropertyNames
 
 // NewExpressionParser 创建 GaEL 默认解析器。
 var NewExpressionParser = expression.NewParser
