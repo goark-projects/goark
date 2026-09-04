@@ -131,11 +131,12 @@ func buildRuntime(ctx stdcontext.Context, registry *container.Registry, events *
 
 func registerRuntimeHooks(manager *lifecycle.Manager, events *event.Bus, instances map[string]any, names []string, definitions []container.Definition) error {
 	names = completeRuntimeHookNames(instances, names)
-	lifecycleNames := runtimeLifecycleNames(instances, names)
+	managed := runtimeLifecycleManagement(definitions)
+	lifecycleNames := runtimeLifecycleNames(instances, names, managed)
 	dependencies := runtimeHookDependencies(definitions, lifecycleNames)
 	for _, name := range names {
 		instance := instances[name]
-		if isLifecycleTarget(instance) {
+		if managed[name] && isLifecycleTarget(instance) {
 			if err := manager.Register(name, instance, lifecycle.WithDependsOn(dependencies[name]...)); err != nil {
 				return err
 			}
@@ -177,15 +178,23 @@ func completeRuntimeHookNames(instances map[string]any, names []string) []string
 	return append(completed, remaining...)
 }
 
-func runtimeLifecycleNames(instances map[string]any, names []string) map[string]struct{} {
+func runtimeLifecycleNames(instances map[string]any, names []string, managed map[string]bool) map[string]struct{} {
 	lifecycleNames := make(map[string]struct{}, len(instances))
 	for _, name := range names {
 		instance, exists := instances[name]
-		if exists && isLifecycleTarget(instance) {
+		if exists && managed[name] && isLifecycleTarget(instance) {
 			lifecycleNames[name] = struct{}{}
 		}
 	}
 	return lifecycleNames
+}
+
+func runtimeLifecycleManagement(definitions []container.Definition) map[string]bool {
+	managed := make(map[string]bool, len(definitions))
+	for _, definition := range definitions {
+		managed[definition.Name] = definition.LifecycleManaged
+	}
+	return managed
 }
 
 func runtimeHookDependencies(definitions []container.Definition, lifecycleNames map[string]struct{}) map[string][]string {

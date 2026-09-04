@@ -49,6 +49,16 @@ type namedRuntimeComponent struct {
 	log  *[]string
 }
 
+type unmanagedRuntimeComponent struct {
+	closed bool
+}
+
+func (*unmanagedRuntimeComponent) Start(stdcontext.Context) error { return nil }
+func (c *unmanagedRuntimeComponent) Close() error {
+	c.closed = true
+	return nil
+}
+
 func (c *namedRuntimeComponent) Start(stdcontext.Context) error {
 	*c.log = append(*c.log, "start:"+c.name)
 	return nil
@@ -142,6 +152,30 @@ func TestApplicationContext_whenStartedAndClosed_shouldManageLifecycleAndEvents(
 	expectedEvents := []string{"refreshed", "started", "stopped", "closed"}
 	if !reflect.DeepEqual(events, expectedEvents) {
 		t.Fatalf("unexpected event log: %#v", events)
+	}
+}
+
+func TestApplicationContext_whenLifecycleManagementDisabled_shouldNotCloseBean(t *testing.T) {
+	component := &unmanagedRuntimeComponent{}
+	app, err := appcontext.New()
+	if err != nil {
+		t.Fatalf("create app context failed: %v", err)
+	}
+	definition, err := container.NewInstanceDefinition("alias", component, container.WithLifecycleManaged(false))
+	if err != nil {
+		t.Fatalf("create definition failed: %v", err)
+	}
+	if err := app.RegisterDefinition(definition); err != nil {
+		t.Fatalf("register definition failed: %v", err)
+	}
+	if err := app.Start(stdcontext.Background()); err != nil {
+		t.Fatalf("start app failed: %v", err)
+	}
+	if err := app.Close(stdcontext.Background()); err != nil {
+		t.Fatalf("close app failed: %v", err)
+	}
+	if component.closed {
+		t.Fatal("unmanaged bean was closed by container")
 	}
 }
 

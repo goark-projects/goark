@@ -48,6 +48,7 @@ type Definition struct {
 	DependencyDescriptors []DependencyDescriptor
 	Factory               Factory
 	DependencyInjector    DependencyInjector
+	LifecycleManaged      bool
 }
 
 // Option 调整 Bean 定义元数据。
@@ -81,6 +82,13 @@ func WithLazy() Option {
 func WithPrimary() Option {
 	return func(def *Definition) {
 		def.Primary = true
+	}
+}
+
+// WithLifecycleManaged 控制单例 Bean 是否自动参与容器生命周期。
+func WithLifecycleManaged(managed bool) Option {
+	return func(def *Definition) {
+		def.LifecycleManaged = managed
 	}
 }
 
@@ -185,9 +193,10 @@ func NewDefinition[T any](name string, provider Provider[T], options ...Option) 
 
 	beanType := reflectx.TypeOf[T]()
 	definition := Definition{
-		Name:  name,
-		Type:  beanType,
-		Scope: ScopeSingleton,
+		Name:             name,
+		Type:             beanType,
+		Scope:            ScopeSingleton,
+		LifecycleManaged: true,
 	}
 	definition.Factory = func(ctx context.Context, resolver Resolver) (any, error) {
 		value, err := provider(ctx, resolver)
@@ -217,9 +226,10 @@ func NewInstanceDefinition[T any](name string, instance T, options ...Option) (D
 
 	beanType := reflectx.TypeOf[T]()
 	definition := Definition{
-		Name:  name,
-		Type:  beanType,
-		Scope: ScopeSingleton,
+		Name:             name,
+		Type:             beanType,
+		Scope:            ScopeSingleton,
+		LifecycleManaged: true,
 	}
 	definition.Factory = func(context.Context, Resolver) (any, error) {
 		return normalizeInstance(definition.Name, beanType, instance)
