@@ -149,7 +149,7 @@ This repository is in active early development. Public APIs should be treated as
 
 Requirements:
 
-- Go 1.25 or later
+- Go 1.26 or later
 - Git
 
 Useful commands:

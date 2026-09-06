@@ -1,6 +1,6 @@
 module goark.dev/goark
 
-go 1.25
+go 1.26.0
 
 require (
 	github.com/knadh/koanf/maps v0.1.2
