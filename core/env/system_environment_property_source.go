@@ -9,7 +9,10 @@ type SystemEnvironmentPropertySource struct {
 }
 
 // NewSystemEnvironmentPropertySource 创建系统环境变量配置源。
-func NewSystemEnvironmentPropertySource(name string, environ []string) (*SystemEnvironmentPropertySource, error) {
+func NewSystemEnvironmentPropertySource(
+	name string,
+	environ []string,
+) (*SystemEnvironmentPropertySource, error) {
 	values := make(map[string]any, len(environ))
 	canonical := make(map[string]string, len(environ))
 	for _, item := range environ {

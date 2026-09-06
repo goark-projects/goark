@@ -13,7 +13,12 @@ func (r *Registry) Router(options ...arkweb.Option) (*arkweb.Router, error) {
 	if r == nil {
 		return nil, ErrNilRegistry
 	}
-	routerOptions := appendRouterOptions(r.errorMappers, r.fallbackErrorMapper, r.validator, options)
+	routerOptions := appendRouterOptions(
+		r.errorMappers,
+		r.fallbackErrorMapper,
+		r.validator,
+		options,
+	)
 	router := arkweb.NewRouter(routerOptions...)
 	if r.hasMessageIO() {
 		router.Use(message.ContextInterceptor(r.currentMessageReader(), r.currentMessageWriter()))
@@ -133,13 +138,21 @@ func hasProfile(profiles []servletcontainer.Profile, target servletcontainer.Pro
 	return false
 }
 
-func appendRouterOptions(mappers []arkweb.ErrorMapper, fallback arkweb.ErrorMapper, validator validation.Validator, options []arkweb.Option) []arkweb.Option {
+func appendRouterOptions(
+	mappers []arkweb.ErrorMapper,
+	fallback arkweb.ErrorMapper,
+	validator validation.Validator,
+	options []arkweb.Option,
+) []arkweb.Option {
 	if len(mappers) == 0 && isNilErrorMapper(fallback) && isNilValidator(validator) {
 		return options
 	}
 	routerOptions := make([]arkweb.Option, 0, len(options)+2)
 	if len(mappers) > 0 || !isNilErrorMapper(fallback) {
-		routerOptions = append(routerOptions, arkweb.WithErrorMapper(newErrorMapperChain(fallback, mappers)))
+		routerOptions = append(
+			routerOptions,
+			arkweb.WithErrorMapper(newErrorMapperChain(fallback, mappers)),
+		)
 	}
 	if !isNilValidator(validator) {
 		routerOptions = append(routerOptions, arkweb.WithValidator(validator))

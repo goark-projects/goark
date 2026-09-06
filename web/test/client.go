@@ -53,7 +53,12 @@ func NewRouter(router *arkweb.Router, options ...Option) (*Client, error) {
 }
 
 // NewRegistry 创建带 Servlet 生命周期初始化的 Goark Web 注册表测试客户端。
-func NewRegistry(ctx context.Context, registry *goweb.Registry, spec goweb.DeploymentSpec, options ...Option) (*Client, error) {
+func NewRegistry(
+	ctx context.Context,
+	registry *goweb.Registry,
+	spec goweb.DeploymentSpec,
+	options ...Option,
+) (*Client, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -68,7 +73,10 @@ func NewRegistry(ctx context.Context, registry *goweb.Registry, spec goweb.Deplo
 	}
 	netHTTPOptions := make([]servletnethttp.Option, 0, len(config.netHTTPOptions)+1)
 	if webApp := app.WebApp(); webApp != nil {
-		netHTTPOptions = append(netHTTPOptions, servletnethttp.WithRequestContextPath(webApp.ContextPath()))
+		netHTTPOptions = append(
+			netHTTPOptions,
+			servletnethttp.WithRequestContextPath(webApp.ContextPath()),
+		)
 	}
 	netHTTPOptions = append(netHTTPOptions, config.netHTTPOptions...)
 	config.close = app.Stop
@@ -101,7 +109,11 @@ func (c *Client) Do(request *http.Request) *Response {
 }
 
 // Execute 构造并执行一次 HTTP 请求。
-func (c *Client) Execute(method string, target string, options ...RequestOption) (*Response, error) {
+func (c *Client) Execute(
+	method string,
+	target string,
+	options ...RequestOption,
+) (*Response, error) {
 	codec := arkCodec(c)
 	request, err := newRequest(method, target, codec, options...)
 	if err != nil {
@@ -111,7 +123,12 @@ func (c *Client) Execute(method string, target string, options ...RequestOption)
 }
 
 // Perform 在测试中构造并执行一次 HTTP 请求。
-func (c *Client) Perform(t testing.TB, method string, target string, options ...RequestOption) *Response {
+func (c *Client) Perform(
+	t testing.TB,
+	method string,
+	target string,
+	options ...RequestOption,
+) *Response {
 	t.Helper()
 	response, err := c.Execute(method, target, options...)
 	if err != nil {

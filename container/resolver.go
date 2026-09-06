@@ -24,7 +24,11 @@ func (c *Container) Get(ctx context.Context, name string) (any, error) {
 }
 
 // GetByType 按类型解析 Bean；多候选时依次使用 qualifier、Primary、Priority 选择。
-func (c *Container) GetByType(ctx context.Context, typ reflect.Type, options ...ResolveOption) (any, error) {
+func (c *Container) GetByType(
+	ctx context.Context,
+	typ reflect.Type,
+	options ...ResolveOption,
+) (any, error) {
 	if c == nil {
 		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "bean container is nil")
 	}
@@ -109,7 +113,11 @@ func (c *Container) resolve(ctx context.Context, state *resolutionState, name st
 				return value, nil
 			}
 		}
-		return nil, arkerrors.Newf(arkerrors.CodeCircularDependency, "circular dependency detected: %s", cycle)
+		return nil, arkerrors.Newf(
+			arkerrors.CodeCircularDependency,
+			"circular dependency detected: %s",
+			cycle,
+		)
 	}
 	defer state.exit(name)
 
@@ -122,7 +130,11 @@ func (c *Container) resolve(ctx context.Context, state *resolutionState, name st
 	return c.create(ctx, definition)
 }
 
-func (c *Container) resolveDependsOn(ctx context.Context, state *resolutionState, definition Definition) error {
+func (c *Container) resolveDependsOn(
+	ctx context.Context,
+	state *resolutionState,
+	definition Definition,
+) error {
 	for _, dependency := range definition.normalized().DependencyDescriptors {
 		if dependency.Kind != DependencyKindDependsOn {
 			continue
@@ -149,15 +161,30 @@ func (c *Container) instantiate(ctx context.Context, definition Definition) (val
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			if recoveredErr, ok := recovered.(error); ok {
-				err = arkerrors.Wrapf(arkerrors.CodeCreation, recoveredErr, "bean %q provider panicked", definition.Name)
+				err = arkerrors.Wrapf(
+					arkerrors.CodeCreation,
+					recoveredErr,
+					"bean %q provider panicked",
+					definition.Name,
+				)
 				return
 			}
-			err = arkerrors.Newf(arkerrors.CodeCreation, "bean %q provider panicked: %v", definition.Name, recovered)
+			err = arkerrors.Newf(
+				arkerrors.CodeCreation,
+				"bean %q provider panicked: %v",
+				definition.Name,
+				recovered,
+			)
 		}
 	}()
 	value, err = definition.Factory(ctx, c)
 	if err != nil {
-		return nil, arkerrors.Wrapf(arkerrors.CodeCreation, err, "failed to create bean %q", definition.Name)
+		return nil, arkerrors.Wrapf(
+			arkerrors.CodeCreation,
+			err,
+			"failed to create bean %q",
+			definition.Name,
+		)
 	}
 	return normalizeInstance(definition.Name, definition.Type, value)
 }
@@ -169,14 +196,29 @@ func (c *Container) populate(ctx context.Context, definition Definition, value a
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			if recoveredErr, ok := recovered.(error); ok {
-				err = arkerrors.Wrapf(arkerrors.CodeCreation, recoveredErr, "bean %q injector panicked", definition.Name)
+				err = arkerrors.Wrapf(
+					arkerrors.CodeCreation,
+					recoveredErr,
+					"bean %q injector panicked",
+					definition.Name,
+				)
 				return
 			}
-			err = arkerrors.Newf(arkerrors.CodeCreation, "bean %q injector panicked: %v", definition.Name, recovered)
+			err = arkerrors.Newf(
+				arkerrors.CodeCreation,
+				"bean %q injector panicked: %v",
+				definition.Name,
+				recovered,
+			)
 		}
 	}()
 	if err := definition.DependencyInjector(ctx, c, value); err != nil {
-		return arkerrors.Wrapf(arkerrors.CodeCreation, err, "failed to populate bean %q", definition.Name)
+		return arkerrors.Wrapf(
+			arkerrors.CodeCreation,
+			err,
+			"failed to populate bean %q",
+			definition.Name,
+		)
 	}
 	return nil
 }

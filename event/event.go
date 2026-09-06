@@ -122,7 +122,12 @@ func Subscribe[T any](b *Bus, handler func(context.Context, T) error, options ..
 	return b.Subscribe(HandlerFunc(func(ctx context.Context, evt any) error {
 		typed, ok := evt.(T)
 		if !ok {
-			return arkerrors.Newf(arkerrors.CodeTypeMismatch, "event %T cannot be used as %s", evt, reflectx.TypeOf[T]())
+			return arkerrors.Newf(
+				arkerrors.CodeTypeMismatch,
+				"event %T cannot be used as %s",
+				evt,
+				reflectx.TypeOf[T](),
+			)
 		}
 		return handler(ctx, typed)
 	}), options...)
@@ -149,7 +154,12 @@ func (b *Bus) Publish(ctx context.Context, evt any) error {
 			return arkerrors.Wrap(arkerrors.CodeLifecycle, err, "event publish canceled")
 		}
 		if err := registered.Handler.HandleEvent(ctx, evt); err != nil {
-			return arkerrors.Wrapf(arkerrors.CodeLifecycle, err, "event handler %q failed", registered.Name)
+			return arkerrors.Wrapf(
+				arkerrors.CodeLifecycle,
+				err,
+				"event handler %q failed",
+				registered.Name,
+			)
 		}
 	}
 	return nil

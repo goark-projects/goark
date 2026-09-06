@@ -31,7 +31,12 @@ func evaluateBinary(operator tokenKind, left any, right any) (any, error) {
 	leftNumber, leftErr := numeric(left)
 	rightNumber, rightErr := numeric(right)
 	if leftErr != nil || rightErr != nil {
-		return nil, arkerrors.Newf(arkerrors.CodeTypeMismatch, "GaEL operator requires compatible operands, got %T and %T", left, right)
+		return nil, arkerrors.Newf(
+			arkerrors.CodeTypeMismatch,
+			"GaEL operator requires compatible operands, got %T and %T",
+			left,
+			right,
+		)
 	}
 	return evaluateNumeric(operator, leftNumber, rightNumber)
 }
@@ -70,7 +75,10 @@ func evaluateNumeric(operator tokenKind, left any, right any) (any, error) {
 		return leftFloat / rightFloat, nil
 	case tokenPercent:
 		if !leftInteger || !rightInteger || right.(int64) == 0 {
-			return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "GaEL remainder requires non-zero integers")
+			return nil, arkerrors.New(
+				arkerrors.CodeInvalidArgument,
+				"GaEL remainder requires non-zero integers",
+			)
 		}
 		return left.(int64) % right.(int64), nil
 	default:
@@ -86,10 +94,18 @@ func numeric(value any) (any, error) {
 	switch reflection.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return reflection.Int(), nil
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+	case reflect.Uint,
+		reflect.Uint8,
+		reflect.Uint16,
+		reflect.Uint32,
+		reflect.Uint64,
+		reflect.Uintptr:
 		unsigned := reflection.Uint()
 		if unsigned > math.MaxInt64 {
-			return nil, arkerrors.New(arkerrors.CodeConversion, "GaEL unsigned integer overflows int64")
+			return nil, arkerrors.New(
+				arkerrors.CodeConversion,
+				"GaEL unsigned integer overflows int64",
+			)
 		}
 		return int64(unsigned), nil
 	case reflect.Float32, reflect.Float64:
@@ -118,5 +134,10 @@ func equalValues(left any, right any) bool {
 }
 
 func typeError(operation string, value any) error {
-	return arkerrors.Newf(arkerrors.CodeTypeMismatch, "GaEL %s does not support %T", operation, value)
+	return arkerrors.Newf(
+		arkerrors.CodeTypeMismatch,
+		"GaEL %s does not support %T",
+		operation,
+		value,
+	)
 }

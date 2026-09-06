@@ -76,9 +76,18 @@ func WithForceEncoding(force bool) CharacterEncodingOption {
 	}
 }
 
-func (f characterEncodingFilter) Filter(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
+func (f characterEncodingFilter) Filter(
+	ctx context.Context,
+	req *servlet.Request,
+	res servlet.Response,
+	chain servlet.Chain,
+) error {
 	if req == nil {
-		return servlet.NewHTTPError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), nil)
+		return servlet.NewHTTPError(
+			http.StatusBadRequest,
+			http.StatusText(http.StatusBadRequest),
+			nil,
+		)
 	}
 	if res == nil {
 		return servlet.ErrNilResponse

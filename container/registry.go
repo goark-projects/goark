@@ -33,7 +33,11 @@ func (r *Registry) Register(definition Definition) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, exists := r.definitions[definition.Name]; exists {
-		return arkerrors.Newf(arkerrors.CodeAlreadyExists, "bean %q already exists", definition.Name)
+		return arkerrors.Newf(
+			arkerrors.CodeAlreadyExists,
+			"bean %q already exists",
+			definition.Name,
+		)
 	}
 	r.definitions[definition.Name] = definition.clone()
 	return nil

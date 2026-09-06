@@ -28,7 +28,12 @@ func (f ConfigurerFunc) ConfigureWeb(ctx context.Context, registry *Registry) er
 }
 
 // RegisterConfigurer 注册 Web 配置器 Bean。
-func RegisterConfigurer(registry *container.Registry, name string, configurer Configurer, options ...container.Option) error {
+func RegisterConfigurer(
+	registry *container.Registry,
+	name string,
+	configurer Configurer,
+	options ...container.Option,
+) error {
 	return container.RegisterInstance[Configurer](registry, name, configurer, options...)
 }
 
@@ -69,7 +74,10 @@ type DeploymentSpec struct {
 }
 
 // BuildDeployment 将 Web 注册表构造成 Arkarta Servlet 部署。
-func BuildDeployment(registry *Registry, spec DeploymentSpec) (*servletcontainer.Deployment, error) {
+func BuildDeployment(
+	registry *Registry,
+	spec DeploymentSpec,
+) (*servletcontainer.Deployment, error) {
 	if registry == nil {
 		return nil, ErrNilRegistry
 	}
@@ -143,18 +151,20 @@ func CurrentWebApp(ctx *arkweb.Context) (*servlet.WebApp, bool) {
 }
 
 func webAppRequestFilter(app *servlet.WebApp) servlet.Filter {
-	return servlet.FilterFunc(func(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
-		if chain == nil {
-			return servlet.ErrNilHandler
-		}
-		if app == nil || req == nil {
+	return servlet.FilterFunc(
+		func(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
+			if chain == nil {
+				return servlet.ErrNilHandler
+			}
+			if app == nil || req == nil {
+				return chain.Next(ctx, req, res)
+			}
+			previous, existed := req.Attribute(AttributeWebApp)
+			req.SetAttribute(AttributeWebApp, app)
+			defer restoreWebAppAttribute(req, previous, existed)
 			return chain.Next(ctx, req, res)
-		}
-		previous, existed := req.Attribute(AttributeWebApp)
-		req.SetAttribute(AttributeWebApp, app)
-		defer restoreWebAppAttribute(req, previous, existed)
-		return chain.Next(ctx, req, res)
-	})
+		},
+	)
 }
 
 func restoreWebAppAttribute(req *servlet.Request, previous any, existed bool) {

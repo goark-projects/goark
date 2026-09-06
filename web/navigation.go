@@ -94,7 +94,11 @@ func (r redirectResult) Write(ctx *arkweb.Context) error {
 	}
 	location := cleanRedirectLocation(r.location)
 	if location == "" {
-		return servlet.NewHTTPError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), ErrInvalidRedirectLocation)
+		return servlet.NewHTTPError(
+			http.StatusInternalServerError,
+			http.StatusText(http.StatusInternalServerError),
+			ErrInvalidRedirectLocation,
+		)
 	}
 	response := ctx.Response()
 	applyEntityHeaders(response.Header(), r.options.headers)

@@ -51,7 +51,11 @@ func (m *Manager) Register(name string, target any, options ...Option) error {
 	}
 	for _, existing := range m.hooks {
 		if existing.Name == name {
-			return arkerrors.Newf(arkerrors.CodeAlreadyExists, "lifecycle hook %q already exists", name)
+			return arkerrors.Newf(
+				arkerrors.CodeAlreadyExists,
+				"lifecycle hook %q already exists",
+				name,
+			)
 		}
 	}
 	m.hooks = append(m.hooks, hook)
@@ -73,12 +77,20 @@ func newHook(name string, target any, options ...Option) (Hook, error) {
 		return Hook{}, arkerrors.New(arkerrors.CodeInvalidArgument, "lifecycle hook name is empty")
 	}
 	if reflectx.IsNil(target) {
-		return Hook{}, arkerrors.Newf(arkerrors.CodeInvalidArgument, "lifecycle hook %q target is nil", name)
+		return Hook{}, arkerrors.Newf(
+			arkerrors.CodeInvalidArgument,
+			"lifecycle hook %q target is nil",
+			name,
+		)
 	}
 	if _, ok := target.(Starter); !ok {
 		if _, ok := target.(Stopper); !ok {
 			if _, ok := target.(Closer); !ok {
-				return Hook{}, arkerrors.Newf(arkerrors.CodeInvalidArgument, "lifecycle hook %q does not implement lifecycle contracts", name)
+				return Hook{}, arkerrors.Newf(
+					arkerrors.CodeInvalidArgument,
+					"lifecycle hook %q does not implement lifecycle contracts",
+					name,
+				)
 			}
 		}
 	}

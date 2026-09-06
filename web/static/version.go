@@ -232,7 +232,8 @@ func contentVersionMatches(requested string, actual string) bool {
 func cleanFixedVersion(version string) (string, error) {
 	version = strings.TrimSpace(strings.ReplaceAll(version, "\\", "/"))
 	version = strings.Trim(version, "/")
-	if version == "" || version == "." || version == ".." || strings.Contains(version, "/") || !fs.ValidPath(version) {
+	if version == "" || version == "." || version == ".." || strings.Contains(version, "/") ||
+		!fs.ValidPath(version) {
 		return "", ErrInvalidResourceVersion
 	}
 	return version, nil

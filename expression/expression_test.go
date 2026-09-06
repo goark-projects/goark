@@ -17,11 +17,15 @@ func TestExpression_whenUsingPropertiesVariablesAndOperators_shouldEvaluate(t *t
 	if err := environment.PropertySources().AddFirst(source); err != nil {
 		t.Fatalf("AddFirst() error = %v", err)
 	}
-	evaluationContext, err := expression.NewEvaluationContext(environment, expression.WithVariable("minimum", int64(8000)))
+	evaluationContext, err := expression.NewEvaluationContext(
+		environment,
+		expression.WithVariable("minimum", int64(8000)),
+	)
 	if err != nil {
 		t.Fatalf("NewEvaluationContext() error = %v", err)
 	}
-	parsed, err := expression.NewParser().Parse(`environment['server.port'] == '8080' && minimum + 80 == 8080`)
+	parsed, err := expression.NewParser().
+		Parse(`environment['server.port'] == '8080' && minimum + 80 == 8080`)
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}

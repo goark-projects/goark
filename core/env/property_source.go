@@ -89,7 +89,10 @@ func (s *MapPropertySource) PropertyNames() []string {
 type PropertiesPropertySource = MapPropertySource
 
 // NewPropertiesPropertySource 创建 properties 风格配置源。
-func NewPropertiesPropertySource(name string, source map[string]any) (*PropertiesPropertySource, error) {
+func NewPropertiesPropertySource(
+	name string,
+	source map[string]any,
+) (*PropertiesPropertySource, error) {
 	return NewMapPropertySource(name, source)
 }
 

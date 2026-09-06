@@ -19,20 +19,33 @@ func TestOnceRunsDelegateOnlyOncePerRequest(t *testing.T) {
 	t.Parallel()
 
 	calls := 0
-	delegate, err := filter.Once("trace", servlet.FilterFunc(func(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
-		calls++
-		return chain.Next(ctx, req, res)
-	}))
+	delegate, err := filter.Once(
+		"trace",
+		servlet.FilterFunc(
+			func(ctx context.Context, req *servlet.Request, res servlet.Response,
+				chain servlet.Chain) error {
+				calls++
+				return chain.Next(ctx, req, res)
+			},
+		),
+	)
 	if err != nil {
 		t.Fatalf("Once failed: %v", err)
 	}
-	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, _ *servlet.Request, res servlet.Response) error {
-		_, err := res.WriteString("ok")
-		return err
-	}), delegate, delegate)
+	handler := servlet.ChainFilters(
+		servlet.HandlerFunc(
+			func(_ context.Context, _ *servlet.Request, res servlet.Response) error {
+				_, err := res.WriteString("ok")
+				return err
+			},
+		),
+		delegate,
+		delegate,
+	)
 
 	recorder := httptest.NewRecorder()
-	servletnethttp.Handler(handler).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/once", nil))
+	servletnethttp.Handler(handler).
+		ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/once", nil))
 
 	if calls != 1 {
 		t.Fatalf("calls = %d, want 1", calls)
@@ -45,14 +58,19 @@ func TestOnceRunsDelegateOnlyOncePerRequest(t *testing.T) {
 func TestForwardedHeadersUpdatesRequestView(t *testing.T) {
 	t.Parallel()
 
-	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, req *servlet.Request, res servlet.Response) error {
-		res.Header().Set("X-Scheme", req.Scheme())
-		res.Header().Set("X-Host", req.Host())
-		res.Header().Set("X-Remote", req.RemoteAddr())
-		res.Header().Set("X-URL", req.RequestURL())
-		_, err := res.WriteString("ok")
-		return err
-	}), filter.ForwardedHeaders())
+	handler := servlet.ChainFilters(
+		servlet.HandlerFunc(
+			func(_ context.Context, req *servlet.Request, res servlet.Response) error {
+				res.Header().Set("X-Scheme", req.Scheme())
+				res.Header().Set("X-Host", req.Host())
+				res.Header().Set("X-Remote", req.RemoteAddr())
+				res.Header().Set("X-URL", req.RequestURL())
+				_, err := res.WriteString("ok")
+				return err
+			},
+		),
+		filter.ForwardedHeaders(),
+	)
 
 	request := httptest.NewRequest(http.MethodGet, "http://internal/jobs", nil)
 	request.RemoteAddr = "10.0.0.2:49200"
@@ -145,20 +163,25 @@ func TestHiddenHTTPMethodUsesCustomParameterAndAllowedMethods(t *testing.T) {
 func TestFormContentCachesDeleteFormAndPreservesBody(t *testing.T) {
 	t.Parallel()
 
-	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, req *servlet.Request, res servlet.Response) error {
-		value, ok := filter.FormContentValue(req, "name")
-		if !ok {
-			res.SetStatus(http.StatusInternalServerError)
-			return nil
-		}
-		body, err := io.ReadAll(req.Body())
-		if err != nil {
-			return err
-		}
-		res.Header().Set("X-Form-Name", value)
-		_, err = res.Write(body)
-		return err
-	}), filter.FormContent())
+	handler := servlet.ChainFilters(
+		servlet.HandlerFunc(
+			func(_ context.Context, req *servlet.Request, res servlet.Response) error {
+				value, ok := filter.FormContentValue(req, "name")
+				if !ok {
+					res.SetStatus(http.StatusInternalServerError)
+					return nil
+				}
+				body, err := io.ReadAll(req.Body())
+				if err != nil {
+					return err
+				}
+				res.Header().Set("X-Form-Name", value)
+				_, err = res.Write(body)
+				return err
+			},
+		),
+		filter.FormContent(),
+	)
 
 	form := url.Values{"name": {"goark"}}
 	request := httptest.NewRequest(http.MethodDelete, "/items/1", strings.NewReader(form.Encode()))
@@ -181,10 +204,13 @@ func TestFormContentRejectsOversizedBody(t *testing.T) {
 	t.Parallel()
 
 	called := false
-	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, _ *servlet.Request, _ servlet.Response) error {
-		called = true
-		return nil
-	}), filter.FormContent(filter.WithFormContentMaxBodyBytes(4)))
+	handler := servlet.ChainFilters(
+		servlet.HandlerFunc(func(_ context.Context, _ *servlet.Request, _ servlet.Response) error {
+			called = true
+			return nil
+		}),
+		filter.FormContent(filter.WithFormContentMaxBodyBytes(4)),
+	)
 
 	request := httptest.NewRequest(http.MethodDelete, "/items/1", strings.NewReader("name=goark"))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -202,30 +228,47 @@ func TestFormContentRejectsOversizedBody(t *testing.T) {
 func TestCharacterEncodingAppliesRequestDefault(t *testing.T) {
 	t.Parallel()
 
-	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, req *servlet.Request, res servlet.Response) error {
-		res.Header().Set("X-Request-Encoding", req.CharacterEncoding())
-		_, err := res.WriteString("ok")
-		return err
-	}), filter.CharacterEncoding())
+	handler := servlet.ChainFilters(
+		servlet.HandlerFunc(
+			func(_ context.Context, req *servlet.Request, res servlet.Response) error {
+				res.Header().Set("X-Request-Encoding", req.CharacterEncoding())
+				_, err := res.WriteString("ok")
+				return err
+			},
+		),
+		filter.CharacterEncoding(),
+	)
 
 	request := httptest.NewRequest(http.MethodPost, "/encoding", strings.NewReader("{}"))
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 	servletnethttp.Handler(handler).ServeHTTP(recorder, request)
 
-	if !strings.EqualFold(recorder.Header().Get("X-Request-Encoding"), filter.DefaultCharacterEncoding) {
-		t.Fatalf("encoding = %q, want %s", recorder.Header().Get("X-Request-Encoding"), filter.DefaultCharacterEncoding)
+	if !strings.EqualFold(
+		recorder.Header().Get("X-Request-Encoding"),
+		filter.DefaultCharacterEncoding,
+	) {
+		t.Fatalf(
+			"encoding = %q, want %s",
+			recorder.Header().Get("X-Request-Encoding"),
+			filter.DefaultCharacterEncoding,
+		)
 	}
 }
 
 func TestCharacterEncodingPreservesExistingRequestEncoding(t *testing.T) {
 	t.Parallel()
 
-	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, req *servlet.Request, res servlet.Response) error {
-		res.Header().Set("X-Request-Encoding", req.CharacterEncoding())
-		_, err := res.WriteString("ok")
-		return err
-	}), filter.CharacterEncoding())
+	handler := servlet.ChainFilters(
+		servlet.HandlerFunc(
+			func(_ context.Context, req *servlet.Request, res servlet.Response) error {
+				res.Header().Set("X-Request-Encoding", req.CharacterEncoding())
+				_, err := res.WriteString("ok")
+				return err
+			},
+		),
+		filter.CharacterEncoding(),
+	)
 
 	request := httptest.NewRequest(http.MethodPost, "/encoding", strings.NewReader("{}"))
 	request.Header.Set("Content-Type", "application/json; charset=gbk")
@@ -240,16 +283,25 @@ func TestCharacterEncodingPreservesExistingRequestEncoding(t *testing.T) {
 func TestCharacterEncodingForcesResponseEncodingBeforeWrite(t *testing.T) {
 	t.Parallel()
 
-	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, _ *servlet.Request, res servlet.Response) error {
-		res.Header().Set("Content-Type", "text/plain; charset=iso-8859-1")
-		_, err := res.WriteString("ok")
-		return err
-	}), filter.CharacterEncoding(filter.WithForceResponseEncoding(true)))
+	handler := servlet.ChainFilters(
+		servlet.HandlerFunc(
+			func(_ context.Context, _ *servlet.Request, res servlet.Response) error {
+				res.Header().Set("Content-Type", "text/plain; charset=iso-8859-1")
+				_, err := res.WriteString("ok")
+				return err
+			},
+		),
+		filter.CharacterEncoding(filter.WithForceResponseEncoding(true)),
+	)
 
 	recorder := httptest.NewRecorder()
-	servletnethttp.Handler(handler).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/encoding", nil))
+	servletnethttp.Handler(handler).
+		ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/encoding", nil))
 
-	if got := recorder.Header().Get("Content-Type"); !strings.Contains(strings.ToLower(got), "charset=utf-8") {
+	if got := recorder.Header().Get("Content-Type"); !strings.Contains(
+		strings.ToLower(got),
+		"charset=utf-8",
+	) {
 		t.Fatalf("Content-Type = %q, want forced UTF-8 charset", got)
 	}
 }
@@ -257,14 +309,20 @@ func TestCharacterEncodingForcesResponseEncodingBeforeWrite(t *testing.T) {
 func TestShallowETagWritesValidatorAndHonorsIfNoneMatch(t *testing.T) {
 	t.Parallel()
 
-	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, _ *servlet.Request, res servlet.Response) error {
-		res.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, err := res.WriteString("hello")
-		return err
-	}), filter.ShallowETag())
+	handler := servlet.ChainFilters(
+		servlet.HandlerFunc(
+			func(_ context.Context, _ *servlet.Request, res servlet.Response) error {
+				res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+				_, err := res.WriteString("hello")
+				return err
+			},
+		),
+		filter.ShallowETag(),
+	)
 
 	first := httptest.NewRecorder()
-	servletnethttp.Handler(handler).ServeHTTP(first, httptest.NewRequest(http.MethodGet, "/etag", nil))
+	servletnethttp.Handler(handler).
+		ServeHTTP(first, httptest.NewRequest(http.MethodGet, "/etag", nil))
 	etag := first.Header().Get("ETag")
 	if first.Code != http.StatusOK || first.Body.String() != "hello" || etag == "" {
 		t.Fatalf("first response = %d/%q/%q", first.Code, first.Body.String(), etag)
@@ -288,7 +346,8 @@ func newHiddenMethodRouter(t testing.TB) *arkweb.Router {
 	router := arkweb.NewRouter()
 	for _, method := range []string{http.MethodPost, http.MethodDelete} {
 		method := method
-		if err := router.Handle(method, "/items/1", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+		if err := router.Handle(method, "/items/1", arkweb.HandlerFunc(func(ctx *arkweb.Context) (
+			arkweb.Result, error) {
 			if original, ok := ctx.Request().Attribute(filter.AttributeOriginalMethod); ok {
 				ctx.Response().Header().Set("X-Original-Method", original.(string))
 			}

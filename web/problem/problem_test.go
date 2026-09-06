@@ -20,7 +20,8 @@ func TestResultWritesProblemJSON(t *testing.T) {
 	t.Parallel()
 
 	registry := web.NewRegistry()
-	if err := registry.GET("/problems/1", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/problems/1", arkweb.HandlerFunc(func(_ *arkweb.Context) (
+		arkweb.Result, error) {
 		return problem.New(http.StatusNotFound,
 			problem.WithDetail("job 1 not found"),
 			problem.WithInstance("/problems/1"),
@@ -57,7 +58,8 @@ func TestMapperMapsStatusErrorToProblemDetail(t *testing.T) {
 
 	registry := web.NewRegistry()
 	registry.UseErrorMapper(problem.NewMapper())
-	if err := registry.GET("/jobs/1", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/jobs/1", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return nil, servlet.NewHTTPError(http.StatusNotFound, "job not found", errors.New("db miss"))
 	})); err != nil {
 		t.Fatalf("GET failed: %v", err)
@@ -83,7 +85,8 @@ func TestMapperMapsParameterErrorWithoutRawValue(t *testing.T) {
 
 	registry := web.NewRegistry()
 	registry.UseErrorMapper(problem.NewMapper())
-	if err := registry.GET("/jobs", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (map[string]int, error) {
+	if err := registry.GET("/jobs", mvc.JSON(http.StatusOK, func(ctx *arkweb.Context) (
+		map[string]int, error) {
 		page, err := mvc.RequestParamInt(ctx, "page")
 		if err != nil {
 			return nil, err
@@ -122,7 +125,8 @@ func TestMapperMapsValidationErrorViolations(t *testing.T) {
 	}
 	registry := web.NewRegistry()
 	registry.UseErrorMapper(problem.NewMapper())
-	if err := registry.POST("/jobs", mvc.BindJSON(http.StatusCreated, func(_ *arkweb.Context, input createJobRequest) (map[string]string, error) {
+	if err := registry.POST("/jobs", mvc.BindJSON(http.StatusCreated, func(_ *arkweb.Context,
+		input createJobRequest) (map[string]string, error) {
 		return map[string]string{"name": input.Name}, nil
 	})); err != nil {
 		t.Fatalf("POST failed: %v", err)
@@ -167,7 +171,11 @@ func TestMapperDoesNotExposeInternalErrorDetail(t *testing.T) {
 	}
 }
 
-func serveProblemRegistry(t *testing.T, registry *web.Registry, method, target string) *httptest.ResponseRecorder {
+func serveProblemRegistry(
+	t *testing.T,
+	registry *web.Registry,
+	method, target string,
+) *httptest.ResponseRecorder {
 	t.Helper()
 
 	return serveProblemRegistryWith(t, registry, func() *http.Request {
@@ -175,7 +183,11 @@ func serveProblemRegistry(t *testing.T, registry *web.Registry, method, target s
 	})
 }
 
-func serveProblemRegistryWith(t *testing.T, registry *web.Registry, build func() *http.Request) *httptest.ResponseRecorder {
+func serveProblemRegistryWith(
+	t *testing.T,
+	registry *web.Registry,
+	build func() *http.Request,
+) *httptest.ResponseRecorder {
 	t.Helper()
 
 	router, err := registry.Router()

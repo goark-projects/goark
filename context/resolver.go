@@ -20,7 +20,11 @@ func (a *ApplicationContext) Get(ctx stdcontext.Context, name string) (any, erro
 }
 
 // GetByType 按类型解析 Bean。
-func (a *ApplicationContext) GetByType(ctx stdcontext.Context, typ reflect.Type, options ...container.ResolveOption) (any, error) {
+func (a *ApplicationContext) GetByType(
+	ctx stdcontext.Context,
+	typ reflect.Type,
+	options ...container.ResolveOption,
+) (any, error) {
 	runtimeContainer, err := a.runtimeContainer()
 	if err != nil {
 		return nil, err
@@ -57,7 +61,10 @@ func (a *ApplicationContext) runtimeContainer() (*container.Container, error) {
 		return nil, arkerrors.New(arkerrors.CodeClosed, "application context is closed")
 	}
 	if !a.refreshed || a.container == nil {
-		return nil, arkerrors.New(arkerrors.CodeConflict, "application context has not been refreshed")
+		return nil, arkerrors.New(
+			arkerrors.CodeConflict,
+			"application context has not been refreshed",
+		)
 	}
 	return a.container, nil
 }
@@ -72,7 +79,10 @@ func (a *ApplicationContext) runtime() (*lifecycle.Manager, *event.Bus, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	if a.lifecycle == nil || a.events == nil {
-		return nil, nil, arkerrors.New(arkerrors.CodeConflict, "application context runtime is incomplete")
+		return nil, nil, arkerrors.New(
+			arkerrors.CodeConflict,
+			"application context runtime is incomplete",
+		)
 	}
 	return a.lifecycle, a.events, nil
 }

@@ -92,17 +92,29 @@ func (r *Result) Write(ctx *arkweb.Context) error {
 	}
 	resolver, err := r.resolveResolver(ctx)
 	if err != nil {
-		return servlet.NewHTTPError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), err)
+		return servlet.NewHTTPError(
+			http.StatusInternalServerError,
+			http.StatusText(http.StatusInternalServerError),
+			err,
+		)
 	}
 	resolved, ok, err := resolver.ResolveView(ctx, r.name)
 	if err != nil {
 		return err
 	}
 	if !ok {
-		return servlet.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound), ErrViewNotFound)
+		return servlet.NewHTTPError(
+			http.StatusNotFound,
+			http.StatusText(http.StatusNotFound),
+			ErrViewNotFound,
+		)
 	}
 	if resolved == nil {
-		return servlet.NewHTTPError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), ErrNilView)
+		return servlet.NewHTTPError(
+			http.StatusInternalServerError,
+			http.StatusText(http.StatusInternalServerError),
+			ErrNilView,
+		)
 	}
 	contentType := r.contentType
 	if contentType == "" {

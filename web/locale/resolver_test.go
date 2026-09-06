@@ -43,7 +43,9 @@ func TestResolverInterceptorOverridesRequestLocale(t *testing.T) {
 		t.Fatalf("Content-Language = %q, want zh-CN", recorder.Header().Get("Content-Language"))
 	}
 	payload := readLocalePayload(t, recorder)
-	if !payload.OK || payload.Locale != "zh-CN" || payload.Language != "zh" || payload.Region != "CN" || payload.LocaleSize != 2 {
+	if !payload.OK || payload.Locale != "zh-CN" || payload.Language != "zh" ||
+		payload.Region != "CN" ||
+		payload.LocaleSize != 2 {
 		t.Fatalf("payload = %#v, want fixed locale before accepted locale", payload)
 	}
 }
@@ -62,7 +64,9 @@ func TestChangeInterceptorUsesLocaleParameter(t *testing.T) {
 		t.Fatalf("Content-Language = %q, want ja-JP", recorder.Header().Get("Content-Language"))
 	}
 	payload := readLocalePayload(t, recorder)
-	if !payload.OK || payload.Locale != "ja-JP" || payload.Language != "ja" || payload.Region != "JP" || payload.LocaleSize != 2 {
+	if !payload.OK || payload.Locale != "ja-JP" || payload.Language != "ja" ||
+		payload.Region != "JP" ||
+		payload.LocaleSize != 2 {
 		t.Fatalf("payload = %#v, want changed locale before accepted locale", payload)
 	}
 }
@@ -71,7 +75,8 @@ func newLocaleRegistry(t *testing.T, interceptor arkweb.Interceptor) *web.Regist
 	t.Helper()
 	registry := web.NewRegistry()
 	registry.Use(interceptor)
-	if err := registry.GET("/locale", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/locale", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result,
+		error) {
 		current, ok := web.RequestLocale(ctx)
 		locales := web.RequestLocales(ctx)
 		return web.OK(localePayload{
@@ -87,7 +92,12 @@ func newLocaleRegistry(t *testing.T, interceptor arkweb.Interceptor) *web.Regist
 	return registry
 }
 
-func serveLocale(t *testing.T, registry *web.Registry, target string, acceptLanguage string) *httptest.ResponseRecorder {
+func serveLocale(
+	t *testing.T,
+	registry *web.Registry,
+	target string,
+	acceptLanguage string,
+) *httptest.ResponseRecorder {
 	t.Helper()
 	router, err := registry.Router()
 	if err != nil {

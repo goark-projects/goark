@@ -8,12 +8,14 @@ import (
 
 // Interceptor 将视图解析器绑定到当前请求，供 Render 使用。
 func Interceptor(resolver Resolver) arkweb.Interceptor {
-	return arkweb.InterceptorFunc(func(ctx *arkweb.Context, next arkweb.Handler) (arkweb.Result, error) {
-		if resolver != nil && ctx != nil && ctx.Request() != nil {
-			ctx.Request().SetAttribute(AttributeResolver, resolver)
-		}
-		return next.Handle(ctx)
-	})
+	return arkweb.InterceptorFunc(
+		func(ctx *arkweb.Context, next arkweb.Handler) (arkweb.Result, error) {
+			if resolver != nil && ctx != nil && ctx.Request() != nil {
+				ctx.Request().SetAttribute(AttributeResolver, resolver)
+			}
+			return next.Handle(ctx)
+		},
+	)
 }
 
 // ResolverFromContext 从当前请求读取视图解析器。

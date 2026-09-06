@@ -22,12 +22,13 @@ func TestRegisterInterceptorContributesConfigurer(t *testing.T) {
 	t.Parallel()
 
 	beanRegistry := container.NewRegistry()
-	if err := web.RegisterInterceptor(beanRegistry, "traceInterceptor", arkweb.InterceptorFunc(func(ctx *arkweb.Context, next arkweb.Handler) (arkweb.Result, error) {
-		ctx.Response().Header().Set("X-Interceptor", "before")
-		result, err := next.Handle(ctx)
-		ctx.Response().Header().Set("X-Interceptor-After", "after")
-		return result, err
-	})); err != nil {
+	if err := web.RegisterInterceptor(beanRegistry, "traceInterceptor", arkweb.InterceptorFunc(
+		func(ctx *arkweb.Context, next arkweb.Handler) (arkweb.Result, error) {
+			ctx.Response().Header().Set("X-Interceptor", "before")
+			result, err := next.Handle(ctx)
+			ctx.Response().Header().Set("X-Interceptor-After", "after")
+			return result, err
+		})); err != nil {
 		t.Fatalf("RegisterInterceptor failed: %v", err)
 	}
 	resolver, err := container.New(beanRegistry)
@@ -39,14 +40,16 @@ func TestRegisterInterceptorContributesConfigurer(t *testing.T) {
 	if err := web.ApplyConfigurers(t.Context(), resolver, registry); err != nil {
 		t.Fatalf("ApplyConfigurers failed: %v", err)
 	}
-	if err := registry.GET("/trace", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/trace", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return arkweb.Text(http.StatusOK, "ok"), nil
 	})); err != nil {
 		t.Fatalf("GET failed: %v", err)
 	}
 
 	recorder := serveRegistry(t, registry, http.MethodGet, "/trace")
-	if recorder.Header().Get("X-Interceptor") != "before" || recorder.Header().Get("X-Interceptor-After") != "after" {
+	if recorder.Header().Get("X-Interceptor") != "before" ||
+		recorder.Header().Get("X-Interceptor-After") != "after" {
 		t.Fatalf("interceptor headers = %#v", recorder.Header())
 	}
 }
@@ -55,7 +58,8 @@ func TestRegisterFilterContributesConfigurer(t *testing.T) {
 	t.Parallel()
 
 	beanRegistry := container.NewRegistry()
-	if err := web.RegisterFilter(beanRegistry, "traceFilter", servlet.FilterFunc(func(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
+	if err := web.RegisterFilter(beanRegistry, "traceFilter", servlet.FilterFunc(func(
+		ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
 		res.Header().Set("X-Filter", "before")
 		if err := chain.Next(ctx, req, res); err != nil {
 			return err
@@ -74,7 +78,8 @@ func TestRegisterFilterContributesConfigurer(t *testing.T) {
 	if err := web.ApplyConfigurers(t.Context(), resolver, registry); err != nil {
 		t.Fatalf("ApplyConfigurers failed: %v", err)
 	}
-	if err := registry.GET("/filtered", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/filtered", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return arkweb.Text(http.StatusOK, "ok"), nil
 	})); err != nil {
 		t.Fatalf("GET failed: %v", err)
@@ -89,8 +94,10 @@ func TestRegisterFilterContributesConfigurer(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	servletnethttp.Handler(handler).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/filtered", nil))
-	if recorder.Header().Get("X-Filter") != "before" || recorder.Header().Get("X-Filter-After") != "after" {
+	servletnethttp.Handler(handler).
+		ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/filtered", nil))
+	if recorder.Header().Get("X-Filter") != "before" ||
+		recorder.Header().Get("X-Filter-After") != "after" {
 		t.Fatalf("filter headers = %#v", recorder.Header())
 	}
 }
@@ -106,10 +113,11 @@ func TestRegisterMappedInterceptorContributesScopedConfigurer(t *testing.T) {
 		t.Fatalf("NewInterceptorMapping failed: %v", err)
 	}
 	beanRegistry := container.NewRegistry()
-	if err := web.RegisterMappedInterceptor(beanRegistry, "apiInterceptor", arkweb.InterceptorFunc(func(ctx *arkweb.Context, next arkweb.Handler) (arkweb.Result, error) {
-		ctx.Response().Header().Set("X-Scoped-Interceptor", "hit")
-		return next.Handle(ctx)
-	}), mapping); err != nil {
+	if err := web.RegisterMappedInterceptor(beanRegistry, "apiInterceptor",
+		arkweb.InterceptorFunc(func(ctx *arkweb.Context, next arkweb.Handler) (arkweb.Result, error) {
+			ctx.Response().Header().Set("X-Scoped-Interceptor", "hit")
+			return next.Handle(ctx)
+		}), mapping); err != nil {
 		t.Fatalf("RegisterMappedInterceptor failed: %v", err)
 	}
 	resolver, err := container.New(beanRegistry)
@@ -154,7 +162,8 @@ func TestRegisterMappedFilterContributesScopedConfigurer(t *testing.T) {
 		t.Fatalf("NewFilterMapping failed: %v", err)
 	}
 	beanRegistry := container.NewRegistry()
-	if err := web.RegisterMappedFilter(beanRegistry, "secureFilter", servlet.FilterFunc(func(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
+	if err := web.RegisterMappedFilter(beanRegistry, "secureFilter", servlet.FilterFunc(func(
+		ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
 		res.Header().Set("X-Scoped-Filter", "hit")
 		return chain.Next(ctx, req, res)
 	}), mapping); err != nil {
@@ -186,17 +195,20 @@ func TestRegisterMappedFilterContributesScopedConfigurer(t *testing.T) {
 	}
 
 	matched := httptest.NewRecorder()
-	servletnethttp.Handler(handler).ServeHTTP(matched, httptest.NewRequest(http.MethodGet, "/secure/data", nil))
+	servletnethttp.Handler(handler).
+		ServeHTTP(matched, httptest.NewRequest(http.MethodGet, "/secure/data", nil))
 	if got := matched.Header().Get("X-Scoped-Filter"); got != "hit" {
 		t.Fatalf("matched header = %q, want hit", got)
 	}
 	excluded := httptest.NewRecorder()
-	servletnethttp.Handler(handler).ServeHTTP(excluded, httptest.NewRequest(http.MethodGet, "/secure/public/info", nil))
+	servletnethttp.Handler(handler).
+		ServeHTTP(excluded, httptest.NewRequest(http.MethodGet, "/secure/public/info", nil))
 	if got := excluded.Header().Get("X-Scoped-Filter"); got != "" {
 		t.Fatalf("excluded header = %q, want empty", got)
 	}
 	unmatched := httptest.NewRecorder()
-	servletnethttp.Handler(handler).ServeHTTP(unmatched, httptest.NewRequest(http.MethodGet, "/health", nil))
+	servletnethttp.Handler(handler).
+		ServeHTTP(unmatched, httptest.NewRequest(http.MethodGet, "/health", nil))
 	if got := unmatched.Header().Get("X-Scoped-Filter"); got != "" {
 		t.Fatalf("unmatched header = %q, want empty", got)
 	}
@@ -234,13 +246,23 @@ func TestInterceptorMappingSupportsAntStyleDoubleWildcard(t *testing.T) {
 func TestRegisterInterceptorAndFilterRejectNil(t *testing.T) {
 	t.Parallel()
 
-	if err := web.RegisterInterceptor(container.NewRegistry(), "nilInterceptor", nil); !errors.Is(err, web.ErrNilInterceptor) {
+	if err := web.RegisterInterceptor(container.NewRegistry(), "nilInterceptor", nil); !errors.Is(
+		err,
+		web.ErrNilInterceptor,
+	) {
 		t.Fatalf("interceptor err = %v, want ErrNilInterceptor", err)
 	}
-	if err := web.RegisterFilter(container.NewRegistry(), "nilFilter", nil); !errors.Is(err, web.ErrNilFilter) {
+	if err := web.RegisterFilter(container.NewRegistry(), "nilFilter", nil); !errors.Is(
+		err,
+		web.ErrNilFilter,
+	) {
 		t.Fatalf("filter err = %v, want ErrNilFilter", err)
 	}
-	if _, err := web.NewInterceptorMapping(web.WithInterceptorPathPatterns("/api/**suffix/bad")); !errors.Is(err, web.ErrInvalidInterceptorMapping) {
+	if _, err := web.NewInterceptorMapping(web.WithInterceptorPathPatterns(
+		"/api/**suffix/bad")); !errors.Is(
+		err,
+		web.ErrInvalidInterceptorMapping,
+	) {
 		t.Fatalf("mapping err = %v, want ErrInvalidInterceptorMapping", err)
 	}
 }
@@ -255,7 +277,8 @@ func TestRegisterValidatorContributesConfigurer(t *testing.T) {
 	t.Parallel()
 
 	beanRegistry := container.NewRegistry()
-	if err := web.RegisterValidator(beanRegistry, "rejectingValidator", rejectingValidator{}); err != nil {
+	if err := web.RegisterValidator(beanRegistry, "rejectingValidator",
+		rejectingValidator{}); err != nil {
 		t.Fatalf("RegisterValidator failed: %v", err)
 	}
 	resolver, err := container.New(beanRegistry)
@@ -269,7 +292,8 @@ func TestRegisterValidatorContributesConfigurer(t *testing.T) {
 	if registry.Validator() == nil {
 		t.Fatal("registry validator is nil")
 	}
-	if err := registry.POST("/users", mvc.BindJSON(http.StatusCreated, func(_ *arkweb.Context, input validatorRequest) (map[string]string, error) {
+	if err := registry.POST("/users", mvc.BindJSON(http.StatusCreated, func(_ *arkweb.Context,
+		input validatorRequest) (map[string]string, error) {
 		return map[string]string{"name": input.Name}, nil
 	})); err != nil {
 		t.Fatalf("POST failed: %v", err)
@@ -295,7 +319,10 @@ func TestRegisterValidatorContributesConfigurer(t *testing.T) {
 func TestRegisterValidatorRejectsNilValidator(t *testing.T) {
 	t.Parallel()
 
-	if err := web.RegisterValidator(container.NewRegistry(), "nilValidator", nil); !errors.Is(err, web.ErrNilValidator) {
+	if err := web.RegisterValidator(container.NewRegistry(), "nilValidator", nil); !errors.Is(
+		err,
+		web.ErrNilValidator,
+	) {
 		t.Fatalf("err = %v, want ErrNilValidator", err)
 	}
 }

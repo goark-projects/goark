@@ -48,9 +48,18 @@ func PermitAll() (*Filter, error) {
 }
 
 // Filter 执行 CORS 访问控制。
-func (f *Filter) Filter(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
+func (f *Filter) Filter(
+	ctx context.Context,
+	req *servlet.Request,
+	res servlet.Response,
+	chain servlet.Chain,
+) error {
 	if req == nil {
-		return servlet.NewHTTPError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), nil)
+		return servlet.NewHTTPError(
+			http.StatusBadRequest,
+			http.StatusText(http.StatusBadRequest),
+			nil,
+		)
 	}
 	if res == nil {
 		return servlet.ErrNilResponse
@@ -78,7 +87,11 @@ func (f *Filter) handlePreflight(req *servlet.Request, res servlet.Response) err
 	if !f.config.originAllowed(origin) ||
 		!f.config.methodAllowed(requestMethod) ||
 		!f.config.headersAllowed(requestHeaders) {
-		return servlet.NewHTTPError(http.StatusForbidden, http.StatusText(http.StatusForbidden), nil)
+		return servlet.NewHTTPError(
+			http.StatusForbidden,
+			http.StatusText(http.StatusForbidden),
+			nil,
+		)
 	}
 	addCorsVaryHeaders(res.Header())
 	f.writeAllowOrigin(res.Header(), origin)
@@ -92,9 +105,19 @@ func (f *Filter) handlePreflight(req *servlet.Request, res servlet.Response) err
 	return nil
 }
 
-func (f *Filter) handleActual(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain, origin string) error {
+func (f *Filter) handleActual(
+	ctx context.Context,
+	req *servlet.Request,
+	res servlet.Response,
+	chain servlet.Chain,
+	origin string,
+) error {
 	if !f.config.originAllowed(origin) || !f.config.methodAllowed(req.Method()) {
-		return servlet.NewHTTPError(http.StatusForbidden, http.StatusText(http.StatusForbidden), nil)
+		return servlet.NewHTTPError(
+			http.StatusForbidden,
+			http.StatusText(http.StatusForbidden),
+			nil,
+		)
 	}
 	addVary(res.Header(), varyOrigin)
 	f.writeAllowOrigin(res.Header(), origin)

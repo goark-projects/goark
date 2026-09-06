@@ -71,7 +71,10 @@ func (b *Builder) StatusHandler(predicate StatusPredicate, handler StatusHandler
 }
 
 // StatusHandlerFunc 追加函数型默认响应状态处理器。
-func (b *Builder) StatusHandlerFunc(predicate StatusPredicate, handler func(context.Context, *Response) error) *Builder {
+func (b *Builder) StatusHandlerFunc(
+	predicate StatusPredicate,
+	handler func(context.Context, *Response) error,
+) *Builder {
 	return b.Apply(WithStatusHandlerFunc(predicate, handler))
 }
 

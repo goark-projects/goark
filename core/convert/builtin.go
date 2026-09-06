@@ -56,7 +56,12 @@ func builtinConvert(value any, targetType reflect.Type, service *Service) (any, 
 	if targetType.Kind() == reflect.String {
 		return fmt.Sprint(value), nil
 	}
-	return nil, arkerrors.Newf(arkerrors.CodeConversion, "unsupported conversion %T -> %s", value, targetType)
+	return nil, arkerrors.Newf(
+		arkerrors.CodeConversion,
+		"unsupported conversion %T -> %s",
+		value,
+		targetType,
+	)
 }
 
 func convertString(text string, targetType reflect.Type) (any, error) {
@@ -79,7 +84,12 @@ func convertString(text string, targetType reflect.Type) (any, error) {
 		out := reflect.New(targetType).Elem()
 		out.SetInt(parsed)
 		return out.Interface(), nil
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+	case reflect.Uint,
+		reflect.Uint8,
+		reflect.Uint16,
+		reflect.Uint32,
+		reflect.Uint64,
+		reflect.Uintptr:
 		parsed, err := strconv.ParseUint(text, 10, targetType.Bits())
 		if err != nil {
 			return nil, err
@@ -96,7 +106,11 @@ func convertString(text string, targetType reflect.Type) (any, error) {
 		out.SetFloat(parsed)
 		return out.Interface(), nil
 	default:
-		return nil, arkerrors.Newf(arkerrors.CodeConversion, "unsupported string target %s", targetType)
+		return nil, arkerrors.Newf(
+			arkerrors.CodeConversion,
+			"unsupported string target %s",
+			targetType,
+		)
 	}
 }
 
@@ -137,10 +151,19 @@ func convertSlice(value any, targetType reflect.Type, service *Service) (any, er
 func sliceElementValue(value any, elemType reflect.Type) (reflect.Value, error) {
 	if util.IsNil(value) {
 		switch elemType.Kind() {
-		case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		case reflect.Chan,
+			reflect.Func,
+			reflect.Interface,
+			reflect.Map,
+			reflect.Pointer,
+			reflect.Slice:
 			return reflect.Zero(elemType), nil
 		default:
-			return reflect.Value{}, arkerrors.Newf(arkerrors.CodeConversion, "nil cannot be appended to %s slice", elemType)
+			return reflect.Value{}, arkerrors.Newf(
+				arkerrors.CodeConversion,
+				"nil cannot be appended to %s slice",
+				elemType,
+			)
 		}
 	}
 	elemValue := reflect.ValueOf(value)
@@ -150,7 +173,12 @@ func sliceElementValue(value any, elemType reflect.Type) (reflect.Value, error) 
 	if elemValue.Type().ConvertibleTo(elemType) {
 		return elemValue.Convert(elemType), nil
 	}
-	return reflect.Value{}, arkerrors.Newf(arkerrors.CodeTypeMismatch, "converted slice element is %T, expected %s", value, elemType)
+	return reflect.Value{}, arkerrors.Newf(
+		arkerrors.CodeTypeMismatch,
+		"converted slice element is %T, expected %s",
+		value,
+		elemType,
+	)
 }
 
 func textUnmarshalerTarget(targetType reflect.Type) bool {
@@ -168,7 +196,11 @@ func unmarshalText(text string, targetType reflect.Type) (any, error) {
 			unmarshaler, ok = value.Elem().Addr().Interface().(encoding.TextUnmarshaler)
 		}
 		if !ok {
-			return nil, arkerrors.Newf(arkerrors.CodeConversion, "%s does not implement encoding.TextUnmarshaler", targetType)
+			return nil, arkerrors.Newf(
+				arkerrors.CodeConversion,
+				"%s does not implement encoding.TextUnmarshaler",
+				targetType,
+			)
 		}
 	}
 	if err := unmarshaler.UnmarshalText([]byte(text)); err != nil {
@@ -198,15 +230,29 @@ func isStringTarget(targetType reflect.Type) bool {
 func normalizeConverted(value any, targetType reflect.Type) (any, error) {
 	if util.IsNil(value) {
 		switch targetType.Kind() {
-		case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		case reflect.Chan,
+			reflect.Func,
+			reflect.Interface,
+			reflect.Map,
+			reflect.Pointer,
+			reflect.Slice:
 			return value, nil
 		default:
-			return nil, arkerrors.Newf(arkerrors.CodeTypeMismatch, "converted value is nil, expected %s", targetType)
+			return nil, arkerrors.Newf(
+				arkerrors.CodeTypeMismatch,
+				"converted value is nil, expected %s",
+				targetType,
+			)
 		}
 	}
 	converted, ok := assignValue(value, targetType)
 	if !ok {
-		return nil, arkerrors.Newf(arkerrors.CodeTypeMismatch, "converted value is %T, expected %s", value, targetType)
+		return nil, arkerrors.Newf(
+			arkerrors.CodeTypeMismatch,
+			"converted value is %T, expected %s",
+			value,
+			targetType,
+		)
 	}
 	return converted, nil
 }

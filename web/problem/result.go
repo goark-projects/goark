@@ -15,7 +15,11 @@ func (d Detail) Write(ctx *arkweb.Context) error {
 	}
 	if ctx.Request() != nil {
 		if _, ok := ctx.Request().NegotiateContentType(MediaType); !ok {
-			return servlet.NewHTTPError(http.StatusNotAcceptable, http.StatusText(http.StatusNotAcceptable), nil)
+			return servlet.NewHTTPError(
+				http.StatusNotAcceptable,
+				http.StatusText(http.StatusNotAcceptable),
+				nil,
+			)
 		}
 	}
 	response := ctx.Response()

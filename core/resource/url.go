@@ -24,10 +24,19 @@ type URLResource struct {
 func NewURLResource(rawURL string, client *http.Client) (*URLResource, error) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
-		return nil, arkerrors.Wrapf(arkerrors.CodeInvalidArgument, err, "invalid resource url %q", rawURL)
+		return nil, arkerrors.Wrapf(
+			arkerrors.CodeInvalidArgument,
+			err,
+			"invalid resource url %q",
+			rawURL,
+		)
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return nil, arkerrors.Newf(arkerrors.CodeInvalidArgument, "unsupported resource url scheme %q", parsed.Scheme)
+		return nil, arkerrors.Newf(
+			arkerrors.CodeInvalidArgument,
+			"unsupported resource url scheme %q",
+			parsed.Scheme,
+		)
 	}
 	if client == nil {
 		client = defaultHTTPClient
@@ -59,11 +68,21 @@ func (r *URLResource) Exists(ctx context.Context) (bool, error) {
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodHead, r.url.String(), nil)
 	if err != nil {
-		return false, arkerrors.Wrapf(arkerrors.CodeResource, err, "failed to create HEAD request for %q", r.url)
+		return false, arkerrors.Wrapf(
+			arkerrors.CodeResource,
+			err,
+			"failed to create HEAD request for %q",
+			r.url,
+		)
 	}
 	response, err := r.client.Do(request)
 	if err != nil {
-		return false, arkerrors.Wrapf(arkerrors.CodeResource, err, "failed to check url resource %q", r.url)
+		return false, arkerrors.Wrapf(
+			arkerrors.CodeResource,
+			err,
+			"failed to check url resource %q",
+			r.url,
+		)
 	}
 	defer response.Body.Close()
 	return response.StatusCode >= 200 && response.StatusCode < 400, nil
@@ -75,15 +94,30 @@ func (r *URLResource) Open(ctx context.Context) (io.ReadCloser, error) {
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, r.url.String(), nil)
 	if err != nil {
-		return nil, arkerrors.Wrapf(arkerrors.CodeResource, err, "failed to create GET request for %q", r.url)
+		return nil, arkerrors.Wrapf(
+			arkerrors.CodeResource,
+			err,
+			"failed to create GET request for %q",
+			r.url,
+		)
 	}
 	response, err := r.client.Do(request)
 	if err != nil {
-		return nil, arkerrors.Wrapf(arkerrors.CodeResource, err, "failed to open url resource %q", r.url)
+		return nil, arkerrors.Wrapf(
+			arkerrors.CodeResource,
+			err,
+			"failed to open url resource %q",
+			r.url,
+		)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 400 {
 		response.Body.Close()
-		return nil, arkerrors.Newf(arkerrors.CodeResource, "url resource %q returned status %d", r.url, response.StatusCode)
+		return nil, arkerrors.Newf(
+			arkerrors.CodeResource,
+			"url resource %q returned status %d",
+			r.url,
+			response.StatusCode,
+		)
 	}
 	return response.Body, nil
 }
@@ -98,15 +132,30 @@ func (r *URLResource) Stat(ctx context.Context) (Info, error) {
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodHead, r.url.String(), nil)
 	if err != nil {
-		return Info{}, arkerrors.Wrapf(arkerrors.CodeResource, err, "failed to create HEAD request for %q", r.url)
+		return Info{}, arkerrors.Wrapf(
+			arkerrors.CodeResource,
+			err,
+			"failed to create HEAD request for %q",
+			r.url,
+		)
 	}
 	response, err := r.client.Do(request)
 	if err != nil {
-		return Info{}, arkerrors.Wrapf(arkerrors.CodeResource, err, "failed to stat url resource %q", r.url)
+		return Info{}, arkerrors.Wrapf(
+			arkerrors.CodeResource,
+			err,
+			"failed to stat url resource %q",
+			r.url,
+		)
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 400 {
-		return Info{}, arkerrors.Newf(arkerrors.CodeResource, "url resource %q returned status %d", r.url, response.StatusCode)
+		return Info{}, arkerrors.Newf(
+			arkerrors.CodeResource,
+			"url resource %q returned status %d",
+			r.url,
+			response.StatusCode,
+		)
 	}
 	info := Info{Name: r.Name(), Size: response.ContentLength}
 	if lastModified := response.Header.Get("Last-Modified"); lastModified != "" {

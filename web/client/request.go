@@ -37,7 +37,12 @@ func newRequestConfig(codec arkjson.Codec) requestConfig {
 }
 
 // Exchange 执行请求并返回原始 HTTP 响应，调用方负责关闭响应体。
-func (c *Client) Exchange(ctx context.Context, method string, target string, options ...RequestOption) (*http.Response, error) {
+func (c *Client) Exchange(
+	ctx context.Context,
+	method string,
+	target string,
+	options ...RequestOption,
+) (*http.Response, error) {
 	request, _, err := c.newRequest(ctx, method, target, options...)
 	if err != nil {
 		return nil, err
@@ -46,7 +51,12 @@ func (c *Client) Exchange(ctx context.Context, method string, target string, opt
 }
 
 // Retrieve 执行请求并读取响应体快照。
-func (c *Client) Retrieve(ctx context.Context, method string, target string, options ...RequestOption) (*Response, error) {
+func (c *Client) Retrieve(
+	ctx context.Context,
+	method string,
+	target string,
+	options ...RequestOption,
+) (*Response, error) {
 	request, config, err := c.newRequest(ctx, method, target, options...)
 	if err != nil {
 		return nil, err
@@ -73,12 +83,22 @@ func (c *Client) Retrieve(ctx context.Context, method string, target string, opt
 }
 
 // NewRequest 构造 HTTP 请求但不发送。
-func (c *Client) NewRequest(ctx context.Context, method string, target string, options ...RequestOption) (*http.Request, error) {
+func (c *Client) NewRequest(
+	ctx context.Context,
+	method string,
+	target string,
+	options ...RequestOption,
+) (*http.Request, error) {
 	request, _, err := c.newRequest(ctx, method, target, options...)
 	return request, err
 }
 
-func (c *Client) newRequest(ctx context.Context, method string, target string, options ...RequestOption) (*http.Request, requestConfig, error) {
+func (c *Client) newRequest(
+	ctx context.Context,
+	method string,
+	target string,
+	options ...RequestOption,
+) (*http.Request, requestConfig, error) {
 	if c == nil || c.httpClient == nil {
 		return nil, requestConfig{}, ErrNilHTTPClient
 	}
@@ -98,7 +118,12 @@ func (c *Client) newRequest(ctx context.Context, method string, target string, o
 	if err != nil {
 		return nil, requestConfig{}, err
 	}
-	request, err := http.NewRequestWithContext(ctx, strings.ToUpper(strings.TrimSpace(method)), resolved, config.body)
+	request, err := http.NewRequestWithContext(
+		ctx,
+		strings.ToUpper(strings.TrimSpace(method)),
+		resolved,
+		config.body,
+	)
 	if err != nil {
 		return nil, requestConfig{}, err
 	}
@@ -110,27 +135,47 @@ func (c *Client) newRequest(ctx context.Context, method string, target string, o
 }
 
 // Get 执行 GET 请求并读取响应体快照。
-func (c *Client) Get(ctx context.Context, target string, options ...RequestOption) (*Response, error) {
+func (c *Client) Get(
+	ctx context.Context,
+	target string,
+	options ...RequestOption,
+) (*Response, error) {
 	return c.Retrieve(ctx, http.MethodGet, target, options...)
 }
 
 // Post 执行 POST 请求并读取响应体快照。
-func (c *Client) Post(ctx context.Context, target string, options ...RequestOption) (*Response, error) {
+func (c *Client) Post(
+	ctx context.Context,
+	target string,
+	options ...RequestOption,
+) (*Response, error) {
 	return c.Retrieve(ctx, http.MethodPost, target, options...)
 }
 
 // Put 执行 PUT 请求并读取响应体快照。
-func (c *Client) Put(ctx context.Context, target string, options ...RequestOption) (*Response, error) {
+func (c *Client) Put(
+	ctx context.Context,
+	target string,
+	options ...RequestOption,
+) (*Response, error) {
 	return c.Retrieve(ctx, http.MethodPut, target, options...)
 }
 
 // Patch 执行 PATCH 请求并读取响应体快照。
-func (c *Client) Patch(ctx context.Context, target string, options ...RequestOption) (*Response, error) {
+func (c *Client) Patch(
+	ctx context.Context,
+	target string,
+	options ...RequestOption,
+) (*Response, error) {
 	return c.Retrieve(ctx, http.MethodPatch, target, options...)
 }
 
 // Delete 执行 DELETE 请求并读取响应体快照。
-func (c *Client) Delete(ctx context.Context, target string, options ...RequestOption) (*Response, error) {
+func (c *Client) Delete(
+	ctx context.Context,
+	target string,
+	options ...RequestOption,
+) (*Response, error) {
 	return c.Retrieve(ctx, http.MethodDelete, target, options...)
 }
 
@@ -241,7 +286,10 @@ func OnStatus(predicate StatusPredicate, handler StatusHandler) RequestOption {
 }
 
 // OnStatusFunc 追加函数型单次请求响应状态处理器。
-func OnStatusFunc(predicate StatusPredicate, handler func(context.Context, *Response) error) RequestOption {
+func OnStatusFunc(
+	predicate StatusPredicate,
+	handler func(context.Context, *Response) error,
+) RequestOption {
 	return OnStatus(predicate, StatusHandlerFunc(handler))
 }
 

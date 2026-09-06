@@ -14,37 +14,56 @@ type Filter = servlet.Filter
 type FilterFunc = servlet.FilterFunc
 
 // RegisterFilter 注册 Servlet 过滤器贡献点。
-func RegisterFilter(registry *container.Registry, name string, filter servlet.Filter, options ...container.Option) error {
+func RegisterFilter(
+	registry *container.Registry,
+	name string,
+	filter servlet.Filter,
+	options ...container.Option,
+) error {
 	if isNilFilter(filter) {
 		return ErrNilFilter
 	}
-	return RegisterConfigurer(registry, name, ConfigurerFunc(func(ctx context.Context, webRegistry *Registry) error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if webRegistry == nil {
-			return ErrNilRegistry
-		}
-		webRegistry.AddFilter(filter)
-		return nil
-	}), options...)
+	return RegisterConfigurer(
+		registry,
+		name,
+		ConfigurerFunc(func(ctx context.Context, webRegistry *Registry) error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if webRegistry == nil {
+				return ErrNilRegistry
+			}
+			webRegistry.AddFilter(filter)
+			return nil
+		}),
+		options...)
 }
 
 // RegisterMappedFilter 注册带路径映射的 Servlet 过滤器贡献点。
-func RegisterMappedFilter(registry *container.Registry, name string, filter servlet.Filter, mapping FilterMapping, options ...container.Option) error {
+func RegisterMappedFilter(
+	registry *container.Registry,
+	name string,
+	filter servlet.Filter,
+	mapping FilterMapping,
+	options ...container.Option,
+) error {
 	if isNilFilter(filter) {
 		return ErrNilFilter
 	}
-	return RegisterConfigurer(registry, name, ConfigurerFunc(func(ctx context.Context, webRegistry *Registry) error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if webRegistry == nil {
-			return ErrNilRegistry
-		}
-		webRegistry.AddMappedFilter(filter, mapping)
-		return nil
-	}), options...)
+	return RegisterConfigurer(
+		registry,
+		name,
+		ConfigurerFunc(func(ctx context.Context, webRegistry *Registry) error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if webRegistry == nil {
+				return ErrNilRegistry
+			}
+			webRegistry.AddMappedFilter(filter, mapping)
+			return nil
+		}),
+		options...)
 }
 
 func isNilFilter(filter servlet.Filter) bool {
@@ -89,7 +108,12 @@ type mappedFilter struct {
 	mapping FilterMapping
 }
 
-func (f mappedFilter) Filter(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
+func (f mappedFilter) Filter(
+	ctx context.Context,
+	req *servlet.Request,
+	res servlet.Response,
+	chain servlet.Chain,
+) error {
 	requestPath := "/"
 	if req != nil {
 		requestPath = req.Path()

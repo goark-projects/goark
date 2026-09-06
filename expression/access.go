@@ -21,7 +21,12 @@ func indexedValue(target any, index any) (any, error) {
 	case reflect.Map:
 		key := reflect.ValueOf(index)
 		if !key.IsValid() || !key.Type().AssignableTo(value.Type().Key()) {
-			return nil, arkerrors.Newf(arkerrors.CodeTypeMismatch, "GaEL map index is %T, expected %s", index, value.Type().Key())
+			return nil, arkerrors.Newf(
+				arkerrors.CodeTypeMismatch,
+				"GaEL map index is %T, expected %s",
+				index,
+				value.Type().Key(),
+			)
 		}
 		result := value.MapIndex(key)
 		if !result.IsValid() {
@@ -35,7 +40,11 @@ func indexedValue(target any, index any) (any, error) {
 		}
 		integer, ok := number.(int64)
 		if !ok || integer < 0 || integer >= int64(value.Len()) {
-			return nil, arkerrors.Newf(arkerrors.CodeInvalidArgument, "GaEL index %v is out of range", index)
+			return nil, arkerrors.Newf(
+				arkerrors.CodeInvalidArgument,
+				"GaEL index %v is out of range",
+				index,
+			)
 		}
 		result := value.Index(int(integer))
 		if value.Kind() == reflect.String {
@@ -43,6 +52,10 @@ func indexedValue(target any, index any) (any, error) {
 		}
 		return result.Interface(), nil
 	default:
-		return nil, arkerrors.Newf(arkerrors.CodeTypeMismatch, "GaEL value of type %T is not indexable", target)
+		return nil, arkerrors.Newf(
+			arkerrors.CodeTypeMismatch,
+			"GaEL value of type %T is not indexable",
+			target,
+		)
 	}
 }

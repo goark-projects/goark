@@ -37,7 +37,11 @@ func (StandardParser) Parse(text string) (Expression, error) {
 		return nil, err
 	}
 	if current := state.current(); current.kind != tokenEOF {
-		return nil, fmt.Errorf("unexpected token %q at position %d", current.literal, current.position)
+		return nil, fmt.Errorf(
+			"unexpected token %q at position %d",
+			current.literal,
+			current.position,
+		)
 	}
 	return expression, nil
 }
@@ -88,7 +92,8 @@ func (p *parserState) parseBinary(next func() (node, error), kinds ...tokenKind)
 }
 
 func (p *parserState) parseUnary() (node, error) {
-	if current := p.current(); current.kind == tokenBang || current.kind == tokenMinus || current.kind == tokenPlus {
+	if current := p.current(); current.kind == tokenBang || current.kind == tokenMinus ||
+		current.kind == tokenPlus {
 		p.advance()
 		operand, err := p.parseUnary()
 		if err != nil {
@@ -191,7 +196,11 @@ func (p *parserState) advance() token {
 func (p *parserState) expect(kind tokenKind) (token, error) {
 	current := p.current()
 	if current.kind != kind {
-		return token{}, fmt.Errorf("unexpected token %q at position %d", current.literal, current.position)
+		return token{}, fmt.Errorf(
+			"unexpected token %q at position %d",
+			current.literal,
+			current.position,
+		)
 	}
 	p.index++
 	return current, nil

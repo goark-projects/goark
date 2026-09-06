@@ -57,7 +57,10 @@ func NewErrorMapperChain(mappers ...arkweb.ErrorMapper) ErrorMapperChain {
 	return newErrorMapperChain(nil, mappers)
 }
 
-func newErrorMapperChain(fallback arkweb.ErrorMapper, mappers []arkweb.ErrorMapper) ErrorMapperChain {
+func newErrorMapperChain(
+	fallback arkweb.ErrorMapper,
+	mappers []arkweb.ErrorMapper,
+) ErrorMapperChain {
 	chain := ErrorMapperChain{fallback: fallback}
 	for _, mapper := range mappers {
 		if isNilErrorMapper(mapper) {
@@ -90,37 +93,55 @@ func (c ErrorMapperChain) ErrorMappers() []arkweb.ErrorMapper {
 }
 
 // RegisterErrorMapper 注册 Web 错误映射器贡献点。
-func RegisterErrorMapper(registry *container.Registry, name string, mapper arkweb.ErrorMapper, options ...container.Option) error {
+func RegisterErrorMapper(
+	registry *container.Registry,
+	name string,
+	mapper arkweb.ErrorMapper,
+	options ...container.Option,
+) error {
 	if isNilErrorMapper(mapper) {
 		return ErrNilErrorMapper
 	}
-	return RegisterConfigurer(registry, name, ConfigurerFunc(func(ctx context.Context, webRegistry *Registry) error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if webRegistry == nil {
-			return ErrNilRegistry
-		}
-		webRegistry.UseErrorMapper(mapper)
-		return nil
-	}), options...)
+	return RegisterConfigurer(
+		registry,
+		name,
+		ConfigurerFunc(func(ctx context.Context, webRegistry *Registry) error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if webRegistry == nil {
+				return ErrNilRegistry
+			}
+			webRegistry.UseErrorMapper(mapper)
+			return nil
+		}),
+		options...)
 }
 
 // RegisterFallbackErrorMapper 注册仅在普通错误映射器均未命中时执行的兜底映射器。
-func RegisterFallbackErrorMapper(registry *container.Registry, name string, mapper arkweb.ErrorMapper, options ...container.Option) error {
+func RegisterFallbackErrorMapper(
+	registry *container.Registry,
+	name string,
+	mapper arkweb.ErrorMapper,
+	options ...container.Option,
+) error {
 	if isNilErrorMapper(mapper) {
 		return ErrNilErrorMapper
 	}
-	return RegisterConfigurer(registry, name, ConfigurerFunc(func(ctx context.Context, webRegistry *Registry) error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if webRegistry == nil {
-			return ErrNilRegistry
-		}
-		webRegistry.UseFallbackErrorMapper(mapper)
-		return nil
-	}), options...)
+	return RegisterConfigurer(
+		registry,
+		name,
+		ConfigurerFunc(func(ctx context.Context, webRegistry *Registry) error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if webRegistry == nil {
+				return ErrNilRegistry
+			}
+			webRegistry.UseFallbackErrorMapper(mapper)
+			return nil
+		}),
+		options...)
 }
 
 func isNilErrorMapper(mapper arkweb.ErrorMapper) bool {
@@ -139,6 +160,10 @@ func NewStatusError(statusCode int, publicMessage string, cause error) error {
 }
 
 // NewResponseStatusException 创建可直接从处理器返回的 HTTP 状态异常。
-func NewResponseStatusException(statusCode int, reason string, cause error) *ResponseStatusException {
+func NewResponseStatusException(
+	statusCode int,
+	reason string,
+	cause error,
+) *ResponseStatusException {
 	return servlet.NewHTTPError(statusCode, reason, cause)
 }

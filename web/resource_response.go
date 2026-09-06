@@ -263,7 +263,11 @@ func newDownloadOptions(options []DownloadOption) downloadOptions {
 	return out
 }
 
-func writeDownloadHeaders(response servlet.Response, options downloadOptions, statusCode int) error {
+func writeDownloadHeaders(
+	response servlet.Response,
+	options downloadOptions,
+	statusCode int,
+) error {
 	if options.contentType != "" && response.Header().Get("Content-Type") == "" {
 		if err := servlet.SetContentType(response, options.contentType); err != nil {
 			return err

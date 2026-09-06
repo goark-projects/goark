@@ -30,9 +30,17 @@ type indexNode struct {
 	index  node
 }
 
-func (n literalNode) Evaluate(context.Context, EvaluationContext) (any, error) { return n.value, nil }
+func (n literalNode) Evaluate(
+	context.Context,
+	EvaluationContext,
+) (any, error) {
+	return n.value, nil
+}
 
-func (n identifierNode) Evaluate(_ context.Context, evaluationContext EvaluationContext) (any, error) {
+func (n identifierNode) Evaluate(
+	_ context.Context,
+	evaluationContext EvaluationContext,
+) (any, error) {
 	if evaluationContext == nil {
 		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "GaEL evaluation context is nil")
 	}
@@ -74,7 +82,10 @@ func (n unaryNode) Evaluate(ctx context.Context, evaluationContext EvaluationCon
 	}
 }
 
-func (n binaryNode) Evaluate(ctx context.Context, evaluationContext EvaluationContext) (any, error) {
+func (n binaryNode) Evaluate(
+	ctx context.Context,
+	evaluationContext EvaluationContext,
+) (any, error) {
 	left, err := n.left.Evaluate(ctx, evaluationContext)
 	if err != nil {
 		return nil, err
@@ -149,9 +160,17 @@ func (n indexNode) Evaluate(ctx context.Context, evaluationContext EvaluationCon
 	return indexedValue(target, index)
 }
 
-func evaluatePropertyCall(evaluationContext EvaluationContext, name string, arguments []any) (any, error) {
+func evaluatePropertyCall(
+	evaluationContext EvaluationContext,
+	name string,
+	arguments []any,
+) (any, error) {
 	if len(arguments) != 1 {
-		return nil, arkerrors.Newf(arkerrors.CodeInvalidArgument, "GaEL %s requires one argument", name)
+		return nil, arkerrors.Newf(
+			arkerrors.CodeInvalidArgument,
+			"GaEL %s requires one argument",
+			name,
+		)
 	}
 	key, ok := arguments[0].(string)
 	if !ok {

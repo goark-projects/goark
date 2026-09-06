@@ -73,7 +73,10 @@ func (a *ApplicationContext) RegisterConfiguration(configuration Configuration) 
 		return arkerrors.New(arkerrors.CodeClosed, "application context is closed")
 	}
 	if a.refreshed || a.refreshing {
-		return arkerrors.New(arkerrors.CodeConflict, "application context has already been refreshed")
+		return arkerrors.New(
+			arkerrors.CodeConflict,
+			"application context has already been refreshed",
+		)
 	}
 	return a.registerConfigurationLocked(configuration)
 }
@@ -114,7 +117,12 @@ func sortConfigurations(configurations []Configuration) {
 	})
 }
 
-func applyConfigurations(ctx stdcontext.Context, env coreenv.ConfigurableEnvironment, registry *container.Registry, configurations []Configuration) error {
+func applyConfigurations(
+	ctx stdcontext.Context,
+	env coreenv.ConfigurableEnvironment,
+	registry *container.Registry,
+	configurations []Configuration,
+) error {
 	sortConfigurations(configurations)
 	for _, configuration := range configurations {
 		configurer, ok := configuration.(EnvironmentConfigurer)
@@ -122,25 +130,48 @@ func applyConfigurations(ctx stdcontext.Context, env coreenv.ConfigurableEnviron
 			continue
 		}
 		if err := ctx.Err(); err != nil {
-			return arkerrors.Wrap(arkerrors.CodeLifecycle, err, "configuration environment configuration canceled")
+			return arkerrors.Wrap(
+				arkerrors.CodeLifecycle,
+				err,
+				"configuration environment configuration canceled",
+			)
 		}
 		if err := configurer.ConfigureEnvironment(ctx, env); err != nil {
-			return arkerrors.Wrapf(arkerrors.CodeCreation, err, "configuration %q environment configuration failed", configuration.Name())
+			return arkerrors.Wrapf(
+				arkerrors.CodeCreation,
+				err,
+				"configuration %q environment configuration failed",
+				configuration.Name(),
+			)
 		}
 	}
 	for _, configuration := range configurations {
 		if err := ctx.Err(); err != nil {
-			return arkerrors.Wrap(arkerrors.CodeLifecycle, err, "configuration registration canceled")
+			return arkerrors.Wrap(
+				arkerrors.CodeLifecycle,
+				err,
+				"configuration registration canceled",
+			)
 		}
 		registrationContext := NewConfigurationContext(env, registry)
 		if contextAware, ok := configuration.(ContextAwareConfiguration); ok {
 			if err := contextAware.RegisterWithContext(ctx, registrationContext); err != nil {
-				return arkerrors.Wrapf(arkerrors.CodeCreation, err, "configuration %q registration failed", configuration.Name())
+				return arkerrors.Wrapf(
+					arkerrors.CodeCreation,
+					err,
+					"configuration %q registration failed",
+					configuration.Name(),
+				)
 			}
 			continue
 		}
 		if err := configuration.Register(ctx, registry); err != nil {
-			return arkerrors.Wrapf(arkerrors.CodeCreation, err, "configuration %q registration failed", configuration.Name())
+			return arkerrors.Wrapf(
+				arkerrors.CodeCreation,
+				err,
+				"configuration %q registration failed",
+				configuration.Name(),
+			)
 		}
 	}
 	return nil

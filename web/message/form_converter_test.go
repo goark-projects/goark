@@ -13,12 +13,17 @@ func TestReaderReadsURLEncodedFormBody(t *testing.T) {
 	t.Parallel()
 
 	var got url.Values
-	recorder := serveReadMessage(t, message.MediaTypeFormURLEncoded, "name=goark&tag=web&tag=mvc", func(ctx *arkweb.Context) (arkweb.Result, error) {
-		if err := message.NewReader().Read(ctx, &got); err != nil {
-			return nil, err
-		}
-		return arkweb.NoContent(), nil
-	})
+	recorder := serveReadMessage(
+		t,
+		message.MediaTypeFormURLEncoded,
+		"name=goark&tag=web&tag=mvc",
+		func(ctx *arkweb.Context) (arkweb.Result, error) {
+			if err := message.NewReader().Read(ctx, &got); err != nil {
+				return nil, err
+			}
+			return arkweb.NoContent(), nil
+		},
+	)
 
 	if recorder.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want 204, body=%s", recorder.Code, recorder.Body.String())
@@ -32,12 +37,17 @@ func TestReaderRejectsMalformedURLEncodedFormBody(t *testing.T) {
 	t.Parallel()
 
 	var got url.Values
-	recorder := serveReadMessage(t, message.MediaTypeFormURLEncoded, "%zz", func(ctx *arkweb.Context) (arkweb.Result, error) {
-		if err := message.NewReader().Read(ctx, &got); err != nil {
-			return nil, err
-		}
-		return arkweb.NoContent(), nil
-	})
+	recorder := serveReadMessage(
+		t,
+		message.MediaTypeFormURLEncoded,
+		"%zz",
+		func(ctx *arkweb.Context) (arkweb.Result, error) {
+			if err := message.NewReader().Read(ctx, &got); err != nil {
+				return nil, err
+			}
+			return arkweb.NoContent(), nil
+		},
+	)
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400, body=%s", recorder.Code, recorder.Body.String())

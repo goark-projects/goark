@@ -26,7 +26,11 @@ func (s cacheControlServlet) Init(ctx context.Context, config servlet.ServletCon
 	return s.target.Init(ctx, config)
 }
 
-func (s cacheControlServlet) Serve(ctx context.Context, req *servlet.Request, res servlet.Response) error {
+func (s cacheControlServlet) Serve(
+	ctx context.Context,
+	req *servlet.Request,
+	res servlet.Response,
+) error {
 	if res == nil {
 		return s.target.Serve(ctx, req, res)
 	}

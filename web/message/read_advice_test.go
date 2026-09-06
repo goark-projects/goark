@@ -42,12 +42,17 @@ func TestReaderReadAdviceRunsBeforeAndAfterConverter(t *testing.T) {
 			return nil
 		},
 	}
-	recorder := serveReadMessage(t, arkjson.ContentType, `{"name":"goark"}`, func(ctx *arkweb.Context) (arkweb.Result, error) {
-		if err := message.NewReader(message.WithReadAdvice(advice)).Read(ctx, &got); err != nil {
-			return nil, err
-		}
-		return arkweb.Text(http.StatusOK, got.Name), nil
-	})
+	recorder := serveReadMessage(
+		t,
+		arkjson.ContentType,
+		`{"name":"goark"}`,
+		func(ctx *arkweb.Context) (arkweb.Result, error) {
+			if err := message.NewReader(message.WithReadAdvice(advice)).Read(ctx, &got); err != nil {
+				return nil, err
+			}
+			return arkweb.Text(http.StatusOK, got.Name), nil
+		},
+	)
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
@@ -66,18 +71,23 @@ func TestReaderReadAdviceBeforeErrorSkipsConverter(t *testing.T) {
 
 	errBlocked := errors.New("blocked")
 	var got string
-	recorder := serveReadMessage(t, "text/plain", "blocked body", func(ctx *arkweb.Context) (arkweb.Result, error) {
-		reader := message.NewReader(message.WithReadAdvice(message.ReadAdviceFunc{
-			Before: func(*arkweb.Context, message.ReadAdviceContext) error {
-				return errBlocked
-			},
-		}))
-		err := reader.Read(ctx, &got)
-		if !errors.Is(err, errBlocked) {
-			t.Fatalf("err = %v, want blocked", err)
-		}
-		return arkweb.NoContent(), nil
-	})
+	recorder := serveReadMessage(
+		t,
+		"text/plain",
+		"blocked body",
+		func(ctx *arkweb.Context) (arkweb.Result, error) {
+			reader := message.NewReader(message.WithReadAdvice(message.ReadAdviceFunc{
+				Before: func(*arkweb.Context, message.ReadAdviceContext) error {
+					return errBlocked
+				},
+			}))
+			err := reader.Read(ctx, &got)
+			if !errors.Is(err, errBlocked) {
+				t.Fatalf("err = %v, want blocked", err)
+			}
+			return arkweb.NoContent(), nil
+		},
+	)
 
 	if recorder.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want 204, body=%s", recorder.Code, recorder.Body.String())

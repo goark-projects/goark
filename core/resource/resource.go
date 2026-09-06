@@ -52,7 +52,12 @@ func readAll(ctx context.Context, resource Resource) ([]byte, error) {
 	defer reader.Close()
 	data, err := io.ReadAll(reader)
 	if err != nil {
-		return nil, arkerrors.Wrapf(arkerrors.CodeResource, err, "failed to read resource %q", resource.Location())
+		return nil, arkerrors.Wrapf(
+			arkerrors.CodeResource,
+			err,
+			"failed to read resource %q",
+			resource.Location(),
+		)
 	}
 	return data, nil
 }

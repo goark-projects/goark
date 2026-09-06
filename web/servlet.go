@@ -21,7 +21,12 @@ type servletMapping struct {
 }
 
 // AddServlet 添加底层 Servlet 映射。
-func (r *Registry) AddServlet(pattern string, name string, handler servlet.Servlet, filters ...servlet.Filter) error {
+func (r *Registry) AddServlet(
+	pattern string,
+	name string,
+	handler servlet.Servlet,
+	filters ...servlet.Filter,
+) error {
 	if r == nil {
 		return ErrNilRegistry
 	}

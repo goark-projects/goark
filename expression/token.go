@@ -75,7 +75,8 @@ func (l *lexer) next() (token, error) {
 	current := l.input[l.index]
 	if unicode.IsLetter(current) || current == '_' {
 		l.index++
-		for l.index < len(l.input) && (unicode.IsLetter(l.input[l.index]) || unicode.IsDigit(l.input[l.index]) || l.input[l.index] == '_') {
+		for l.index < len(l.input) && (unicode.IsLetter(l.input[l.index]) || unicode.IsDigit(
+			l.input[l.index]) || l.input[l.index] == '_') {
 			l.index++
 		}
 		literal := string(l.input[start:l.index])

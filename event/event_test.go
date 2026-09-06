@@ -74,7 +74,9 @@ func TestBus_whenHandlersImplementOrdered_shouldUseGlobalOrderContracts(t *testi
 	calls := make([]string, 0, 3)
 	handlers := []event.Handler{
 		&orderedHandler{name: "normal-early", order: 10, calls: &calls},
-		&priorityOrderedHandler{orderedHandler: &orderedHandler{name: "priority", order: 100, calls: &calls}},
+		&priorityOrderedHandler{
+			orderedHandler: &orderedHandler{name: "priority", order: 100, calls: &calls},
+		},
 		&orderedHandler{name: "normal-late", order: 20, calls: &calls},
 	}
 	for _, handler := range handlers {
@@ -95,10 +97,12 @@ func TestBus_whenHandlersImplementOrdered_shouldUseGlobalOrderContracts(t *testi
 func TestBus_whenExplicitOrderProvided_shouldOverrideHandlerOrder(t *testing.T) {
 	bus := event.NewBus()
 	calls := make([]string, 0, 2)
-	if err := bus.Subscribe(&orderedHandler{name: "second", order: 1, calls: &calls}, event.WithOrder(20)); err != nil {
+	if err := bus.Subscribe(&orderedHandler{name: "second", order: 1, calls: &calls},
+		event.WithOrder(20)); err != nil {
 		t.Fatalf("subscribe second failed: %v", err)
 	}
-	if err := bus.Subscribe(&orderedHandler{name: "first", order: 100, calls: &calls}, event.WithOrder(10)); err != nil {
+	if err := bus.Subscribe(&orderedHandler{name: "first", order: 100, calls: &calls},
+		event.WithOrder(10)); err != nil {
 		t.Fatalf("subscribe first failed: %v", err)
 	}
 

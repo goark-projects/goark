@@ -51,10 +51,14 @@ func classifyError(err error) (int, string, map[string]any) {
 		}
 	}
 	if errors.Is(err, arkjson.ErrPayloadTooLarge) {
-		return http.StatusRequestEntityTooLarge, http.StatusText(http.StatusRequestEntityTooLarge), nil
+		return http.StatusRequestEntityTooLarge, http.StatusText(
+			http.StatusRequestEntityTooLarge,
+		), nil
 	}
 	if errors.Is(err, arkweb.ErrUnsupportedMediaType) {
-		return http.StatusUnsupportedMediaType, http.StatusText(http.StatusUnsupportedMediaType), nil
+		return http.StatusUnsupportedMediaType, http.StatusText(
+			http.StatusUnsupportedMediaType,
+		), nil
 	}
 	var parameterErr *arkweb.ParameterError
 	if errors.As(err, &parameterErr) {

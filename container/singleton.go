@@ -13,7 +13,11 @@ type singletonCall struct {
 	err   error
 }
 
-func (c *Container) resolveSingleton(ctx context.Context, state *resolutionState, definition Definition) (any, error) {
+func (c *Container) resolveSingleton(
+	ctx context.Context,
+	state *resolutionState,
+	definition Definition,
+) (any, error) {
 	c.singletonMu.Lock()
 	if value, ok := c.singletons[definition.Name]; ok {
 		c.singletonMu.Unlock()
@@ -25,7 +29,12 @@ func (c *Container) resolveSingleton(ctx context.Context, state *resolutionState
 		case <-call.done:
 			return call.value, call.err
 		case <-ctx.Done():
-			return nil, arkerrors.Wrapf(arkerrors.CodeLifecycle, ctx.Err(), "resolve bean %q canceled", definition.Name)
+			return nil, arkerrors.Wrapf(
+				arkerrors.CodeLifecycle,
+				ctx.Err(),
+				"resolve bean %q canceled",
+				definition.Name,
+			)
 		}
 	}
 

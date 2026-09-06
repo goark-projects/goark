@@ -72,9 +72,18 @@ func WithFormContentMaxBodyBytes(size int64) FormContentOption {
 	}
 }
 
-func (f formContentFilter) Filter(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
+func (f formContentFilter) Filter(
+	ctx context.Context,
+	req *servlet.Request,
+	res servlet.Response,
+	chain servlet.Chain,
+) error {
 	if req == nil {
-		return servlet.NewHTTPError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), nil)
+		return servlet.NewHTTPError(
+			http.StatusBadRequest,
+			http.StatusText(http.StatusBadRequest),
+			nil,
+		)
 	}
 	if chain == nil {
 		return ErrNilChain
@@ -167,7 +176,11 @@ func readAndRestoreBody(request *servlet.Request, maxBodyBytes int64) ([]byte, e
 }
 
 func formContentTooLarge() error {
-	return servlet.NewHTTPError(http.StatusRequestEntityTooLarge, http.StatusText(http.StatusRequestEntityTooLarge), nil)
+	return servlet.NewHTTPError(
+		http.StatusRequestEntityTooLarge,
+		http.StatusText(http.StatusRequestEntityTooLarge),
+		nil,
+	)
 }
 
 func defaultFormContentMethods() map[string]struct{} {

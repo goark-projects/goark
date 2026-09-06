@@ -71,16 +71,23 @@ func TestDefaultLoader_whenLocationHasKnownSchemes_shouldLoadResources(t *testin
 			t.Fatalf("read %s failed: %v", item.location, err)
 		}
 		if !strings.Contains(string(data), item.contains) {
-			t.Fatalf("expected %s to contain %q, got %q", item.location, item.contains, string(data))
+			t.Fatalf(
+				"expected %s to contain %q, got %q",
+				item.location,
+				item.contains,
+				string(data),
+			)
 		}
 	}
 }
 
 func TestURLResource_whenServerReturnsSuccess_shouldReadResponse(t *testing.T) {
 	ctx := context.Background()
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		_, _ = writer.Write([]byte("remote-config"))
-	}))
+	server := httptest.NewServer(
+		http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			_, _ = writer.Write([]byte("remote-config"))
+		}),
+	)
 	defer server.Close()
 
 	res, err := resource.NewURLResource(server.URL+"/config", server.Client())

@@ -71,9 +71,18 @@ func WithHiddenMethodAllowedMethods(methods ...string) HiddenMethodOption {
 	}
 }
 
-func (f hiddenMethodFilter) Filter(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
+func (f hiddenMethodFilter) Filter(
+	ctx context.Context,
+	req *servlet.Request,
+	res servlet.Response,
+	chain servlet.Chain,
+) error {
 	if req == nil {
-		return servlet.NewHTTPError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), nil)
+		return servlet.NewHTTPError(
+			http.StatusBadRequest,
+			http.StatusText(http.StatusBadRequest),
+			nil,
+		)
 	}
 	if chain == nil {
 		return ErrNilChain

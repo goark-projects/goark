@@ -76,7 +76,8 @@ func applyCORSMappings(routes []Route, mappings []CORSMapping) ([]Route, error) 
 			}
 			continue
 		}
-		if filter := table.actualFilter(out[i].Pattern, method); filter != nil && out[i].Handler != nil {
+		if filter := table.actualFilter(out[i].Pattern, method); filter != nil &&
+			out[i].Handler != nil {
 			out[i].Handler = wrapCORSHandler(out[i].Handler, filter)
 		}
 	}
@@ -179,9 +180,14 @@ func (h *corsPreflightHandler) Handle(ctx *arkweb.Context) (arkweb.Result, error
 	method := normalizeMethod(ctx.Request().Header().Get(headerCORSRequestMethod))
 	filter := h.filters[method]
 	if filter == nil {
-		return nil, servlet.NewHTTPError(http.StatusForbidden, http.StatusText(http.StatusForbidden), nil)
+		return nil, servlet.NewHTTPError(
+			http.StatusForbidden,
+			http.StatusText(http.StatusForbidden),
+			nil,
+		)
 	}
-	if err := filter.Filter(ctx.Context(), ctx.Request(), ctx.Response(), servlet.ChainFunc(func(context.Context, *servlet.Request, servlet.Response) error {
+	if err := filter.Filter(ctx.Context(), ctx.Request(), ctx.Response(), servlet.ChainFunc(func(
+		context.Context, *servlet.Request, servlet.Response) error {
 		return nil
 	})); err != nil {
 		return nil, err

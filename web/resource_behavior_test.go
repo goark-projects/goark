@@ -92,7 +92,8 @@ func TestCheckNotModifiedIgnoresUnsafeMethods(t *testing.T) {
 	t.Parallel()
 
 	registry := web.NewRegistry()
-	if err := registry.POST("/jobs/1", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.POST("/jobs/1", arkweb.HandlerFunc(func(ctx *arkweb.Context) (
+		arkweb.Result, error) {
 		if web.CheckNotModified(ctx, "job-1", fixedModifiedTime()) {
 			return nil, nil
 		}
@@ -123,7 +124,8 @@ func newConditionalClient(t *testing.T, etag string, lastModified time.Time) *we
 	t.Helper()
 
 	registry := web.NewRegistry()
-	if err := registry.GET("/jobs/1", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/jobs/1", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result,
+		error) {
 		if web.CheckNotModified(ctx, etag, lastModified) {
 			return nil, nil
 		}
@@ -151,7 +153,8 @@ func TestAttachmentStreamsDownload(t *testing.T) {
 	t.Parallel()
 
 	router := arkweb.NewRouter()
-	if err := router.GET("/reports/today", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := router.GET("/reports/today", arkweb.HandlerFunc(func(_ *arkweb.Context) (
+		arkweb.Result, error) {
 		return web.Attachment("reports/today.csv", strings.NewReader("id,name\n1,goark\n"),
 			web.WithDownloadContentType("text/csv"),
 			web.WithDownloadContentLength(16),
@@ -161,7 +164,8 @@ func TestAttachmentStreamsDownload(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/reports/today", nil))
+	servletnethttp.Handler(router).
+		ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/reports/today", nil))
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
@@ -183,14 +187,16 @@ func TestAttachmentDoesNotReadBodyForHead(t *testing.T) {
 	t.Parallel()
 
 	router := arkweb.NewRouter()
-	if err := router.GET("/reports/today", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := router.GET("/reports/today", arkweb.HandlerFunc(func(_ *arkweb.Context) (
+		arkweb.Result, error) {
 		return web.Attachment("today.csv", failReadDownload{}), nil
 	})); err != nil {
 		t.Fatalf("GET failed: %v", err)
 	}
 
 	recorder := httptest.NewRecorder()
-	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodHead, "/reports/today", nil))
+	servletnethttp.Handler(router).
+		ServeHTTP(recorder, httptest.NewRequest(http.MethodHead, "/reports/today", nil))
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
@@ -209,7 +215,8 @@ func TestRedirectWritesLocationAndStatus(t *testing.T) {
 	t.Parallel()
 
 	registry := web.NewRegistry()
-	if err := registry.GET("/accounts", arkweb.HandlerFunc(func(*arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/accounts", arkweb.HandlerFunc(func(*arkweb.Context) (arkweb.Result,
+		error) {
 		return web.SeeOther("/signin", web.WithRedirectHeader("X-Redirect", "yes")), nil
 	})); err != nil {
 		t.Fatalf("GET failed: %v", err)
@@ -220,7 +227,8 @@ func TestRedirectWritesLocationAndStatus(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/accounts", nil))
+	servletnethttp.Handler(router).
+		ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/accounts", nil))
 	if recorder.Code != http.StatusSeeOther {
 		t.Fatalf("status = %d, want 303", recorder.Code)
 	}
@@ -250,7 +258,8 @@ func TestRedirectRejectsInvalidLocation(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/bad", nil))
+	servletnethttp.Handler(router).
+		ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/bad", nil))
 	if recorder.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500", recorder.Code)
 	}
@@ -261,7 +270,8 @@ func TestRedirectRejectsInvalidLocation(t *testing.T) {
 
 func TestRegistryBuildsRouter(t *testing.T) {
 	registry := web.NewRegistry()
-	if err := registry.GET("/healthz", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/healthz", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return arkweb.JSON(http.StatusOK, map[string]string{"status": "UP"}), nil
 	})); err != nil {
 		t.Fatalf("GET failed: %v", err)
@@ -272,7 +282,8 @@ func TestRegistryBuildsRouter(t *testing.T) {
 		t.Fatalf("Router failed: %v", err)
 	}
 	recorder := httptest.NewRecorder()
-	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	servletnethttp.Handler(router).
+		ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
@@ -280,17 +291,20 @@ func TestRegistryBuildsRouter(t *testing.T) {
 
 func TestRegistrySupportsHeadOptionsAndTraceHelpers(t *testing.T) {
 	registry := web.NewRegistry()
-	if err := registry.HEAD("/healthz", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.HEAD("/healthz", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return arkweb.Text(http.StatusOK, "UP"), nil
 	})); err != nil {
 		t.Fatalf("HEAD failed: %v", err)
 	}
-	if err := registry.OPTIONS("/healthz", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.OPTIONS("/healthz", arkweb.HandlerFunc(func(_ *arkweb.Context) (
+		arkweb.Result, error) {
 		return arkweb.NoContent(), nil
 	})); err != nil {
 		t.Fatalf("OPTIONS failed: %v", err)
 	}
-	if err := registry.TRACE("/healthz", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.TRACE("/healthz", arkweb.HandlerFunc(func(_ *arkweb.Context) (
+		arkweb.Result, error) {
 		return arkweb.NoContent(), nil
 	})); err != nil {
 		t.Fatalf("TRACE failed: %v", err)
@@ -300,7 +314,13 @@ func TestRegistrySupportsHeadOptionsAndTraceHelpers(t *testing.T) {
 	if len(routes) != 3 {
 		t.Fatalf("route count = %d, want 3", len(routes))
 	}
-	if routes[0].Method != http.MethodHead || routes[1].Method != http.MethodOptions || routes[2].Method != http.MethodTrace {
-		t.Fatalf("methods = %s/%s/%s, want HEAD/OPTIONS/TRACE", routes[0].Method, routes[1].Method, routes[2].Method)
+	if routes[0].Method != http.MethodHead || routes[1].Method != http.MethodOptions ||
+		routes[2].Method != http.MethodTrace {
+		t.Fatalf(
+			"methods = %s/%s/%s, want HEAD/OPTIONS/TRACE",
+			routes[0].Method,
+			routes[1].Method,
+			routes[2].Method,
+		)
 	}
 }

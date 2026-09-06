@@ -32,7 +32,12 @@ type DependencyDescriptor struct {
 	Optional bool
 }
 
-func dependencyDescriptor(name string, kind DependencyKind, source DependencySource, optional bool) DependencyDescriptor {
+func dependencyDescriptor(
+	name string,
+	kind DependencyKind,
+	source DependencySource,
+	optional bool,
+) DependencyDescriptor {
 	return DependencyDescriptor{
 		Name:     strings.TrimSpace(name),
 		Kind:     kind.normalized(),
@@ -70,16 +75,26 @@ func splitDependencyNames(names []string) []string {
 	return out
 }
 
-func normalizeDefinitionDependencies(descriptors []DependencyDescriptor, dependsOn []string, dependencies []string) ([]DependencyDescriptor, []string, []string) {
+func normalizeDefinitionDependencies(
+	descriptors []DependencyDescriptor,
+	dependsOn []string,
+	dependencies []string,
+) ([]DependencyDescriptor, []string, []string) {
 	normalized := normalizeDependencyDescriptors(descriptors)
 	for _, name := range splitDependencyNames(dependsOn) {
-		normalized = appendDependencyDescriptor(normalized, dependencyDescriptor(name, DependencyKindDependsOn, DependencySourceManual, false))
+		normalized = appendDependencyDescriptor(
+			normalized,
+			dependencyDescriptor(name, DependencyKindDependsOn, DependencySourceManual, false),
+		)
 	}
 	for _, name := range splitDependencyNames(dependencies) {
 		if containsDependencyDescriptorName(normalized, name) {
 			continue
 		}
-		normalized = appendDependencyDescriptor(normalized, dependencyDescriptor(name, DependencyKindFactory, DependencySourceInferred, false))
+		normalized = appendDependencyDescriptor(
+			normalized,
+			dependencyDescriptor(name, DependencyKindFactory, DependencySourceInferred, false),
+		)
 	}
 	dependsOnNames := dependencyNamesByKind(normalized, DependencyKindDependsOn)
 	allNames := dependencyNames(normalized)
@@ -97,13 +112,17 @@ func normalizeDependencyDescriptors(descriptors []DependencyDescriptor) []Depend
 	return normalized
 }
 
-func appendDependencyDescriptor(descriptors []DependencyDescriptor, descriptor DependencyDescriptor) []DependencyDescriptor {
+func appendDependencyDescriptor(
+	descriptors []DependencyDescriptor,
+	descriptor DependencyDescriptor,
+) []DependencyDescriptor {
 	for i, existing := range descriptors {
 		if existing.Name == descriptor.Name && existing.Kind == descriptor.Kind {
 			if !descriptor.Optional {
 				descriptors[i].Optional = false
 			}
-			if existing.Source != DependencySourceManual && descriptor.Source == DependencySourceManual {
+			if existing.Source != DependencySourceManual &&
+				descriptor.Source == DependencySourceManual {
 				descriptors[i].Source = DependencySourceManual
 			}
 			return descriptors

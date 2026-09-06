@@ -25,9 +25,18 @@ func ForwardedHeaders() servlet.Filter {
 	return forwardedHeadersFilter{}
 }
 
-func (forwardedHeadersFilter) Filter(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
+func (forwardedHeadersFilter) Filter(
+	ctx context.Context,
+	req *servlet.Request,
+	res servlet.Response,
+	chain servlet.Chain,
+) error {
 	if req == nil {
-		return servlet.NewHTTPError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), nil)
+		return servlet.NewHTTPError(
+			http.StatusBadRequest,
+			http.StatusText(http.StatusBadRequest),
+			nil,
+		)
 	}
 	if chain == nil {
 		return ErrNilChain
@@ -37,7 +46,10 @@ func (forwardedHeadersFilter) Filter(ctx context.Context, req *servlet.Request, 
 	req.SetAttribute(AttributeOriginalRemoteAddr, req.RemoteAddr())
 
 	fields := forwardedFields(req.Header().Get("Forwarded"))
-	scheme := firstNonEmpty(fields["proto"], firstHeaderValue(req.Header().Get("X-Forwarded-Proto")))
+	scheme := firstNonEmpty(
+		fields["proto"],
+		firstHeaderValue(req.Header().Get("X-Forwarded-Proto")),
+	)
 	host := firstNonEmpty(fields["host"], forwardedHost(req.Header()))
 	remote := firstNonEmpty(fields["for"], firstForwardedFor(req.Header().Get("X-Forwarded-For")))
 

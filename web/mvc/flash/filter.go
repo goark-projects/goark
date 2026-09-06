@@ -63,7 +63,12 @@ func NewSessionFilter(manager session.Manager, options ...Option) (*Filter, erro
 }
 
 // Filter 执行请求级 FlashMap 取出和响应级保存。
-func (f *Filter) Filter(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
+func (f *Filter) Filter(
+	ctx context.Context,
+	req *servlet.Request,
+	res servlet.Response,
+	chain servlet.Chain,
+) error {
 	if chain == nil {
 		return servlet.ErrNilHandler
 	}

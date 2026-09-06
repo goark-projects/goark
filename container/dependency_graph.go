@@ -26,7 +26,12 @@ func (c *Container) buildDependencyGraph() (map[string][]dependencyEdge, error) 
 				if dependency.Optional {
 					continue
 				}
-				return nil, arkerrors.Newf(arkerrors.CodeNotFound, "bean %q depends on missing bean %q", name, dependency.Name)
+				return nil, arkerrors.Newf(
+					arkerrors.CodeNotFound,
+					"bean %q depends on missing bean %q",
+					name,
+					dependency.Name,
+				)
 			}
 			graph[name] = append(graph[name], dependencyEdge{
 				From:       name,
@@ -61,7 +66,11 @@ func (c *Container) validateDependencyGraph(graph map[string][]dependencyEdge) e
 		if c.allowCircularReferences && c.canResolveCircularComponent(component, edges) {
 			continue
 		}
-		return arkerrors.Newf(arkerrors.CodeCircularDependency, "circular dependency detected: %s", dependencyCycleDescription(component, edges))
+		return arkerrors.Newf(
+			arkerrors.CodeCircularDependency,
+			"circular dependency detected: %s",
+			dependencyCycleDescription(component, edges),
+		)
 	}
 	return nil
 }
@@ -90,7 +99,10 @@ func hasSelfDependency(edges []dependencyEdge, name string) bool {
 	return false
 }
 
-func internalDependencyEdges(graph map[string][]dependencyEdge, component []string) []dependencyEdge {
+func internalDependencyEdges(
+	graph map[string][]dependencyEdge,
+	component []string,
+) []dependencyEdge {
 	members := make(map[string]struct{}, len(component))
 	for _, name := range component {
 		members[name] = struct{}{}
@@ -115,7 +127,16 @@ func dependencyCycleDescription(component []string, edges []dependencyEdge) stri
 	}
 	parts := make([]string, 0, len(edges))
 	for _, edge := range edges {
-		parts = append(parts, fmt.Sprintf("%s -> %s (%s,%s)", edge.From, edge.To, edge.Descriptor.Kind, edge.Descriptor.Source))
+		parts = append(
+			parts,
+			fmt.Sprintf(
+				"%s -> %s (%s,%s)",
+				edge.From,
+				edge.To,
+				edge.Descriptor.Kind,
+				edge.Descriptor.Source,
+			),
+		)
 	}
 	return strings.Join(parts, "; ")
 }

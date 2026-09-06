@@ -52,7 +52,11 @@ func flattenAnyMap(prefix string, values map[any]any, out map[string]any) error 
 	for key, value := range values {
 		keyText, ok := key.(string)
 		if !ok {
-			return arkerrors.Newf(arkerrors.CodeInvalidArgument, "config key %v is not a string", key)
+			return arkerrors.Newf(
+				arkerrors.CodeInvalidArgument,
+				"config key %v is not a string",
+				key,
+			)
 		}
 		keyText = strings.TrimSpace(keyText)
 		if keyText == "" {
@@ -85,14 +89,19 @@ func flattenReflectValue(prefix string, value any, out map[string]any) error {
 	switch reflectValue.Kind() {
 	case reflect.Map:
 		if reflectValue.Type().Key().Kind() != reflect.String {
-			return arkerrors.Newf(arkerrors.CodeInvalidArgument, "config key under %q is not string", prefix)
+			return arkerrors.Newf(
+				arkerrors.CodeInvalidArgument,
+				"config key under %q is not string",
+				prefix,
+			)
 		}
 		for _, key := range reflectValue.MapKeys() {
 			keyText := strings.TrimSpace(key.String())
 			if keyText == "" {
 				return arkerrors.New(arkerrors.CodeInvalidArgument, "config key is empty")
 			}
-			if err := flattenConfigValue(prefix+"."+keyText, reflectValue.MapIndex(key).Interface(), out); err != nil {
+			if err := flattenConfigValue(prefix+"."+keyText, reflectValue.MapIndex(key).Interface(),
+				out); err != nil {
 				return err
 			}
 		}

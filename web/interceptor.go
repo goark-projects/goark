@@ -16,37 +16,56 @@ type Interceptor = arkweb.Interceptor
 type InterceptorFunc = arkweb.InterceptorFunc
 
 // RegisterInterceptor 注册 Web 拦截器贡献点。
-func RegisterInterceptor(registry *container.Registry, name string, interceptor arkweb.Interceptor, options ...container.Option) error {
+func RegisterInterceptor(
+	registry *container.Registry,
+	name string,
+	interceptor arkweb.Interceptor,
+	options ...container.Option,
+) error {
 	if isNilInterceptor(interceptor) {
 		return ErrNilInterceptor
 	}
-	return RegisterConfigurer(registry, name, ConfigurerFunc(func(ctx context.Context, webRegistry *Registry) error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if webRegistry == nil {
-			return ErrNilRegistry
-		}
-		webRegistry.Use(interceptor)
-		return nil
-	}), options...)
+	return RegisterConfigurer(
+		registry,
+		name,
+		ConfigurerFunc(func(ctx context.Context, webRegistry *Registry) error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if webRegistry == nil {
+				return ErrNilRegistry
+			}
+			webRegistry.Use(interceptor)
+			return nil
+		}),
+		options...)
 }
 
 // RegisterMappedInterceptor 注册带路径映射的 Web 拦截器贡献点。
-func RegisterMappedInterceptor(registry *container.Registry, name string, interceptor arkweb.Interceptor, mapping InterceptorMapping, options ...container.Option) error {
+func RegisterMappedInterceptor(
+	registry *container.Registry,
+	name string,
+	interceptor arkweb.Interceptor,
+	mapping InterceptorMapping,
+	options ...container.Option,
+) error {
 	if isNilInterceptor(interceptor) {
 		return ErrNilInterceptor
 	}
-	return RegisterConfigurer(registry, name, ConfigurerFunc(func(ctx context.Context, webRegistry *Registry) error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if webRegistry == nil {
-			return ErrNilRegistry
-		}
-		webRegistry.UseMapped(interceptor, mapping)
-		return nil
-	}), options...)
+	return RegisterConfigurer(
+		registry,
+		name,
+		ConfigurerFunc(func(ctx context.Context, webRegistry *Registry) error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if webRegistry == nil {
+				return ErrNilRegistry
+			}
+			webRegistry.UseMapped(interceptor, mapping)
+			return nil
+		}),
+		options...)
 }
 
 func isNilInterceptor(interceptor arkweb.Interceptor) bool {
@@ -144,7 +163,10 @@ type mappedInterceptor struct {
 	mapping InterceptorMapping
 }
 
-func (i mappedInterceptor) Intercept(ctx *arkweb.Context, next arkweb.Handler) (arkweb.Result, error) {
+func (i mappedInterceptor) Intercept(
+	ctx *arkweb.Context,
+	next arkweb.Handler,
+) (arkweb.Result, error) {
 	requestPath := "/"
 	if ctx != nil && ctx.Request() != nil {
 		requestPath = ctx.Request().Path()
@@ -211,7 +233,10 @@ func matchInterceptorPathPattern(pattern, requestPath string) bool {
 		matched, err := path.Match(pattern, requestPath)
 		return err == nil && matched
 	}
-	return matchInterceptorPathSegments(interceptorPathSegments(pattern), interceptorPathSegments(requestPath))
+	return matchInterceptorPathSegments(
+		interceptorPathSegments(pattern),
+		interceptorPathSegments(requestPath),
+	)
 }
 
 func interceptorPathSegments(value string) []string {

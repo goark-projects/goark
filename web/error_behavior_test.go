@@ -33,7 +33,8 @@ func TestRegistryUsesErrorMapperChain(t *testing.T) {
 		}
 		return arkweb.Text(http.StatusConflict, "handled")
 	}))
-	if err := registry.GET("/errors", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/errors", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return nil, handledErr
 	})); err != nil {
 		t.Fatalf("GET failed: %v", err)
@@ -55,7 +56,8 @@ func TestRegistryErrorMapperFallsBackToDefault(t *testing.T) {
 	registry.UseErrorMapper(web.ErrorMapperFunc(func(_ *arkweb.Context, _ error) arkweb.Result {
 		return nil
 	}))
-	if err := registry.GET("/errors", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/errors", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return nil, errors.New("boom")
 	})); err != nil {
 		t.Fatalf("GET failed: %v", err)
@@ -75,21 +77,25 @@ func TestRegistryUsesConfiguredFallbackAfterSpecificMappers(t *testing.T) {
 
 	specificErr := errors.New("specific")
 	registry := web.NewRegistry()
-	registry.UseFallbackErrorMapper(web.ErrorMapperFunc(func(_ *arkweb.Context, _ error) arkweb.Result {
-		return arkweb.Text(http.StatusInternalServerError, "fallback")
-	}))
+	registry.UseFallbackErrorMapper(
+		web.ErrorMapperFunc(func(_ *arkweb.Context, _ error) arkweb.Result {
+			return arkweb.Text(http.StatusInternalServerError, "fallback")
+		}),
+	)
 	registry.UseErrorMapper(web.ErrorMapperFunc(func(_ *arkweb.Context, err error) arkweb.Result {
 		if errors.Is(err, specificErr) {
 			return arkweb.Text(http.StatusNotFound, "specific")
 		}
 		return nil
 	}))
-	if err := registry.GET("/specific", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/specific", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return nil, specificErr
 	})); err != nil {
 		t.Fatalf("GET specific failed: %v", err)
 	}
-	if err := registry.GET("/fallback", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/fallback", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return nil, errors.New("unknown")
 	})); err != nil {
 		t.Fatalf("GET fallback failed: %v", err)
@@ -97,11 +103,19 @@ func TestRegistryUsesConfiguredFallbackAfterSpecificMappers(t *testing.T) {
 
 	specific := serveRegistry(t, registry, http.MethodGet, "/specific")
 	if specific.Code != http.StatusNotFound || specific.Body.String() != "specific" {
-		t.Fatalf("specific response = %d %q, want 404 specific", specific.Code, specific.Body.String())
+		t.Fatalf(
+			"specific response = %d %q, want 404 specific",
+			specific.Code,
+			specific.Body.String(),
+		)
 	}
 	fallback := serveRegistry(t, registry, http.MethodGet, "/fallback")
 	if fallback.Code != http.StatusInternalServerError || fallback.Body.String() != "fallback" {
-		t.Fatalf("fallback response = %d %q, want 500 fallback", fallback.Code, fallback.Body.String())
+		t.Fatalf(
+			"fallback response = %d %q, want 500 fallback",
+			fallback.Code,
+			fallback.Body.String(),
+		)
 	}
 }
 
@@ -110,7 +124,8 @@ func TestDefaultErrorMapperMapsWebStatusError(t *testing.T) {
 
 	cause := errors.New("internal quota bucket")
 	registry := web.NewRegistry()
-	if err := registry.GET("/limited", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/limited", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return nil, web.NewStatusError(http.StatusTooManyRequests, "rate limited", cause)
 	})); err != nil {
 		t.Fatalf("GET failed: %v", err)
@@ -133,20 +148,26 @@ func TestRegistryRouterOptionsOverrideErrorMappers(t *testing.T) {
 	registry.UseErrorMapper(web.ErrorMapperFunc(func(_ *arkweb.Context, _ error) arkweb.Result {
 		return arkweb.Text(http.StatusConflict, "registry")
 	}))
-	if err := registry.GET("/errors", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/errors", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return nil, errors.New("boom")
 	})); err != nil {
 		t.Fatalf("GET failed: %v", err)
 	}
 
-	router, err := registry.Router(arkweb.WithErrorMapper(arkweb.ErrorMapperFunc(func(_ *arkweb.Context, _ error) arkweb.Result {
-		return arkweb.Text(http.StatusTeapot, "option")
-	})))
+	router, err := registry.Router(
+		arkweb.WithErrorMapper(
+			arkweb.ErrorMapperFunc(func(_ *arkweb.Context, _ error) arkweb.Result {
+				return arkweb.Text(http.StatusTeapot, "option")
+			}),
+		),
+	)
 	if err != nil {
 		t.Fatalf("Router failed: %v", err)
 	}
 	recorder := httptest.NewRecorder()
-	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/errors", nil))
+	servletnethttp.Handler(router).
+		ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/errors", nil))
 
 	if recorder.Code != http.StatusTeapot || recorder.Body.String() != "option" {
 		t.Fatalf("response = %d %q, want 418 option", recorder.Code, recorder.Body.String())
@@ -158,12 +179,13 @@ func TestRegisterErrorMapperContributesConfigurer(t *testing.T) {
 
 	handledErr := errors.New("configured")
 	beanRegistry := container.NewRegistry()
-	if err := web.RegisterErrorMapper(beanRegistry, "configuredErrorMapper", web.ErrorMapperFunc(func(_ *arkweb.Context, err error) arkweb.Result {
-		if errors.Is(err, handledErr) {
-			return arkweb.Text(http.StatusNotFound, "configured")
-		}
-		return nil
-	})); err != nil {
+	if err := web.RegisterErrorMapper(beanRegistry, "configuredErrorMapper", web.ErrorMapperFunc(
+		func(_ *arkweb.Context, err error) arkweb.Result {
+			if errors.Is(err, handledErr) {
+				return arkweb.Text(http.StatusNotFound, "configured")
+			}
+			return nil
+		})); err != nil {
 		t.Fatalf("RegisterErrorMapper failed: %v", err)
 	}
 	resolver, err := container.New(beanRegistry)
@@ -175,7 +197,8 @@ func TestRegisterErrorMapperContributesConfigurer(t *testing.T) {
 	if err := web.ApplyConfigurers(t.Context(), resolver, registry); err != nil {
 		t.Fatalf("ApplyConfigurers failed: %v", err)
 	}
-	if err := registry.GET("/errors", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/errors", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return nil, handledErr
 	})); err != nil {
 		t.Fatalf("GET failed: %v", err)
@@ -190,7 +213,10 @@ func TestRegisterErrorMapperContributesConfigurer(t *testing.T) {
 func TestRegisterErrorMapperRejectsNilMapper(t *testing.T) {
 	t.Parallel()
 
-	if err := web.RegisterErrorMapper(container.NewRegistry(), "nilErrorMapper", nil); !errors.Is(err, web.ErrNilErrorMapper) {
+	if err := web.RegisterErrorMapper(container.NewRegistry(), "nilErrorMapper", nil); !errors.Is(
+		err,
+		web.ErrNilErrorMapper,
+	) {
 		t.Fatalf("err = %v, want ErrNilErrorMapper", err)
 	}
 }
@@ -198,12 +224,20 @@ func TestRegisterErrorMapperRejectsNilMapper(t *testing.T) {
 func TestRegisterFallbackErrorMapperRejectsNilMapper(t *testing.T) {
 	t.Parallel()
 
-	if err := web.RegisterFallbackErrorMapper(container.NewRegistry(), "nilFallbackErrorMapper", nil); !errors.Is(err, web.ErrNilErrorMapper) {
+	if err := web.RegisterFallbackErrorMapper(container.NewRegistry(), "nilFallbackErrorMapper",
+		nil); !errors.Is(
+		err,
+		web.ErrNilErrorMapper,
+	) {
 		t.Fatalf("err = %v, want ErrNilErrorMapper", err)
 	}
 }
 
-func serveRegistry(t *testing.T, registry *web.Registry, method, target string) *httptest.ResponseRecorder {
+func serveRegistry(
+	t *testing.T,
+	registry *web.Registry,
+	method, target string,
+) *httptest.ResponseRecorder {
 	t.Helper()
 
 	router, err := registry.Router()
@@ -247,7 +281,8 @@ func TestResponseStatusExceptionMapsToProblemDetail(t *testing.T) {
 	cause := errors.New("internal storage detail")
 	registry := web.NewRegistry()
 	registry.UseErrorMapper(problem.NewMapper())
-	if err := registry.POST("/jobs", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.POST("/jobs", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return nil, web.NewResponseStatusException(http.StatusConflict, "job already exists", cause)
 	})); err != nil {
 		t.Fatalf("POST failed: %v", err)
@@ -271,7 +306,8 @@ func TestRequestLocaleReadsAcceptLanguageAndWritesContentLanguage(t *testing.T) 
 	t.Parallel()
 
 	registry := web.NewRegistry()
-	if err := registry.GET("/locale", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/locale", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result,
+		error) {
 		locale, ok := web.RequestLocale(ctx)
 		locales := web.RequestLocales(ctx)
 		payload := map[string]any{
@@ -305,7 +341,9 @@ func TestRequestLocaleReadsAcceptLanguageAndWritesContentLanguage(t *testing.T) 
 	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("response json invalid: %v", err)
 	}
-	if payload["ok"] != true || payload["locale"] != "zh-CN" || payload["language"] != "zh" || payload["region"] != "CN" || payload["localeSize"] != float64(2) {
+	if payload["ok"] != true || payload["locale"] != "zh-CN" || payload["language"] != "zh" ||
+		payload["region"] != "CN" ||
+		payload["localeSize"] != float64(2) {
 		t.Fatalf("payload = %#v, want request locale details", payload)
 	}
 }

@@ -34,7 +34,10 @@ type StandardEvaluationContext struct {
 type ContextOption func(*StandardEvaluationContext) error
 
 // NewEvaluationContext 创建默认求值上下文。
-func NewEvaluationContext(properties PropertyResolver, options ...ContextOption) (*StandardEvaluationContext, error) {
+func NewEvaluationContext(
+	properties PropertyResolver,
+	options ...ContextOption,
+) (*StandardEvaluationContext, error) {
 	if properties == nil {
 		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "GaEL property resolver is nil")
 	}

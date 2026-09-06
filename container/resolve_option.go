@@ -30,7 +30,10 @@ func newResolveOptions(options []ResolveOption) (resolveOptions, error) {
 		}
 	}
 	if out.qualified && out.qualifier == "" {
-		return resolveOptions{}, arkerrors.New(arkerrors.CodeInvalidArgument, "bean qualifier is empty")
+		return resolveOptions{}, arkerrors.New(
+			arkerrors.CodeInvalidArgument,
+			"bean qualifier is empty",
+		)
 	}
 	return out, nil
 }

@@ -30,7 +30,12 @@ func NewSessionFilter(manager session.Manager) (*Filter, error) {
 }
 
 // Filter 执行请求级 Session 绑定和响应级模型属性持久化。
-func (f *Filter) Filter(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
+func (f *Filter) Filter(
+	ctx context.Context,
+	req *servlet.Request,
+	res servlet.Response,
+	chain servlet.Chain,
+) error {
 	if chain == nil {
 		return servlet.ErrNilHandler
 	}
@@ -49,7 +54,11 @@ func (f *Filter) Filter(ctx context.Context, req *servlet.Request, res servlet.R
 	return f.savePending(ctx, req, res)
 }
 
-func (f *Filter) savePending(ctx context.Context, req *servlet.Request, res servlet.Response) error {
+func (f *Filter) savePending(
+	ctx context.Context,
+	req *servlet.Request,
+	res servlet.Response,
+) error {
 	values := pending(req)
 	if len(values) == 0 {
 		return nil

@@ -79,7 +79,12 @@ func (s *Service) Register(converter Converter) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, exists := s.converters[pair]; exists {
-		return arkerrors.Newf(arkerrors.CodeAlreadyExists, "converter %s -> %s already exists", pair.source, pair.target)
+		return arkerrors.Newf(
+			arkerrors.CodeAlreadyExists,
+			"converter %s -> %s already exists",
+			pair.source,
+			pair.target,
+		)
 	}
 	s.converters[pair] = converter
 	return nil
@@ -118,13 +123,25 @@ func (s *Service) Convert(value any, targetType reflect.Type) (any, error) {
 	if converter := s.lookup(sourceType, targetType); converter != nil {
 		converted, err := converter.Convert(value)
 		if err != nil {
-			return nil, arkerrors.Wrapf(arkerrors.CodeConversion, err, "failed to convert %s to %s", sourceType, targetType)
+			return nil, arkerrors.Wrapf(
+				arkerrors.CodeConversion,
+				err,
+				"failed to convert %s to %s",
+				sourceType,
+				targetType,
+			)
 		}
 		return normalizeConverted(converted, targetType)
 	}
 	converted, err := builtinConvert(value, targetType, s)
 	if err != nil {
-		return nil, arkerrors.Wrapf(arkerrors.CodeConversion, err, "failed to convert %s to %s", sourceType, targetType)
+		return nil, arkerrors.Wrapf(
+			arkerrors.CodeConversion,
+			err,
+			"failed to convert %s to %s",
+			sourceType,
+			targetType,
+		)
 	}
 	return normalizeConverted(converted, targetType)
 }
@@ -141,7 +158,12 @@ func Convert[T any](service *Service, value any) (T, error) {
 	}
 	typed, ok := converted.(T)
 	if !ok {
-		return zero, arkerrors.Newf(arkerrors.CodeTypeMismatch, "converted value is %T, expected %s", converted, lang.TypeOf[T]())
+		return zero, arkerrors.Newf(
+			arkerrors.CodeTypeMismatch,
+			"converted value is %T, expected %s",
+			converted,
+			lang.TypeOf[T](),
+		)
 	}
 	return typed, nil
 }
@@ -175,7 +197,11 @@ func convertNil(targetType reflect.Type) (any, error) {
 	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 		return reflect.Zero(targetType).Interface(), nil
 	default:
-		return nil, arkerrors.Newf(arkerrors.CodeConversion, "nil cannot be converted to %s", targetType)
+		return nil, arkerrors.Newf(
+			arkerrors.CodeConversion,
+			"nil cannot be converted to %s",
+			targetType,
+		)
 	}
 }
 

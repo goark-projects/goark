@@ -17,7 +17,11 @@ type Interceptor interface {
 type InterceptorFunc func(context.Context, *http.Request, ExchangeFunc) (*http.Response, error)
 
 // Intercept 执行函数型拦截器。
-func (f InterceptorFunc) Intercept(ctx context.Context, req *http.Request, next ExchangeFunc) (*http.Response, error) {
+func (f InterceptorFunc) Intercept(
+	ctx context.Context,
+	req *http.Request,
+	next ExchangeFunc,
+) (*http.Response, error) {
 	if f == nil {
 		return next(ctx, req)
 	}

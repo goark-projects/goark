@@ -12,7 +12,13 @@ type JSONResponse[T any] struct {
 }
 
 // RetrieveJSON 执行请求并将响应体解码为强类型 JSON。
-func RetrieveJSON[T any](client *Client, ctx context.Context, method string, target string, options ...RequestOption) (JSONResponse[T], error) {
+func RetrieveJSON[T any](
+	client *Client,
+	ctx context.Context,
+	method string,
+	target string,
+	options ...RequestOption,
+) (JSONResponse[T], error) {
 	var zero JSONResponse[T]
 	if client == nil {
 		return zero, ErrNilHTTPClient
@@ -33,26 +39,51 @@ func RetrieveJSON[T any](client *Client, ctx context.Context, method string, tar
 }
 
 // GetJSON 执行 GET 请求并将响应体解码为强类型 JSON。
-func GetJSON[T any](client *Client, ctx context.Context, target string, options ...RequestOption) (JSONResponse[T], error) {
+func GetJSON[T any](
+	client *Client,
+	ctx context.Context,
+	target string,
+	options ...RequestOption,
+) (JSONResponse[T], error) {
 	return RetrieveJSON[T](client, ctx, http.MethodGet, target, options...)
 }
 
 // PostJSON 执行 POST 请求并将响应体解码为强类型 JSON。
-func PostJSON[T any](client *Client, ctx context.Context, target string, options ...RequestOption) (JSONResponse[T], error) {
+func PostJSON[T any](
+	client *Client,
+	ctx context.Context,
+	target string,
+	options ...RequestOption,
+) (JSONResponse[T], error) {
 	return RetrieveJSON[T](client, ctx, http.MethodPost, target, options...)
 }
 
 // PutJSON 执行 PUT 请求并将响应体解码为强类型 JSON。
-func PutJSON[T any](client *Client, ctx context.Context, target string, options ...RequestOption) (JSONResponse[T], error) {
+func PutJSON[T any](
+	client *Client,
+	ctx context.Context,
+	target string,
+	options ...RequestOption,
+) (JSONResponse[T], error) {
 	return RetrieveJSON[T](client, ctx, http.MethodPut, target, options...)
 }
 
 // PatchJSON 执行 PATCH 请求并将响应体解码为强类型 JSON。
-func PatchJSON[T any](client *Client, ctx context.Context, target string, options ...RequestOption) (JSONResponse[T], error) {
+func PatchJSON[T any](
+	client *Client,
+	ctx context.Context,
+	target string,
+	options ...RequestOption,
+) (JSONResponse[T], error) {
 	return RetrieveJSON[T](client, ctx, http.MethodPatch, target, options...)
 }
 
 // DeleteJSON 执行 DELETE 请求并将响应体解码为强类型 JSON。
-func DeleteJSON[T any](client *Client, ctx context.Context, target string, options ...RequestOption) (JSONResponse[T], error) {
+func DeleteJSON[T any](
+	client *Client,
+	ctx context.Context,
+	target string,
+	options ...RequestOption,
+) (JSONResponse[T], error) {
 	return RetrieveJSON[T](client, ctx, http.MethodDelete, target, options...)
 }

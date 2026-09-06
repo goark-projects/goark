@@ -36,7 +36,10 @@ func New(pattern string, root fs.FS, options ...Option) (Configurer, error) {
 	}
 	providerOptions := make([]servletresource.FSProviderOption, 0, 1)
 	if cfg.contentType != nil {
-		providerOptions = append(providerOptions, servletresource.WithContentTypeFunc(cfg.contentType))
+		providerOptions = append(
+			providerOptions,
+			servletresource.WithContentTypeFunc(cfg.contentType),
+		)
 	}
 	provider, err := servletresource.NewFSProvider(root, providerOptions...)
 	if err != nil {
@@ -44,7 +47,10 @@ func New(pattern string, root fs.FS, options ...Option) (Configurer, error) {
 	}
 	servletOptions := make([]servletresource.DefaultServletOption, 0, 1)
 	if cfg.welcomeFilesSet {
-		servletOptions = append(servletOptions, servletresource.WithWelcomeFiles(cfg.welcomeFiles...))
+		servletOptions = append(
+			servletOptions,
+			servletresource.WithWelcomeFiles(cfg.welcomeFiles...),
+		)
 	}
 	handler, err := servletresource.NewDefaultServlet(provider, servletOptions...)
 	if err != nil {
@@ -58,7 +64,13 @@ func New(pattern string, root fs.FS, options ...Option) (Configurer, error) {
 }
 
 // Register 注册静态资源配置器 Bean。
-func Register(registry *container.Registry, name string, pattern string, root fs.FS, options ...Option) error {
+func Register(
+	registry *container.Registry,
+	name string,
+	pattern string,
+	root fs.FS,
+	options ...Option,
+) error {
 	configurer, err := New(pattern, root, options...)
 	if err != nil {
 		return err

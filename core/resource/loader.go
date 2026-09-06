@@ -129,7 +129,11 @@ func (l *DefaultLoader) Load(location string) (Resource, error) {
 		return NewURLResource(location, l.client)
 	default:
 		if scheme := locationScheme(location); scheme != "" {
-			return nil, arkerrors.Newf(arkerrors.CodeInvalidArgument, "unsupported resource scheme %q", scheme)
+			return nil, arkerrors.Newf(
+				arkerrors.CodeInvalidArgument,
+				"unsupported resource scheme %q",
+				scheme,
+			)
 		}
 		return NewFileResource(l.resolveFilePath(location))
 	}
@@ -193,7 +197,8 @@ func locationScheme(location string) string {
 	}
 	scheme := location[:index]
 	for _, r := range scheme {
-		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '+' || r == '-' || r == '.') {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '+' ||
+			r == '-' || r == '.') {
 			return ""
 		}
 	}

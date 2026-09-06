@@ -5,7 +5,12 @@ import (
 	"strings"
 )
 
-func resolveURL(base *url.URL, target string, pathVariables map[string]string, query url.Values) (string, error) {
+func resolveURL(
+	base *url.URL,
+	target string,
+	pathVariables map[string]string,
+	query url.Values,
+) (string, error) {
 	target = expandPathVariables(strings.TrimSpace(target), pathVariables)
 	if target == "" {
 		return "", ErrInvalidRequest

@@ -16,7 +16,10 @@ func (a *ApplicationContext) RegisterDefinition(definition container.Definition)
 		return arkerrors.New(arkerrors.CodeClosed, "application context is closed")
 	}
 	if a.refreshed || a.refreshing {
-		return arkerrors.New(arkerrors.CodeConflict, "application context has already been refreshed")
+		return arkerrors.New(
+			arkerrors.CodeConflict,
+			"application context has already been refreshed",
+		)
 	}
 	return a.registry.Register(definition)
 }

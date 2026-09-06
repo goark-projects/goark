@@ -87,10 +87,12 @@ func TestManager_whenStartedStoppedAndClosed_shouldRespectOrder(t *testing.T) {
 func TestManager_whenHooksImplementPriorityOrdered_shouldUseGlobalOrderContracts(t *testing.T) {
 	log := make([]string, 0, 6)
 	manager := lifecycle.NewManager()
-	if err := manager.Register("normal-early", &testHook{name: "normal-early", order: 10, log: &log}); err != nil {
+	if err := manager.Register("normal-early", &testHook{name: "normal-early", order: 10,
+		log: &log}); err != nil {
 		t.Fatalf("register normal early failed: %v", err)
 	}
-	if err := manager.Register("priority", &priorityTestHook{testHook: &testHook{name: "priority", order: 100, log: &log}}); err != nil {
+	if err := manager.Register("priority", &priorityTestHook{testHook: &testHook{name: "priority",
+		order: 100, log: &log}}); err != nil {
 		t.Fatalf("register priority failed: %v", err)
 	}
 
@@ -117,10 +119,12 @@ func TestManager_whenHooksImplementPriorityOrdered_shouldUseGlobalOrderContracts
 func TestManager_whenHooksDeclareDependsOn_shouldStartDependenciesFirst(t *testing.T) {
 	log := make([]string, 0, 6)
 	manager := lifecycle.NewManager()
-	if err := manager.Register("aa-service", &testHook{name: "aa-service", order: 1, log: &log}, lifecycle.WithDependsOn("zz-repository")); err != nil {
+	if err := manager.Register("aa-service", &testHook{name: "aa-service", order: 1, log: &log},
+		lifecycle.WithDependsOn("zz-repository")); err != nil {
 		t.Fatalf("register service failed: %v", err)
 	}
-	if err := manager.Register("zz-repository", &testHook{name: "zz-repository", order: 100, log: &log}); err != nil {
+	if err := manager.Register("zz-repository", &testHook{name: "zz-repository", order: 100,
+		log: &log}); err != nil {
 		t.Fatalf("register repository failed: %v", err)
 	}
 
@@ -147,10 +151,12 @@ func TestManager_whenHooksDeclareDependsOn_shouldStartDependenciesFirst(t *testi
 func TestManager_whenHooksDeclareDependsOnCycle_shouldFailFast(t *testing.T) {
 	log := make([]string, 0, 1)
 	manager := lifecycle.NewManager()
-	if err := manager.Register("a", &testHook{name: "a", log: &log}, lifecycle.WithDependsOn("b")); err != nil {
+	if err := manager.Register("a", &testHook{name: "a", log: &log}, lifecycle.WithDependsOn(
+		"b")); err != nil {
 		t.Fatalf("register a failed: %v", err)
 	}
-	if err := manager.Register("b", &testHook{name: "b", log: &log}, lifecycle.WithDependsOn("a")); err != nil {
+	if err := manager.Register("b", &testHook{name: "b", log: &log}, lifecycle.WithDependsOn(
+		"a")); err != nil {
 		t.Fatalf("register b failed: %v", err)
 	}
 
@@ -172,7 +178,8 @@ func TestManager_whenHooksDeclareDependsOnCycle_shouldFailFast(t *testing.T) {
 func TestManager_whenHookDependsOnItself_shouldFailFast(t *testing.T) {
 	log := make([]string, 0, 1)
 	manager := lifecycle.NewManager()
-	if err := manager.Register("self", &testHook{name: "self", log: &log}, lifecycle.WithDependsOn("self")); err != nil {
+	if err := manager.Register("self", &testHook{name: "self", log: &log},
+		lifecycle.WithDependsOn("self")); err != nil {
 		t.Fatalf("register self failed: %v", err)
 	}
 
@@ -194,7 +201,8 @@ func TestManager_whenStartFails_shouldRollbackStartedHooks(t *testing.T) {
 	if err := manager.Register("ok", &testHook{name: "ok", order: 10, log: &log}); err != nil {
 		t.Fatalf("register ok failed: %v", err)
 	}
-	if err := manager.Register("fail", &testHook{name: "fail", order: 20, log: &log, startErr: stderrors.New("boom")}); err != nil {
+	if err := manager.Register("fail", &testHook{name: "fail", order: 20, log: &log,
+		startErr: stderrors.New("boom")}); err != nil {
 		t.Fatalf("register fail failed: %v", err)
 	}
 

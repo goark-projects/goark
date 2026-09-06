@@ -25,14 +25,15 @@ type createJobRequest struct {
 
 type uploadPayload struct {
 	Title string                `form:"title"`
-	File  servletmultipart.Part `multipart:"file"`
+	File  servletmultipart.Part `             multipart:"file"`
 }
 
 func TestRouterClientPerformsJSONRequest(t *testing.T) {
 	t.Parallel()
 
 	router := arkweb.NewRouter()
-	if err := router.POST("/jobs/{id}", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+	if err := router.POST("/jobs/{id}", arkweb.HandlerFunc(func(ctx *arkweb.Context) (
+		arkweb.Result, error) {
 		var input createJobRequest
 		if err := ctx.BindJSON(&input); err != nil {
 			return nil, err
@@ -95,7 +96,8 @@ func TestResponseStatusClassAndHeaderAssertions(t *testing.T) {
 	t.Parallel()
 
 	router := arkweb.NewRouter()
-	if err := router.GET("/metadata", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+	if err := router.GET("/metadata", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result,
+		error) {
 		ctx.Response().Header().Add("Vary", "Accept")
 		ctx.Response().Header().Add("Vary", "Origin")
 		ctx.Response().Header().Set("X-Trace", "trace-1")
@@ -127,15 +129,24 @@ func TestRegistryClientRunsFiltersAndStaticServlet(t *testing.T) {
 		t.Fatalf("static.New failed: %v", err)
 	}
 	registry := goweb.NewRegistry()
-	registry.AddFilter(servlet.FilterFunc(func(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
-		res.Header().Set("X-WebTest-Filter", "hit")
-		return chain.Next(ctx, req, res)
-	}))
+	registry.AddFilter(
+		servlet.FilterFunc(
+			func(ctx context.Context, req *servlet.Request, res servlet.Response,
+				chain servlet.Chain) error {
+				res.Header().Set("X-WebTest-Filter", "hit")
+				return chain.Next(ctx, req, res)
+			},
+		),
+	)
 	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
 		t.Fatalf("ConfigureWeb failed: %v", err)
 	}
 
-	client, err := webtest.NewRegistry(t.Context(), registry, goweb.DeploymentSpec{ContextPath: "/admin"})
+	client, err := webtest.NewRegistry(
+		t.Context(),
+		registry,
+		goweb.DeploymentSpec{ContextPath: "/admin"},
+	)
 	client = webtest.Must(t, client, err)
 	t.Cleanup(func() {
 		if err := client.Close(context.Background()); err != nil {
@@ -186,23 +197,30 @@ func TestMultipartRequestOptionBuildsUpload(t *testing.T) {
 	t.Parallel()
 
 	registry := goweb.NewRegistry()
-	configurer := mvc.NewConfigurer(mvc.NewController("uploads",
-		mvc.POST("/uploads", mvc.BindMultipart(http.StatusCreated, func(_ *arkweb.Context, input uploadPayload) (map[string]string, error) {
-			file, err := input.File.Open()
-			if err != nil {
-				return nil, err
-			}
-			defer file.Close()
-			data, err := io.ReadAll(file)
-			if err != nil {
-				return nil, err
-			}
-			return map[string]string{
-				"title":    input.Title,
-				"filename": input.File.SubmittedFileName(),
-				"body":     string(data),
-			}, nil
-		})),
+	configurer := mvc.NewConfigurer(mvc.NewController(
+		"uploads",
+		mvc.POST(
+			"/uploads",
+			mvc.BindMultipart(
+				http.StatusCreated,
+				func(_ *arkweb.Context, input uploadPayload) (map[string]string, error) {
+					file, err := input.File.Open()
+					if err != nil {
+						return nil, err
+					}
+					defer file.Close()
+					data, err := io.ReadAll(file)
+					if err != nil {
+						return nil, err
+					}
+					return map[string]string{
+						"title":    input.Title,
+						"filename": input.File.SubmittedFileName(),
+						"body":     string(data),
+					}, nil
+				},
+			),
+		),
 	))
 	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
 		t.Fatalf("ConfigureWeb failed: %v", err)

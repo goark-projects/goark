@@ -29,7 +29,13 @@ func (c *Container) selectQualifier(typ reflect.Type, qualifier string) (string,
 		return "", arkerrors.Newf(arkerrors.CodeNotFound, "bean %q not found", qualifier)
 	}
 	if !typeAssignable(definition.Type, typ) {
-		return "", arkerrors.Newf(arkerrors.CodeTypeMismatch, "bean %q type %s is not assignable to %s", qualifier, definition.Type, typ)
+		return "", arkerrors.Newf(
+			arkerrors.CodeTypeMismatch,
+			"bean %q type %s is not assignable to %s",
+			qualifier,
+			definition.Type,
+			typ,
+		)
 	}
 	return qualifier, nil
 }
@@ -45,12 +51,22 @@ func (c *Container) selectPreferred(typ reflect.Type, names []string) (string, e
 		return primary[0], nil
 	}
 	if len(primary) > 1 {
-		return "", arkerrors.Newf(arkerrors.CodeConflict, "bean type %s has multiple primary candidates: %s", typ, strings.Join(primary, ", "))
+		return "", arkerrors.Newf(
+			arkerrors.CodeConflict,
+			"bean type %s has multiple primary candidates: %s",
+			typ,
+			strings.Join(primary, ", "),
+		)
 	}
 	if name, ok, err := c.selectPriority(typ, names); ok || err != nil {
 		return name, err
 	}
-	return "", arkerrors.Newf(arkerrors.CodeConflict, "bean type %s has multiple candidates: %s", typ, strings.Join(names, ", "))
+	return "", arkerrors.Newf(
+		arkerrors.CodeConflict,
+		"bean type %s has multiple candidates: %s",
+		typ,
+		strings.Join(names, ", "),
+	)
 }
 
 func (c *Container) selectPriority(typ reflect.Type, names []string) (string, bool, error) {
@@ -79,7 +95,13 @@ func (c *Container) selectPriority(typ reflect.Type, names []string) (string, bo
 	if len(bestNames) == 1 {
 		return bestNames[0], true, nil
 	}
-	return "", true, arkerrors.Newf(arkerrors.CodeConflict, "bean type %s has multiple priority candidates with priority %d: %s", typ, bestValue, strings.Join(bestNames, ", "))
+	return "", true, arkerrors.Newf(
+		arkerrors.CodeConflict,
+		"bean type %s has multiple priority candidates with priority %d: %s",
+		typ,
+		bestValue,
+		strings.Join(bestNames, ", "),
+	)
 }
 
 func (c *Container) matchingNames(typ reflect.Type) []string {

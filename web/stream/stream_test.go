@@ -93,7 +93,11 @@ func TestEventsWritesServerSentEventFrames(t *testing.T) {
 	}
 }
 
-func serveStreamRouter(router *arkweb.Router, method string, target string) *httptest.ResponseRecorder {
+func serveStreamRouter(
+	router *arkweb.Router,
+	method string,
+	target string,
+) *httptest.ResponseRecorder {
 	recorder := httptest.NewRecorder()
 	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(method, target, nil))
 	return recorder

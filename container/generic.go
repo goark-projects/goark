@@ -20,7 +20,13 @@ func Get[T any](ctx context.Context, resolver Resolver, name string) (T, error) 
 	}
 	typed, ok := value.(T)
 	if !ok {
-		return zero, arkerrors.Newf(arkerrors.CodeTypeMismatch, "bean %q is %T, expected %s", name, value, typeName[T]())
+		return zero, arkerrors.Newf(
+			arkerrors.CodeTypeMismatch,
+			"bean %q is %T, expected %s",
+			name,
+			value,
+			typeName[T](),
+		)
 	}
 	return typed, nil
 }
@@ -37,7 +43,12 @@ func GetByType[T any](ctx context.Context, resolver Resolver, options ...Resolve
 	}
 	typed, ok := value.(T)
 	if !ok {
-		return zero, arkerrors.Newf(arkerrors.CodeTypeMismatch, "bean type result is %T, expected %s", value, typeName[T]())
+		return zero, arkerrors.Newf(
+			arkerrors.CodeTypeMismatch,
+			"bean type result is %T, expected %s",
+			value,
+			typeName[T](),
+		)
 	}
 	return typed, nil
 }
@@ -55,7 +66,12 @@ func GetAllByType[T any](ctx context.Context, resolver Resolver) ([]T, error) {
 	for _, value := range values {
 		item, ok := value.(T)
 		if !ok {
-			return nil, arkerrors.Newf(arkerrors.CodeTypeMismatch, "bean type result is %T, expected %s", value, typeName[T]())
+			return nil, arkerrors.Newf(
+				arkerrors.CodeTypeMismatch,
+				"bean type result is %T, expected %s",
+				value,
+				typeName[T](),
+			)
 		}
 		typed = append(typed, item)
 	}

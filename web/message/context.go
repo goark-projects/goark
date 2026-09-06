@@ -61,11 +61,13 @@ func WriterFromContext(ctx *arkweb.Context) Writer {
 
 // ContextInterceptor 在请求进入 MVC 处理前绑定消息读写器。
 func ContextInterceptor(reader Reader, writer Writer) arkweb.Interceptor {
-	return arkweb.InterceptorFunc(func(ctx *arkweb.Context, next arkweb.Handler) (arkweb.Result, error) {
-		if ctx != nil && ctx.Request() != nil {
-			ctx.Request().SetAttribute(AttributeReader, reader)
-			ctx.Request().SetAttribute(AttributeWriter, writer)
-		}
-		return next.Handle(ctx)
-	})
+	return arkweb.InterceptorFunc(
+		func(ctx *arkweb.Context, next arkweb.Handler) (arkweb.Result, error) {
+			if ctx != nil && ctx.Request() != nil {
+				ctx.Request().SetAttribute(AttributeReader, reader)
+				ctx.Request().SetAttribute(AttributeWriter, writer)
+			}
+			return next.Handle(ctx)
+		},
+	)
 }

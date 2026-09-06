@@ -121,9 +121,12 @@ func TestApplicationContext_whenStartedAndClosed_shouldManageLifecycleAndEvents(
 	if err != nil {
 		t.Fatalf("create app context failed: %v", err)
 	}
-	definition, err := container.NewDefinition[*runtimeComponent]("component", func(stdcontext.Context, container.Resolver) (*runtimeComponent, error) {
-		return &runtimeComponent{log: &log, events: &events}, nil
-	})
+	definition, err := container.NewDefinition[*runtimeComponent](
+		"component",
+		func(stdcontext.Context, container.Resolver) (*runtimeComponent, error) {
+			return &runtimeComponent{log: &log, events: &events}, nil
+		},
+	)
 	if err != nil {
 		t.Fatalf("create definition failed: %v", err)
 	}
@@ -161,7 +164,11 @@ func TestApplicationContext_whenLifecycleManagementDisabled_shouldNotCloseBean(t
 	if err != nil {
 		t.Fatalf("create app context failed: %v", err)
 	}
-	definition, err := container.NewInstanceDefinition("alias", component, container.WithLifecycleManaged(false))
+	definition, err := container.NewInstanceDefinition(
+		"alias",
+		component,
+		container.WithLifecycleManaged(false),
+	)
 	if err != nil {
 		t.Fatalf("create definition failed: %v", err)
 	}
@@ -185,34 +192,48 @@ func TestApplicationContext_whenAllowedCircularLifecycleBeans_shouldStartAndClos
 	if err != nil {
 		t.Fatalf("create app context failed: %v", err)
 	}
-	service, err := container.NewDefinition[*circularRuntimeService]("service", func(stdcontext.Context, container.Resolver) (*circularRuntimeService, error) {
-		return &circularRuntimeService{log: &log}, nil
-	},
+	service, err := container.NewDefinition[*circularRuntimeService](
+		"service",
+		func(stdcontext.Context, container.Resolver) (*circularRuntimeService, error) {
+			return &circularRuntimeService{log: &log}, nil
+		},
 		container.WithInjectionDependencies("repository"),
-		container.WithTypedDependencyInjector(func(ctx stdcontext.Context, resolver container.Resolver, service *circularRuntimeService) error {
-			repository, err := container.Get[*circularRuntimeRepository](ctx, resolver, "repository")
-			if err != nil {
-				return err
-			}
-			service.Repository = repository
-			return nil
-		}),
+		container.WithTypedDependencyInjector(
+			func(ctx stdcontext.Context, resolver container.Resolver,
+				service *circularRuntimeService) error {
+				repository, err := container.Get[*circularRuntimeRepository](
+					ctx,
+					resolver,
+					"repository",
+				)
+				if err != nil {
+					return err
+				}
+				service.Repository = repository
+				return nil
+			},
+		),
 	)
 	if err != nil {
 		t.Fatalf("create service definition failed: %v", err)
 	}
-	repository, err := container.NewDefinition[*circularRuntimeRepository]("repository", func(stdcontext.Context, container.Resolver) (*circularRuntimeRepository, error) {
-		return &circularRuntimeRepository{log: &log}, nil
-	},
+	repository, err := container.NewDefinition[*circularRuntimeRepository](
+		"repository",
+		func(stdcontext.Context, container.Resolver) (*circularRuntimeRepository, error) {
+			return &circularRuntimeRepository{log: &log}, nil
+		},
 		container.WithInjectionDependencies("service"),
-		container.WithTypedDependencyInjector(func(ctx stdcontext.Context, resolver container.Resolver, repository *circularRuntimeRepository) error {
-			service, err := container.Get[*circularRuntimeService](ctx, resolver, "service")
-			if err != nil {
-				return err
-			}
-			repository.Service = service
-			return nil
-		}),
+		container.WithTypedDependencyInjector(
+			func(ctx stdcontext.Context, resolver container.Resolver,
+				repository *circularRuntimeRepository) error {
+				service, err := container.Get[*circularRuntimeService](ctx, resolver, "service")
+				if err != nil {
+					return err
+				}
+				repository.Service = service
+				return nil
+			},
+		),
 	)
 	if err != nil {
 		t.Fatalf("create repository definition failed: %v", err)
@@ -239,21 +260,30 @@ func TestApplicationContext_whenAllowedCircularLifecycleBeans_shouldStartAndClos
 	}
 }
 
-func TestApplicationContext_whenBeanDependsOnLifecycleBean_shouldDestroyDependentFirst(t *testing.T) {
+func TestApplicationContext_whenBeanDependsOnLifecycleBean_shouldDestroyDependentFirst(
+	t *testing.T,
+) {
 	log := make([]string, 0, 6)
 	app, err := appcontext.New()
 	if err != nil {
 		t.Fatalf("create app context failed: %v", err)
 	}
-	repository, err := container.NewDefinition[*namedRuntimeComponent]("zzRepository", func(stdcontext.Context, container.Resolver) (*namedRuntimeComponent, error) {
-		return &namedRuntimeComponent{name: "repository", log: &log}, nil
-	})
+	repository, err := container.NewDefinition[*namedRuntimeComponent](
+		"zzRepository",
+		func(stdcontext.Context, container.Resolver) (*namedRuntimeComponent, error) {
+			return &namedRuntimeComponent{name: "repository", log: &log}, nil
+		},
+	)
 	if err != nil {
 		t.Fatalf("create repository definition failed: %v", err)
 	}
-	service, err := container.NewDefinition[*namedRuntimeComponent]("aaService", func(stdcontext.Context, container.Resolver) (*namedRuntimeComponent, error) {
-		return &namedRuntimeComponent{name: "service", log: &log}, nil
-	}, container.WithInjectionDependencies("zzRepository"))
+	service, err := container.NewDefinition[*namedRuntimeComponent](
+		"aaService",
+		func(stdcontext.Context, container.Resolver) (*namedRuntimeComponent, error) {
+			return &namedRuntimeComponent{name: "service", log: &log}, nil
+		},
+		container.WithInjectionDependencies("zzRepository"),
+	)
 	if err != nil {
 		t.Fatalf("create service definition failed: %v", err)
 	}
@@ -307,9 +337,12 @@ func TestApplicationContext_whenRegisterAfterRefresh_shouldReturnConflict(t *tes
 	if err := app.Refresh(stdcontext.Background()); err != nil {
 		t.Fatalf("refresh failed: %v", err)
 	}
-	definition, err := container.NewDefinition[*runtimeComponent]("component", func(stdcontext.Context, container.Resolver) (*runtimeComponent, error) {
-		return &runtimeComponent{}, nil
-	})
+	definition, err := container.NewDefinition[*runtimeComponent](
+		"component",
+		func(stdcontext.Context, container.Resolver) (*runtimeComponent, error) {
+			return &runtimeComponent{}, nil
+		},
+	)
 	if err != nil {
 		t.Fatalf("create definition failed: %v", err)
 	}

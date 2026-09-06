@@ -20,7 +20,10 @@ type configurationContext struct {
 }
 
 // NewConfigurationContext 创建配置注册上下文，供生成代码和测试使用。
-func NewConfigurationContext(environment coreenv.Environment, registry *container.Registry) ConfigurationContext {
+func NewConfigurationContext(
+	environment coreenv.Environment,
+	registry *container.Registry,
+) ConfigurationContext {
 	return configurationContext{
 		environment: environment,
 		registry:    registry,
@@ -61,7 +64,10 @@ type Condition interface {
 type ConditionFunc func(ctx ConfigurationContext, metadata AnnotationMetadata) (bool, error)
 
 // Matches 执行条件判断。
-func (f ConditionFunc) Matches(ctx ConfigurationContext, metadata AnnotationMetadata) (bool, error) {
+func (f ConditionFunc) Matches(
+	ctx ConfigurationContext,
+	metadata AnnotationMetadata,
+) (bool, error) {
 	if f == nil {
 		return false, arkerrors.New(arkerrors.CodeInvalidArgument, "condition function is nil")
 	}

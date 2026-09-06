@@ -153,7 +153,11 @@ func ensureEntityAccepted(ctx *arkweb.Context) error {
 	if _, ok := request.NegotiateContentType(arkjson.ContentType); ok {
 		return nil
 	}
-	return servlet.NewHTTPError(http.StatusNotAcceptable, http.StatusText(http.StatusNotAcceptable), nil)
+	return servlet.NewHTTPError(
+		http.StatusNotAcceptable,
+		http.StatusText(http.StatusNotAcceptable),
+		nil,
+	)
 }
 
 func normalizeEntityStatus(statusCode int, fallback int) int {
@@ -167,7 +171,8 @@ func normalizeEntityStatus(statusCode int, fallback int) int {
 }
 
 func entityStatusAllowsBody(statusCode int) bool {
-	return statusCode >= http.StatusOK && statusCode != http.StatusNoContent && statusCode != http.StatusNotModified
+	return statusCode >= http.StatusOK && statusCode != http.StatusNoContent &&
+		statusCode != http.StatusNotModified
 }
 
 func applyEntityHeaders(dst servlet.Header, src http.Header) {
@@ -259,7 +264,12 @@ func NotFound() ResponseEntity[struct{}] {
 }
 
 // CreatedFromCurrentRequest 基于当前请求 URI 追加路径模板并创建 201 Created 响应。
-func CreatedFromCurrentRequest[T any](ctx *arkweb.Context, path string, variables map[string]string, body T) (ResponseEntity[T], error) {
+func CreatedFromCurrentRequest[T any](
+	ctx *arkweb.Context,
+	path string,
+	variables map[string]string,
+	body T,
+) (ResponseEntity[T], error) {
 	location, err := currentRequestLocation(ctx, path, variables)
 	if err != nil {
 		return ResponseEntity[T]{}, err
@@ -268,7 +278,11 @@ func CreatedFromCurrentRequest[T any](ctx *arkweb.Context, path string, variable
 }
 
 // CreatedNoBodyFromCurrentRequest 基于当前请求 URI 追加路径模板并创建无响应体 201 Created 响应。
-func CreatedNoBodyFromCurrentRequest(ctx *arkweb.Context, path string, variables map[string]string) (ResponseEntity[struct{}], error) {
+func CreatedNoBodyFromCurrentRequest(
+	ctx *arkweb.Context,
+	path string,
+	variables map[string]string,
+) (ResponseEntity[struct{}], error) {
 	location, err := currentRequestLocation(ctx, path, variables)
 	if err != nil {
 		return ResponseEntity[struct{}]{}, err
@@ -276,7 +290,11 @@ func CreatedNoBodyFromCurrentRequest(ctx *arkweb.Context, path string, variables
 	return CreatedNoBody(location), nil
 }
 
-func currentRequestLocation(ctx *arkweb.Context, path string, variables map[string]string) (string, error) {
+func currentRequestLocation(
+	ctx *arkweb.Context,
+	path string,
+	variables map[string]string,
+) (string, error) {
 	if ctx == nil || ctx.Request() == nil {
 		return "", arkweb.ErrNilContext
 	}

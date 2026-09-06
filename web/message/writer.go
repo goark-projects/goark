@@ -90,11 +90,19 @@ func (w Writer) Write(ctx *arkweb.Context, statusCode int, value any, mediaTypes
 	candidates := w.candidateMediaTypes(value, mediaTypes)
 	selected, ok := NegotiateContentType(ctx.Request(), candidates...)
 	if !ok {
-		return servlet.NewHTTPError(http.StatusNotAcceptable, http.StatusText(http.StatusNotAcceptable), nil)
+		return servlet.NewHTTPError(
+			http.StatusNotAcceptable,
+			http.StatusText(http.StatusNotAcceptable),
+			nil,
+		)
 	}
 	converter, ok := w.converterFor(value, selected)
 	if !ok {
-		return servlet.NewHTTPError(http.StatusUnsupportedMediaType, http.StatusText(http.StatusUnsupportedMediaType), nil)
+		return servlet.NewHTTPError(
+			http.StatusUnsupportedMediaType,
+			http.StatusText(http.StatusUnsupportedMediaType),
+			nil,
+		)
 	}
 	ctx.Response().SetStatus(normalizeStatus(statusCode, http.StatusOK))
 	return converter.Write(ctx, value, selected)

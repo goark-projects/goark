@@ -40,7 +40,8 @@ func (JSONConverter) Write(ctx *arkweb.Context, value any, mediaType string) err
 	if err := ensureContext(ctx); err != nil {
 		return err
 	}
-	if err := servlet.SetContentType(ctx.Response(), defaultMediaType(mediaType, MediaTypeJSON)); err != nil {
+	if err := servlet.SetContentType(ctx.Response(), defaultMediaType(mediaType,
+		MediaTypeJSON)); err != nil {
 		return err
 	}
 	return arkjson.Encode(ctx.JSONCodec(), ctx.Response().BodyWriter(), value)
@@ -67,9 +68,14 @@ func (StringConverter) Write(ctx *arkweb.Context, value any, mediaType string) e
 	}
 	text, ok := value.(string)
 	if !ok {
-		return servlet.NewHTTPError(http.StatusInternalServerError, "message converter cannot write string", nil)
+		return servlet.NewHTTPError(
+			http.StatusInternalServerError,
+			"message converter cannot write string",
+			nil,
+		)
 	}
-	if err := servlet.SetContentType(ctx.Response(), defaultMediaType(mediaType, MediaTypeTextPlain)); err != nil {
+	if err := servlet.SetContentType(ctx.Response(), defaultMediaType(mediaType,
+		MediaTypeTextPlain)); err != nil {
 		return err
 	}
 	_, err := ctx.Response().WriteString(text)
@@ -97,9 +103,14 @@ func (BytesConverter) Write(ctx *arkweb.Context, value any, mediaType string) er
 	}
 	data, ok := value.([]byte)
 	if !ok {
-		return servlet.NewHTTPError(http.StatusInternalServerError, "message converter cannot write bytes", nil)
+		return servlet.NewHTTPError(
+			http.StatusInternalServerError,
+			"message converter cannot write bytes",
+			nil,
+		)
 	}
-	if err := servlet.SetContentType(ctx.Response(), defaultMediaType(mediaType, MediaTypeOctetStream)); err != nil {
+	if err := servlet.SetContentType(ctx.Response(), defaultMediaType(mediaType,
+		MediaTypeOctetStream)); err != nil {
 		return err
 	}
 	_, err := ctx.Response().Write(data)
@@ -127,14 +138,19 @@ func (ReaderConverter) Write(ctx *arkweb.Context, value any, mediaType string) (
 	}
 	reader, ok := value.(io.Reader)
 	if !ok {
-		return servlet.NewHTTPError(http.StatusInternalServerError, "message converter cannot write stream", nil)
+		return servlet.NewHTTPError(
+			http.StatusInternalServerError,
+			"message converter cannot write stream",
+			nil,
+		)
 	}
 	if closer, ok := reader.(io.Closer); ok {
 		defer func() {
 			err = joinErrors(err, closer.Close())
 		}()
 	}
-	if err := servlet.SetContentType(ctx.Response(), defaultMediaType(mediaType, MediaTypeOctetStream)); err != nil {
+	if err := servlet.SetContentType(ctx.Response(), defaultMediaType(mediaType,
+		MediaTypeOctetStream)); err != nil {
 		return err
 	}
 	_, err = io.Copy(ctx.Response().BodyWriter(), reader)

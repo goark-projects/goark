@@ -98,7 +98,10 @@ type resolverInterceptor struct {
 	resolver Resolver
 }
 
-func (i resolverInterceptor) Intercept(ctx *arkweb.Context, next arkweb.Handler) (arkweb.Result, error) {
+func (i resolverInterceptor) Intercept(
+	ctx *arkweb.Context,
+	next arkweb.Handler,
+) (arkweb.Result, error) {
 	locale, ok := i.resolver.ResolveLocale(ctx)
 	if !ok {
 		return next.Handle(ctx)
@@ -113,7 +116,10 @@ type changeInterceptor struct {
 	config changeConfig
 }
 
-func (i changeInterceptor) Intercept(ctx *arkweb.Context, next arkweb.Handler) (arkweb.Result, error) {
+func (i changeInterceptor) Intercept(
+	ctx *arkweb.Context,
+	next arkweb.Handler,
+) (arkweb.Result, error) {
 	if ctx == nil || ctx.Request() == nil {
 		return next.Handle(ctx)
 	}

@@ -81,7 +81,8 @@ func globMatch(pattern, value string) bool {
 	starIndex := -1
 	starValueIndex := 0
 	for valueIndex < len(value) {
-		if patternIndex < len(pattern) && (pattern[patternIndex] == '?' || pattern[patternIndex] == value[valueIndex]) {
+		if patternIndex < len(pattern) &&
+			(pattern[patternIndex] == '?' || pattern[patternIndex] == value[valueIndex]) {
 			patternIndex++
 			valueIndex++
 			continue

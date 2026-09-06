@@ -55,7 +55,13 @@ func New(pattern string, endpoint arkws.Endpoint, options ...Option) (Configurer
 }
 
 // RegisterEndpoint 注册 WebSocket 端点配置器 Bean。
-func RegisterEndpoint(registry *container.Registry, name string, pattern string, endpoint arkws.Endpoint, options ...Option) error {
+func RegisterEndpoint(
+	registry *container.Registry,
+	name string,
+	pattern string,
+	endpoint arkws.Endpoint,
+	options ...Option,
+) error {
 	configurer, err := New(pattern, endpoint, options...)
 	if err != nil {
 		return err
@@ -79,16 +85,31 @@ func (c Configurer) newServlet() servlet.Servlet {
 	handshakeOptions := append([]arkws.HandshakeOption(nil), c.handshakeOptions...)
 	frameOptions := append([]servletws.FrameConnectionOption(nil), c.frameOptions...)
 	return endpointServlet{
-		handler: servlet.HandlerFunc(func(ctx context.Context, req *servlet.Request, res servlet.Response) error {
-			_, err := servletws.Upgrade(ctx, req, res, servletws.HandlerFunc(func(ctx context.Context, handshake arkws.Handshake, conn upgrade.Connection) error {
-				sessionID, err := c.sessionIDGenerator(ctx, req)
-				if err != nil {
-					return err
-				}
-				return servletws.ServeEndpoint(ctx, sessionID, handshake, conn, c.endpoint, frameOptions...)
-			}), handshakeOptions...)
-			return err
-		}),
+		handler: servlet.HandlerFunc(
+			func(ctx context.Context, req *servlet.Request, res servlet.Response) error {
+				_, err := servletws.Upgrade(
+					ctx,
+					req,
+					res,
+					servletws.HandlerFunc(
+						func(ctx context.Context, handshake arkws.Handshake, conn upgrade.Connection) error {
+							sessionID, err := c.sessionIDGenerator(ctx, req)
+							if err != nil {
+								return err
+							}
+							return servletws.ServeEndpoint(
+								ctx,
+								sessionID,
+								handshake,
+								conn,
+								c.endpoint,
+								frameOptions...)
+						},
+					),
+					handshakeOptions...)
+				return err
+			},
+		),
 	}
 }
 
@@ -104,7 +125,11 @@ func (s endpointServlet) Destroy(ctx context.Context) error {
 	return ctx.Err()
 }
 
-func (s endpointServlet) Serve(ctx context.Context, req *servlet.Request, res servlet.Response) error {
+func (s endpointServlet) Serve(
+	ctx context.Context,
+	req *servlet.Request,
+	res servlet.Response,
+) error {
 	if s.handler == nil {
 		return servlet.ErrNilHandler
 	}

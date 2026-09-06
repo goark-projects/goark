@@ -138,7 +138,10 @@ func WithStatusHandler(predicate StatusPredicate, handler StatusHandler) Option 
 }
 
 // WithStatusHandlerFunc 追加函数型默认响应状态处理器。
-func WithStatusHandlerFunc(predicate StatusPredicate, handler func(context.Context, *Response) error) Option {
+func WithStatusHandlerFunc(
+	predicate StatusPredicate,
+	handler func(context.Context, *Response) error,
+) Option {
 	return WithStatusHandler(predicate, StatusHandlerFunc(handler))
 }
 

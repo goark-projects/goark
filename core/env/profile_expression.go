@@ -191,5 +191,8 @@ func (p *profileExpressionParser) peek() rune {
 }
 
 func (p *profileExpressionParser) errorf(format string, args ...any) error {
-	return arkerrors.Newf(arkerrors.CodeInvalidArgument, "invalid profile expression %q at offset %d: "+format, append([]any{p.input, p.pos}, args...)...)
+	return arkerrors.Newf(
+		arkerrors.CodeInvalidArgument,
+		"invalid profile expression %q at offset %d: "+format,
+		append([]any{p.input, p.pos}, args...)...)
 }

@@ -35,7 +35,12 @@ func (f ConverterFunc[S, T]) Convert(value any) (any, error) {
 	}
 	source, ok := value.(S)
 	if !ok {
-		return zero, arkerrors.Newf(arkerrors.CodeTypeMismatch, "converter source is %T, expected %s", value, lang.TypeOf[S]())
+		return zero, arkerrors.Newf(
+			arkerrors.CodeTypeMismatch,
+			"converter source is %T, expected %s",
+			value,
+			lang.TypeOf[S](),
+		)
 	}
 	return f(source)
 }

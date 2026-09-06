@@ -67,7 +67,8 @@ func TestRegisterMessageConverterContributesReadAndWritePipeline(t *testing.T) {
 	t.Parallel()
 
 	beanRegistry := container.NewRegistry()
-	if err := web.RegisterMessageConverter(beanRegistry, "tokenConverter", tokenConverter{}); err != nil {
+	if err := web.RegisterMessageConverter(beanRegistry, "tokenConverter",
+		tokenConverter{}); err != nil {
 		t.Fatalf("RegisterMessageConverter failed: %v", err)
 	}
 	resolver, err := container.New(beanRegistry)
@@ -79,10 +80,19 @@ func TestRegisterMessageConverterContributesReadAndWritePipeline(t *testing.T) {
 	if err := web.ApplyConfigurers(t.Context(), resolver, registry); err != nil {
 		t.Fatalf("ApplyConfigurers failed: %v", err)
 	}
-	configurer := mvc.NewConfigurer(mvc.NewController("tokens",
-		mvc.POST("/tokens", mvc.BindBody(http.StatusCreated, func(_ *arkweb.Context, input tokenRequest) (tokenResponse, error) {
-			return tokenResponse(input), nil
-		}), mvc.WithConsumes(tokenMediaType), mvc.WithProduces(tokenMediaType)),
+	configurer := mvc.NewConfigurer(mvc.NewController(
+		"tokens",
+		mvc.POST(
+			"/tokens",
+			mvc.BindBody(
+				http.StatusCreated,
+				func(_ *arkweb.Context, input tokenRequest) (tokenResponse, error) {
+					return tokenResponse(input), nil
+				},
+			),
+			mvc.WithConsumes(tokenMediaType),
+			mvc.WithProduces(tokenMediaType),
+		),
 	))
 	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {
 		t.Fatalf("ConfigureWeb failed: %v", err)
@@ -112,7 +122,11 @@ func TestRegisterMessageConverterContributesReadAndWritePipeline(t *testing.T) {
 func TestRegisterMessageConverterRejectsNilConverter(t *testing.T) {
 	t.Parallel()
 
-	if err := web.RegisterMessageConverter(container.NewRegistry(), "nilMessageConverter", nil); !errors.Is(err, web.ErrNilMessageConverter) {
+	if err := web.RegisterMessageConverter(container.NewRegistry(), "nilMessageConverter",
+		nil); !errors.Is(
+		err,
+		web.ErrNilMessageConverter,
+	) {
 		t.Fatalf("err = %v, want ErrNilMessageConverter", err)
 	}
 }
@@ -121,7 +135,8 @@ func TestMessageResultWritesNegotiatedString(t *testing.T) {
 	t.Parallel()
 
 	router := arkweb.NewRouter()
-	if err := router.Handle(http.MethodGet, "/messages", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := router.Handle(http.MethodGet, "/messages", arkweb.HandlerFunc(func(
+		_ *arkweb.Context) (arkweb.Result, error) {
 		return web.Message(http.StatusOK, "hello"), nil
 	})); err != nil {
 		t.Fatalf("Handle failed: %v", err)
@@ -152,7 +167,8 @@ func TestRegisterRequestBodyAdviceContributesConfigurer(t *testing.T) {
 		},
 	}
 	beanRegistry := container.NewRegistry()
-	if err := web.RegisterRequestBodyAdvice(beanRegistry, "configuredRequestBodyAdvice", advice); err != nil {
+	if err := web.RegisterRequestBodyAdvice(beanRegistry, "configuredRequestBodyAdvice",
+		advice); err != nil {
 		t.Fatalf("RegisterRequestBodyAdvice failed: %v", err)
 	}
 	resolver, err := container.New(beanRegistry)
@@ -172,7 +188,11 @@ func TestRegisterRequestBodyAdviceContributesConfigurer(t *testing.T) {
 func TestRegisterRequestBodyAdviceRejectsNilAdvice(t *testing.T) {
 	t.Parallel()
 
-	if err := web.RegisterRequestBodyAdvice(container.NewRegistry(), "nilRequestBodyAdvice", nil); !errors.Is(err, web.ErrNilRequestBodyAdvice) {
+	if err := web.RegisterRequestBodyAdvice(container.NewRegistry(), "nilRequestBodyAdvice",
+		nil); !errors.Is(
+		err,
+		web.ErrNilRequestBodyAdvice,
+	) {
 		t.Fatalf("err = %v, want ErrNilRequestBodyAdvice", err)
 	}
 }
@@ -252,7 +272,8 @@ func TestResponseCookieBuildsSetCookieValue(t *testing.T) {
 		WithHTTPOnly(true).
 		WithSameSite(http.SameSiteLaxMode)
 
-	if got := cookie.String(); got != "sid=abc; Path=/; Domain=example.com; Max-Age=60; HttpOnly; Secure; SameSite=Lax" {
+	if got := cookie.String(); got !=
+		"sid=abc; Path=/; Domain=example.com; Max-Age=60; HttpOnly; Secure; SameSite=Lax" {
 		t.Fatalf("cookie = %q", got)
 	}
 }
@@ -281,7 +302,8 @@ func TestResponseEntityAddsResponseCookie(t *testing.T) {
 		WithResponseCookie(web.NewResponseCookie("sid", "abc").WithHTTPOnly(true)).
 		WithResponseCookie(web.ResponseCookie{})
 
-	if got := entity.Headers().Values("Set-Cookie"); len(got) != 1 || got[0] != "sid=abc; HttpOnly" {
+	if got := entity.Headers().Values("Set-Cookie"); len(got) != 1 ||
+		got[0] != "sid=abc; HttpOnly" {
 		t.Fatalf("Set-Cookie = %#v", got)
 	}
 }
@@ -295,5 +317,16 @@ func TestResponseCookieReturnsDefensiveCopy(t *testing.T) {
 
 	if got := cookie.String(); got != "sid=abc; Path=/" {
 		t.Fatalf("cookie mutated through copy: %q", got)
+	}
+}
+
+func TestRegisterResponseAdviceRejectsNilAdvice(t *testing.T) {
+	t.Parallel()
+
+	if err := web.RegisterResponseAdvice(container.NewRegistry(), "nilAdvice", nil); !errors.Is(
+		err,
+		web.ErrNilResponseAdvice,
+	) {
+		t.Fatalf("err = %v, want ErrNilResponseAdvice", err)
 	}
 }

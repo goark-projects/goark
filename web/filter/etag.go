@@ -59,9 +59,18 @@ func ShallowETag(options ...ETagOption) servlet.Filter {
 	return shallowETagFilter{options: cfg}
 }
 
-func (f shallowETagFilter) Filter(ctx context.Context, req *servlet.Request, res servlet.Response, chain servlet.Chain) error {
+func (f shallowETagFilter) Filter(
+	ctx context.Context,
+	req *servlet.Request,
+	res servlet.Response,
+	chain servlet.Chain,
+) error {
 	if req == nil {
-		return servlet.NewHTTPError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), nil)
+		return servlet.NewHTTPError(
+			http.StatusBadRequest,
+			http.StatusText(http.StatusBadRequest),
+			nil,
+		)
 	}
 	if res == nil {
 		return servlet.ErrNilResponse
@@ -164,7 +173,8 @@ func (r *captureResponse) finish(req *servlet.Request, weak bool) error {
 	}
 	status := normalizeStatus(r.status)
 	body := r.body.Bytes()
-	if !etagStatusAllowed(status) || cacheControlNoStore(r.Header().Get("Cache-Control")) || r.Header().Get("ETag") != "" {
+	if !etagStatusAllowed(status) || cacheControlNoStore(r.Header().Get("Cache-Control")) ||
+		r.Header().Get("ETag") != "" {
 		return r.writeCaptured(req, status, body)
 	}
 	etag := makeETag(body, weak)
@@ -240,11 +250,13 @@ func etagMethodAllowed(method string) bool {
 }
 
 func etagStatusAllowed(status int) bool {
-	return status >= http.StatusOK && status < http.StatusMultipleChoices && entityStatusAllowsBody(status)
+	return status >= http.StatusOK && status < http.StatusMultipleChoices &&
+		entityStatusAllowsBody(status)
 }
 
 func entityStatusAllowsBody(status int) bool {
-	return status != http.StatusNoContent && status != http.StatusResetContent && status != http.StatusNotModified
+	return status != http.StatusNoContent && status != http.StatusResetContent &&
+		status != http.StatusNotModified
 }
 
 func cacheControlNoStore(value string) bool {

@@ -66,9 +66,14 @@ func (FormConverter) Write(ctx *arkweb.Context, value any, mediaType string) err
 	}
 	values, ok := formValues(value)
 	if !ok {
-		return servlet.NewHTTPError(http.StatusInternalServerError, "message converter cannot write form", nil)
+		return servlet.NewHTTPError(
+			http.StatusInternalServerError,
+			"message converter cannot write form",
+			nil,
+		)
 	}
-	if err := servlet.SetContentType(ctx.Response(), defaultMediaType(mediaType, MediaTypeFormURLEncoded)); err != nil {
+	if err := servlet.SetContentType(ctx.Response(), defaultMediaType(mediaType,
+		MediaTypeFormURLEncoded)); err != nil {
 		return err
 	}
 	_, err := ctx.Response().WriteString(values.Encode())

@@ -86,7 +86,11 @@ func (s *MutablePropertySources) AddFirst(source PropertySource) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.containsLocked(source.Name()) {
-		return arkerrors.Newf(arkerrors.CodeAlreadyExists, "property source %q already exists", source.Name())
+		return arkerrors.Newf(
+			arkerrors.CodeAlreadyExists,
+			"property source %q already exists",
+			source.Name(),
+		)
 	}
 	s.sources = append([]PropertySource{source}, s.sources...)
 	return nil
@@ -100,7 +104,11 @@ func (s *MutablePropertySources) AddLast(source PropertySource) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.containsLocked(source.Name()) {
-		return arkerrors.Newf(arkerrors.CodeAlreadyExists, "property source %q already exists", source.Name())
+		return arkerrors.Newf(
+			arkerrors.CodeAlreadyExists,
+			"property source %q already exists",
+			source.Name(),
+		)
 	}
 	s.sources = append(s.sources, source)
 	return nil
@@ -131,7 +139,11 @@ func (s *MutablePropertySources) Replace(name string, source PropertySource) err
 		return arkerrors.Newf(arkerrors.CodeNotFound, "property source %q not found", name)
 	}
 	if source.Name() != name && s.containsLocked(source.Name()) {
-		return arkerrors.Newf(arkerrors.CodeAlreadyExists, "property source %q already exists", source.Name())
+		return arkerrors.Newf(
+			arkerrors.CodeAlreadyExists,
+			"property source %q already exists",
+			source.Name(),
+		)
 	}
 	s.sources[index] = source
 	return nil
@@ -176,21 +188,36 @@ func (s *MutablePropertySources) PropertyNames() []string {
 	return names
 }
 
-func (s *MutablePropertySources) addRelative(relativeName string, source PropertySource, offset int) error {
+func (s *MutablePropertySources) addRelative(
+	relativeName string,
+	source PropertySource,
+	offset int,
+) error {
 	if err := validatePropertySource(source); err != nil {
 		return err
 	}
 	if util.IsBlank(relativeName) {
-		return arkerrors.New(arkerrors.CodeInvalidArgument, "relative property source name is empty")
+		return arkerrors.New(
+			arkerrors.CodeInvalidArgument,
+			"relative property source name is empty",
+		)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.containsLocked(source.Name()) {
-		return arkerrors.Newf(arkerrors.CodeAlreadyExists, "property source %q already exists", source.Name())
+		return arkerrors.Newf(
+			arkerrors.CodeAlreadyExists,
+			"property source %q already exists",
+			source.Name(),
+		)
 	}
 	index := s.indexOfLocked(relativeName)
 	if index < 0 {
-		return arkerrors.Newf(arkerrors.CodeNotFound, "relative property source %q not found", relativeName)
+		return arkerrors.Newf(
+			arkerrors.CodeNotFound,
+			"relative property source %q not found",
+			relativeName,
+		)
 	}
 	insert := index + offset
 	s.sources = append(s.sources, nil)

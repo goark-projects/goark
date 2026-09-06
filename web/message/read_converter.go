@@ -12,7 +12,8 @@ import (
 
 // CanRead 判断目标对象和媒体类型是否可由 JSON 读取。
 func (JSONConverter) CanRead(target any, mediaType string) bool {
-	return !nilTarget(target) && (mediaTypeMatches(mediaType, MediaTypeJSON) || structuredJSONType(mediaType))
+	return !nilTarget(target) &&
+		(mediaTypeMatches(mediaType, MediaTypeJSON) || structuredJSONType(mediaType))
 }
 
 // Read 将 JSON 请求体读取到目标对象。

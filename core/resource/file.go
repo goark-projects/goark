@@ -56,7 +56,12 @@ func (r *FileResource) Exists(ctx context.Context) (bool, error) {
 	if stderrors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
-	return false, arkerrors.Wrapf(arkerrors.CodeResource, err, "failed to stat file resource %q", r.path)
+	return false, arkerrors.Wrapf(
+		arkerrors.CodeResource,
+		err,
+		"failed to stat file resource %q",
+		r.path,
+	)
 }
 
 func (r *FileResource) Open(ctx context.Context) (io.ReadCloser, error) {
@@ -65,7 +70,12 @@ func (r *FileResource) Open(ctx context.Context) (io.ReadCloser, error) {
 	}
 	file, err := os.Open(r.path)
 	if err != nil {
-		return nil, arkerrors.Wrapf(arkerrors.CodeResource, err, "failed to open file resource %q", r.path)
+		return nil, arkerrors.Wrapf(
+			arkerrors.CodeResource,
+			err,
+			"failed to open file resource %q",
+			r.path,
+		)
 	}
 	return file, nil
 }
@@ -80,7 +90,12 @@ func (r *FileResource) Stat(ctx context.Context) (Info, error) {
 	}
 	stat, err := os.Stat(r.path)
 	if err != nil {
-		return Info{}, arkerrors.Wrapf(arkerrors.CodeResource, err, "failed to stat file resource %q", r.path)
+		return Info{}, arkerrors.Wrapf(
+			arkerrors.CodeResource,
+			err,
+			"failed to stat file resource %q",
+			r.path,
+		)
 	}
 	return Info{
 		Name:    stat.Name(),

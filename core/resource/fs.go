@@ -22,7 +22,10 @@ func NewFSResource(filesystem fs.FS, resourcePath string) (*FSResource, error) {
 		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "filesystem is nil")
 	}
 	if resourcePath == "" {
-		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "filesystem resource path is empty")
+		return nil, arkerrors.New(
+			arkerrors.CodeInvalidArgument,
+			"filesystem resource path is empty",
+		)
 	}
 	return &FSResource{
 		fs:   filesystem,
@@ -55,7 +58,12 @@ func (r *FSResource) Exists(ctx context.Context) (bool, error) {
 	if stderrors.Is(err, fs.ErrNotExist) {
 		return false, nil
 	}
-	return false, arkerrors.Wrapf(arkerrors.CodeResource, err, "failed to stat filesystem resource %q", r.path)
+	return false, arkerrors.Wrapf(
+		arkerrors.CodeResource,
+		err,
+		"failed to stat filesystem resource %q",
+		r.path,
+	)
 }
 
 func (r *FSResource) Open(ctx context.Context) (io.ReadCloser, error) {
@@ -64,7 +72,12 @@ func (r *FSResource) Open(ctx context.Context) (io.ReadCloser, error) {
 	}
 	file, err := r.fs.Open(r.path)
 	if err != nil {
-		return nil, arkerrors.Wrapf(arkerrors.CodeResource, err, "failed to open filesystem resource %q", r.path)
+		return nil, arkerrors.Wrapf(
+			arkerrors.CodeResource,
+			err,
+			"failed to open filesystem resource %q",
+			r.path,
+		)
 	}
 	return file, nil
 }
@@ -79,7 +92,12 @@ func (r *FSResource) Stat(ctx context.Context) (Info, error) {
 	}
 	stat, err := fs.Stat(r.fs, r.path)
 	if err != nil {
-		return Info{}, arkerrors.Wrapf(arkerrors.CodeResource, err, "failed to stat filesystem resource %q", r.path)
+		return Info{}, arkerrors.Wrapf(
+			arkerrors.CodeResource,
+			err,
+			"failed to stat filesystem resource %q",
+			r.path,
+		)
 	}
 	return Info{
 		Name:    stat.Name(),

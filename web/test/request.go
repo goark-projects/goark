@@ -23,7 +23,12 @@ type requestConfig struct {
 	remoteAddr string
 }
 
-func newRequest(method string, target string, codec arkjson.Codec, options ...RequestOption) (*http.Request, error) {
+func newRequest(
+	method string,
+	target string,
+	codec arkjson.Codec,
+	options ...RequestOption,
+) (*http.Request, error) {
 	config := requestConfig{
 		codec:      codec,
 		headers:    make(http.Header),

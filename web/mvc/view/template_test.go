@@ -22,7 +22,8 @@ func TestTemplateResolverRendersViewWithExplicitResolver(t *testing.T) {
 	})
 	router := arkweb.NewRouter()
 	if err := router.GET("/home", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
-		return view.Using(resolver, "home", map[string]string{"Title": "Goark"}, view.WithStatus(http.StatusAccepted)), nil
+		return view.Using(resolver, "home", map[string]string{"Title": "Goark"}, view.WithStatus(
+			http.StatusAccepted)), nil
 	})); err != nil {
 		t.Fatalf("register route failed: %v", err)
 	}
@@ -85,7 +86,11 @@ func TestNewTemplateResolverRequiresTemplates(t *testing.T) {
 	}
 }
 
-func newTemplateResolver(t *testing.T, root fstest.MapFS, options ...view.TemplateOption) *view.TemplateResolver {
+func newTemplateResolver(
+	t *testing.T,
+	root fstest.MapFS,
+	options ...view.TemplateOption,
+) *view.TemplateResolver {
 	t.Helper()
 
 	resolver, err := view.NewTemplateResolver(root, options...)
@@ -95,7 +100,11 @@ func newTemplateResolver(t *testing.T, root fstest.MapFS, options ...view.Templa
 	return resolver
 }
 
-func serveViewRouter(router *arkweb.Router, method string, target string) *httptest.ResponseRecorder {
+func serveViewRouter(
+	router *arkweb.Router,
+	method string,
+	target string,
+) *httptest.ResponseRecorder {
 	recorder := httptest.NewRecorder()
 	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(method, target, nil))
 	return recorder

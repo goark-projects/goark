@@ -29,13 +29,20 @@ type ConfigurationProperty struct {
 }
 
 // ValidateConfigurationPropertyNames 校验指定前缀下不存在未声明属性。
-func ValidateConfigurationPropertyNames(resolver PropertyResolver, prefix string, allowed []string) error {
+func ValidateConfigurationPropertyNames(
+	resolver PropertyResolver,
+	prefix string,
+	allowed []string,
+) error {
 	if resolver == nil {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "property resolver is nil")
 	}
 	enumerable, ok := resolver.(EnumerablePropertyResolver)
 	if !ok {
-		return arkerrors.New(arkerrors.CodeInvalidArgument, "property resolver does not support property name enumeration")
+		return arkerrors.New(
+			arkerrors.CodeInvalidArgument,
+			"property resolver does not support property name enumeration",
+		)
 	}
 	prefix = strings.Trim(strings.TrimSpace(prefix), ".")
 	allowedSet := make(map[string]struct{}, len(allowed))
@@ -58,17 +65,27 @@ func ValidateConfigurationPropertyNames(resolver PropertyResolver, prefix string
 		return nil
 	}
 	sort.Strings(unknown)
-	return arkerrors.Newf(arkerrors.CodeInvalidArgument, "unknown configuration properties: %s", strings.Join(unknown, ", "))
+	return arkerrors.Newf(
+		arkerrors.CodeInvalidArgument,
+		"unknown configuration properties: %s",
+		strings.Join(unknown, ", "),
+	)
 }
 
 // GetPropertyMapAsValue 按属性名前缀绑定字符串键映射。
-func GetPropertyMapAsValue[V any](resolver PropertyResolver, prefix string) (map[string]V, bool, error) {
+func GetPropertyMapAsValue[V any](
+	resolver PropertyResolver,
+	prefix string,
+) (map[string]V, bool, error) {
 	if resolver == nil {
 		return nil, false, arkerrors.New(arkerrors.CodeInvalidArgument, "property resolver is nil")
 	}
 	enumerable, ok := resolver.(EnumerablePropertyResolver)
 	if !ok {
-		return nil, false, arkerrors.New(arkerrors.CodeInvalidArgument, "property resolver does not support property name enumeration")
+		return nil, false, arkerrors.New(
+			arkerrors.CodeInvalidArgument,
+			"property resolver does not support property name enumeration",
+		)
 	}
 	prefix = strings.Trim(strings.TrimSpace(prefix), ".")
 	propertyPrefix := prefix
@@ -85,14 +102,25 @@ func GetPropertyMapAsValue[V any](resolver PropertyResolver, prefix string) (map
 		key := strings.TrimPrefix(name, propertyPrefix)
 		value, found, err := resolver.GetPropertyAs(name, lang.TypeOf[V]())
 		if err != nil {
-			return nil, false, arkerrors.Wrapf(arkerrors.CodeConversion, err, "failed to bind map configuration property %q", name)
+			return nil, false, arkerrors.Wrapf(
+				arkerrors.CodeConversion,
+				err,
+				"failed to bind map configuration property %q",
+				name,
+			)
 		}
 		if !found {
 			continue
 		}
 		typed, ok := value.(V)
 		if !ok {
-			return nil, false, arkerrors.Newf(arkerrors.CodeTypeMismatch, "configuration property %q is %T, expected %s", name, value, reflect.TypeOf((*V)(nil)).Elem())
+			return nil, false, arkerrors.Newf(
+				arkerrors.CodeTypeMismatch,
+				"configuration property %q is %T, expected %s",
+				name,
+				value,
+				reflect.TypeOf((*V)(nil)).Elem(),
+			)
 		}
 		result[key] = typed
 	}
@@ -107,7 +135,8 @@ func configurationPropertyAllowed(name string, allowed map[string]struct{}) bool
 		return true
 	}
 	for candidate := range allowed {
-		if strings.HasSuffix(candidate, ".*") && propertyHasPrefix(name, strings.TrimSuffix(candidate, ".*")) {
+		if strings.HasSuffix(candidate, ".*") &&
+			propertyHasPrefix(name, strings.TrimSuffix(candidate, ".*")) {
 			return true
 		}
 	}

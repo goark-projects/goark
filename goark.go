@@ -247,7 +247,9 @@ var WithPriority = container.WithPriority
 var WithQualifier = container.WithQualifier
 
 // WithTypedDependencyInjector 设置类型安全的 Bean 依赖注入函数。
-func WithTypedDependencyInjector[T any](injector func(context.Context, Resolver, T) error) BeanOption {
+func WithTypedDependencyInjector[T any](
+	injector func(context.Context, Resolver, T) error,
+) BeanOption {
 	return container.WithTypedDependencyInjector(injector)
 }
 
@@ -255,7 +257,11 @@ func WithTypedDependencyInjector[T any](injector func(context.Context, Resolver,
 var NewConfigurationContext = appcontext.NewConfigurationContext
 
 // ResolveValue 解析 value 表达式并转换为目标类型。
-func ResolveValue(environment Environment, expression string, targetType reflect.Type) (any, error) {
+func ResolveValue(
+	environment Environment,
+	expression string,
+	targetType reflect.Type,
+) (any, error) {
 	return coreenv.ResolveValue(environment, expression, targetType)
 }
 
@@ -265,12 +271,20 @@ func ResolveValueAs[T any](environment Environment, expression string) (T, error
 }
 
 // GetPropertyMapAsValue 按属性名前缀绑定字符串键映射。
-func GetPropertyMapAsValue[T any](resolver coreenv.PropertyResolver, prefix string) (map[string]T, bool, error) {
+func GetPropertyMapAsValue[T any](
+	resolver coreenv.PropertyResolver,
+	prefix string,
+) (map[string]T, bool, error) {
 	return coreenv.GetPropertyMapAsValue[T](resolver, prefix)
 }
 
 // Register 注册类型安全 Bean 工厂。
-func Register[T any](app *ApplicationContext, name string, provider Provider[T], options ...BeanOption) error {
+func Register[T any](
+	app *ApplicationContext,
+	name string,
+	provider Provider[T],
+	options ...BeanOption,
+) error {
 	if app == nil {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "application context is nil")
 	}
@@ -282,7 +296,12 @@ func Register[T any](app *ApplicationContext, name string, provider Provider[T],
 }
 
 // RegisterInstance 注册已有实例。
-func RegisterInstance[T any](app *ApplicationContext, name string, instance T, options ...BeanOption) error {
+func RegisterInstance[T any](
+	app *ApplicationContext,
+	name string,
+	instance T,
+	options ...BeanOption,
+) error {
 	if app == nil {
 		return arkerrors.New(arkerrors.CodeInvalidArgument, "application context is nil")
 	}

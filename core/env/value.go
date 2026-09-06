@@ -12,7 +12,11 @@ import (
 )
 
 // ResolveValue 解析 goark:value 表达式，并转换为目标 Go 类型。
-func ResolveValue(environment Environment, expression string, targetType reflect.Type) (any, error) {
+func ResolveValue(
+	environment Environment,
+	expression string,
+	targetType reflect.Type,
+) (any, error) {
 	if environment == nil {
 		return nil, arkerrors.New(arkerrors.CodeInvalidArgument, "environment is nil")
 	}
@@ -32,14 +36,26 @@ func ResolveValue(environment Environment, expression string, targetType reflect
 	if strings.HasPrefix(trimmed, "#{") && strings.HasSuffix(trimmed, "}") {
 		value, err = evaluateGaEL(environment, trimmed[2:len(trimmed)-1])
 		if err != nil {
-			return nil, arkerrors.Wrapf(arkerrors.CodeInvalidArgument, err, "failed to evaluate GaEL expression %q", expression)
+			return nil, arkerrors.Wrapf(
+				arkerrors.CodeInvalidArgument,
+				err,
+				"failed to evaluate GaEL expression %q",
+				expression,
+			)
 		}
 	} else if strings.Contains(resolved, "#{") {
-		return nil, arkerrors.Newf(arkerrors.CodeInvalidArgument, "GaEL expression must occupy the complete value: %q", expression)
+		return nil, arkerrors.Newf(arkerrors.CodeInvalidArgument,
+			"GaEL expression must occupy the complete value: %q", expression)
 	}
 	converted, err := conversionServiceOf(environment).Convert(value, targetType)
 	if err != nil {
-		return nil, arkerrors.Wrapf(arkerrors.CodeConversion, err, "failed to resolve value %q as %s", expression, targetType)
+		return nil, arkerrors.Wrapf(
+			arkerrors.CodeConversion,
+			err,
+			"failed to resolve value %q as %s",
+			expression,
+			targetType,
+		)
 	}
 	return converted, nil
 }
@@ -65,7 +81,12 @@ func ResolveValueAs[T any](environment Environment, expression string) (T, error
 	}
 	typed, ok := value.(T)
 	if !ok {
-		return zero, arkerrors.Newf(arkerrors.CodeTypeMismatch, "resolved value is %T, expected %s", value, lang.TypeOf[T]())
+		return zero, arkerrors.Newf(
+			arkerrors.CodeTypeMismatch,
+			"resolved value is %T, expected %s",
+			value,
+			lang.TypeOf[T](),
+		)
 	}
 	return typed, nil
 }

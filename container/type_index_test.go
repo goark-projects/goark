@@ -18,14 +18,18 @@ func (r *indexedConcreteRepository) Find() string {
 	return r.value
 }
 
-func TestContainerTypeIndex_whenConcreteBeanImplementsRegisteredInterface_shouldIndexInterface(t *testing.T) {
+func TestContainerTypeIndex_whenConcreteBeanImplementsRegisteredInterface_shouldIndexInterface(
+	t *testing.T,
+) {
 	registry := NewRegistry()
-	if err := Register[indexedRepository](registry, "interfaceRepo", func(context.Context, Resolver) (indexedRepository, error) {
+	if err := Register[indexedRepository](registry, "interfaceRepo", func(context.Context,
+		Resolver) (indexedRepository, error) {
 		return &indexedConcreteRepository{value: "interface"}, nil
 	}); err != nil {
 		t.Fatalf("register interface repo failed: %v", err)
 	}
-	if err := Register[*indexedConcreteRepository](registry, "concreteRepo", func(context.Context, Resolver) (*indexedConcreteRepository, error) {
+	if err := Register[*indexedConcreteRepository](registry, "concreteRepo", func(context.Context,
+		Resolver) (*indexedConcreteRepository, error) {
 		return &indexedConcreteRepository{value: "concrete"}, nil
 	}); err != nil {
 		t.Fatalf("register concrete repo failed: %v", err)
@@ -47,9 +51,12 @@ func TestContainerTypeIndex_whenConcreteBeanImplementsRegisteredInterface_should
 	}
 }
 
-func TestContainerTypeIndex_whenResolvingUnregisteredInterface_shouldCacheAssignableImplementations(t *testing.T) {
+func TestContainerTypeIndex_whenResolvingUnregisteredInterface_shouldCacheAssignableImplementations(
+	t *testing.T,
+) {
 	registry := NewRegistry()
-	if err := Register[*indexedConcreteRepository](registry, "concreteRepo", func(context.Context, Resolver) (*indexedConcreteRepository, error) {
+	if err := Register[*indexedConcreteRepository](registry, "concreteRepo", func(context.Context,
+		Resolver) (*indexedConcreteRepository, error) {
 		return &indexedConcreteRepository{value: "concrete"}, nil
 	}); err != nil {
 		t.Fatalf("register concrete repo failed: %v", err)

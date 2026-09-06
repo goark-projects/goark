@@ -50,12 +50,14 @@ func StatusRange(min int, max int) StatusPredicate {
 
 // Is4xxStatus 判断响应是否为客户端错误。
 func Is4xxStatus(response *Response) bool {
-	return response != nil && response.StatusCode() >= http.StatusBadRequest && response.StatusCode() < http.StatusInternalServerError
+	return response != nil && response.StatusCode() >= http.StatusBadRequest &&
+		response.StatusCode() < http.StatusInternalServerError
 }
 
 // Is5xxStatus 判断响应是否为服务端错误。
 func Is5xxStatus(response *Response) bool {
-	return response != nil && response.StatusCode() >= http.StatusInternalServerError && response.StatusCode() < 600
+	return response != nil && response.StatusCode() >= http.StatusInternalServerError &&
+		response.StatusCode() < 600
 }
 
 // IsErrorStatus 判断响应是否为 HTTP 错误状态。
@@ -99,7 +101,11 @@ func isNilStatusHandler(handler StatusHandler) bool {
 	}
 }
 
-func applyStatusHandlers(ctx context.Context, response *Response, handlerGroups ...[]statusHandler) error {
+func applyStatusHandlers(
+	ctx context.Context,
+	response *Response,
+	handlerGroups ...[]statusHandler,
+) error {
 	if response == nil {
 		return ErrNilHTTPResponse
 	}

@@ -47,9 +47,11 @@ func TestService_whenCustomConverterRegistered_shouldUseConverter(t *testing.T) 
 		value string
 	}
 
-	service, err := convert.NewService(convert.ConverterFunc[source, target](func(value source) (target, error) {
-		return target{value: "converted:" + value.value}, nil
-	}))
+	service, err := convert.NewService(
+		convert.ConverterFunc[source, target](func(value source) (target, error) {
+			return target{value: "converted:" + value.value}, nil
+		}),
+	)
 	if err != nil {
 		t.Fatalf("create service failed: %v", err)
 	}
@@ -71,9 +73,11 @@ func TestService_whenCloned_shouldPreserveConvertersWithoutMutatingOriginal(t *t
 		value string
 	}
 
-	service, err := convert.NewService(convert.ConverterFunc[string, targetA](func(value string) (targetA, error) {
-		return targetA{value: "a:" + value}, nil
-	}))
+	service, err := convert.NewService(
+		convert.ConverterFunc[string, targetA](func(value string) (targetA, error) {
+			return targetA{value: "a:" + value}, nil
+		}),
+	)
 	if err != nil {
 		t.Fatalf("create service failed: %v", err)
 	}
@@ -81,7 +85,8 @@ func TestService_whenCloned_shouldPreserveConvertersWithoutMutatingOriginal(t *t
 	if err != nil {
 		t.Fatalf("clone service failed: %v", err)
 	}
-	if err := cloned.Register(convert.ConverterFunc[string, targetB](func(value string) (targetB, error) {
+	if err := cloned.Register(convert.ConverterFunc[string, targetB](func(value string) (targetB,
+		error) {
 		return targetB{value: "b:" + value}, nil
 	})); err != nil {
 		t.Fatalf("register cloned converter failed: %v", err)
@@ -119,7 +124,10 @@ func TestService_whenConvertingSliceToInterfaceSliceWithNilElement_shouldPreserv
 	service := convert.DefaultService()
 
 	var nilBuffer *bytes.Buffer
-	converted, err := service.Convert([]*bytes.Buffer{nilBuffer, bytes.NewBufferString("goark")}, reflect.TypeOf([]io.Reader{}))
+	converted, err := service.Convert(
+		[]*bytes.Buffer{nilBuffer, bytes.NewBufferString("goark")},
+		reflect.TypeOf([]io.Reader{}),
+	)
 	if err != nil {
 		t.Fatalf("convert slice with nil interface element failed: %v", err)
 	}

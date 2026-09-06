@@ -18,7 +18,12 @@ import (
 func TestConfigurerRegistersUpgradeServlet(t *testing.T) {
 	t.Parallel()
 
-	configurer, err := gowebsocket.New("/ws", arkws.EndpointFunc{}, gowebsocket.WithServletName("chatSocket"), gowebsocket.WithSubprotocols("chat"))
+	configurer, err := gowebsocket.New(
+		"/ws",
+		arkws.EndpointFunc{},
+		gowebsocket.WithServletName("chatSocket"),
+		gowebsocket.WithSubprotocols("chat"),
+	)
 	if err != nil {
 		t.Fatalf("websocket.New failed: %v", err)
 	}
@@ -39,7 +44,8 @@ func TestConfigurerRegistersUpgradeServlet(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	servletnethttp.Handler(handler).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/ws", nil))
+	servletnethttp.Handler(handler).
+		ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/ws", nil))
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", recorder.Code)
@@ -53,7 +59,8 @@ func TestRegisterEndpointContributesConfigurer(t *testing.T) {
 	t.Parallel()
 
 	beanRegistry := container.NewRegistry()
-	if err := gowebsocket.RegisterEndpoint(beanRegistry, "chatWebSocket", "/chat", arkws.EndpointFunc{}); err != nil {
+	if err := gowebsocket.RegisterEndpoint(beanRegistry, "chatWebSocket", "/chat",
+		arkws.EndpointFunc{}); err != nil {
 		t.Fatalf("RegisterEndpoint failed: %v", err)
 	}
 	resolver, err := container.New(beanRegistry)

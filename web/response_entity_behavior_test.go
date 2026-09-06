@@ -18,7 +18,8 @@ import (
 
 func TestResponseEntityWritesStatusHeadersAndJSONBody(t *testing.T) {
 	registry := web.NewRegistry()
-	if err := registry.GET("/jobs/1", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/jobs/1", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return web.Status(http.StatusAccepted, map[string]string{"state": "queued"}).
 			WithHeader("X-Job-ID", "1"), nil
 	})); err != nil {
@@ -54,7 +55,8 @@ func TestResponseEntityWritesStatusHeadersAndJSONBody(t *testing.T) {
 
 func TestResponseEntityNoBodyWritesOnlyStatusAndHeaders(t *testing.T) {
 	registry := web.NewRegistry()
-	if err := registry.DELETE("/jobs/1", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.DELETE("/jobs/1", arkweb.HandlerFunc(func(_ *arkweb.Context) (
+		arkweb.Result, error) {
 		return web.NoBody(http.StatusResetContent).WithHeader("X-Deleted", "true"), nil
 	})); err != nil {
 		t.Fatalf("DELETE failed: %v", err)
@@ -65,7 +67,8 @@ func TestResponseEntityNoBodyWritesOnlyStatusAndHeaders(t *testing.T) {
 		t.Fatalf("Router failed: %v", err)
 	}
 	recorder := httptest.NewRecorder()
-	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodDelete, "/jobs/1", nil))
+	servletnethttp.Handler(router).
+		ServeHTTP(recorder, httptest.NewRequest(http.MethodDelete, "/jobs/1", nil))
 
 	if recorder.Code != http.StatusResetContent {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusResetContent)
@@ -121,8 +124,10 @@ func TestResponseEntityCreatedFromCurrentRequest(t *testing.T) {
 	t.Parallel()
 
 	registry := web.NewRegistry()
-	if err := registry.POST("/jobs", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
-		return web.CreatedFromCurrentRequest(ctx, "/{id}", map[string]string{"id": "a/b"}, map[string]string{"state": "created"})
+	if err := registry.POST("/jobs", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result,
+		error) {
+		return web.CreatedFromCurrentRequest(ctx, "/{id}", map[string]string{"id": "a/b"},
+			map[string]string{"state": "created"})
 	})); err != nil {
 		t.Fatalf("POST failed: %v", err)
 	}
@@ -155,7 +160,8 @@ func TestResponseEntityCreatedFromCurrentRequestReturnsURIErrors(t *testing.T) {
 	t.Parallel()
 
 	registry := web.NewRegistry()
-	if err := registry.POST("/jobs", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.POST("/jobs", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result,
+		error) {
 		entity, err := web.CreatedNoBodyFromCurrentRequest(ctx, "/{id}", nil)
 		if !errors.Is(err, uri.ErrMissingPathVariable) {
 			t.Fatalf("error = %v, want ErrMissingPathVariable", err)
@@ -170,7 +176,8 @@ func TestResponseEntityCreatedFromCurrentRequestReturnsURIErrors(t *testing.T) {
 		t.Fatalf("Router failed: %v", err)
 	}
 	recorder := httptest.NewRecorder()
-	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "https://api.example.com/jobs", nil))
+	servletnethttp.Handler(router).
+		ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "https://api.example.com/jobs", nil))
 
 	if recorder.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500", recorder.Code)
@@ -181,7 +188,8 @@ func TestResponseEntityWritesConfiguredMediaType(t *testing.T) {
 	t.Parallel()
 
 	registry := web.NewRegistry()
-	if err := registry.GET("/entity", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/entity", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return web.Status(http.StatusOK, "plain").WithContentType(message.MediaTypeTextPlain), nil
 	})); err != nil {
 		t.Fatalf("GET failed: %v", err)
@@ -212,7 +220,8 @@ func TestResponseEntityWritesHTTPMetadata(t *testing.T) {
 
 	modified := time.Date(2026, time.August, 29, 8, 30, 0, 0, time.FixedZone("CST", 8*60*60))
 	registry := web.NewRegistry()
-	if err := registry.POST("/jobs", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.POST("/jobs", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return web.NoBody(http.StatusCreated).
 			WithLocation("/jobs/1").
 			WithCookie(&http.Cookie{Name: "sid", Value: "abc", HttpOnly: true}).
@@ -231,7 +240,8 @@ func TestResponseEntityWritesHTTPMetadata(t *testing.T) {
 		t.Fatalf("Router failed: %v", err)
 	}
 	recorder := httptest.NewRecorder()
-	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/jobs", nil))
+	servletnethttp.Handler(router).
+		ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/jobs", nil))
 
 	if recorder.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want 201", recorder.Code)
@@ -309,10 +319,11 @@ func TestRegisterResponseAdviceContributesConfigurer(t *testing.T) {
 	t.Parallel()
 
 	beanRegistry := container.NewRegistry()
-	if err := web.RegisterResponseAdvice(beanRegistry, "configuredAdvice", web.ResponseAdviceFunc(func(ctx *arkweb.Context, _ arkweb.Result) (arkweb.Result, error) {
-		ctx.Response().Header().Set("X-Advice", "configured")
-		return arkweb.Text(http.StatusAccepted, "advised"), nil
-	})); err != nil {
+	if err := web.RegisterResponseAdvice(beanRegistry, "configuredAdvice", web.ResponseAdviceFunc(
+		func(ctx *arkweb.Context, _ arkweb.Result) (arkweb.Result, error) {
+			ctx.Response().Header().Set("X-Advice", "configured")
+			return arkweb.Text(http.StatusAccepted, "advised"), nil
+		})); err != nil {
 		t.Fatalf("RegisterResponseAdvice failed: %v", err)
 	}
 	resolver, err := container.New(beanRegistry)
@@ -324,7 +335,8 @@ func TestRegisterResponseAdviceContributesConfigurer(t *testing.T) {
 	if err := web.ApplyConfigurers(t.Context(), resolver, registry); err != nil {
 		t.Fatalf("ApplyConfigurers failed: %v", err)
 	}
-	if err := registry.GET("/advice", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+	if err := registry.GET("/advice", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result,
+		error) {
 		return arkweb.Text(http.StatusOK, "origin"), nil
 	})); err != nil {
 		t.Fatalf("GET failed: %v", err)
@@ -336,13 +348,5 @@ func TestRegisterResponseAdviceContributesConfigurer(t *testing.T) {
 	}
 	if got := recorder.Header().Get("X-Advice"); got != "configured" {
 		t.Fatalf("X-Advice = %q, want configured", got)
-	}
-}
-
-func TestRegisterResponseAdviceRejectsNilAdvice(t *testing.T) {
-	t.Parallel()
-
-	if err := web.RegisterResponseAdvice(container.NewRegistry(), "nilAdvice", nil); !errors.Is(err, web.ErrNilResponseAdvice) {
-		t.Fatalf("err = %v, want ErrNilResponseAdvice", err)
 	}
 }

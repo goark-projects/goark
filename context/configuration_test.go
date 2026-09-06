@@ -26,7 +26,10 @@ func (c *testConfiguration) Order() int {
 	return c.order
 }
 
-func (c *testConfiguration) ConfigureEnvironment(stdcontext.Context, coreenv.ConfigurableEnvironment) error {
+func (c *testConfiguration) ConfigureEnvironment(
+	stdcontext.Context,
+	coreenv.ConfigurableEnvironment,
+) error {
 	*c.log = append(*c.log, "configure:"+c.name)
 	return nil
 }
@@ -57,7 +60,8 @@ func (c *failingConfiguration) Order() int {
 }
 
 func (c *failingConfiguration) Register(_ stdcontext.Context, registry *container.Registry) error {
-	if err := container.RegisterInstance[string](registry, "configuration.partial", "partial"); err != nil {
+	if err := container.RegisterInstance[string](registry, "configuration.partial",
+		"partial"); err != nil {
 		return err
 	}
 	if c.fail {
@@ -84,7 +88,10 @@ func (c *contextAwareConfiguration) Register(stdcontext.Context, *container.Regi
 	return nil
 }
 
-func (c *contextAwareConfiguration) RegisterWithContext(_ stdcontext.Context, config appcontext.ConfigurationContext) error {
+func (c *contextAwareConfiguration) RegisterWithContext(
+	_ stdcontext.Context,
+	config appcontext.ConfigurationContext,
+) error {
 	*c.log = append(*c.log, "context-register")
 	if config.Environment() == nil {
 		return stderrors.New("environment missing")
@@ -92,7 +99,9 @@ func (c *contextAwareConfiguration) RegisterWithContext(_ stdcontext.Context, co
 	return container.RegisterInstance[string](config.Registry(), "configuration."+c.name, c.name)
 }
 
-func TestApplicationContext_whenConfigurationsRegistered_shouldConfigureEnvironmentBeforeRegistration(t *testing.T) {
+func TestApplicationContext_whenConfigurationsExist_shouldConfigureEnvironmentBeforeRegistration(
+	t *testing.T,
+) {
 	log := make([]string, 0, 6)
 	app, err := appcontext.New()
 	if err != nil {
@@ -101,7 +110,9 @@ func TestApplicationContext_whenConfigurationsRegistered_shouldConfigureEnvironm
 
 	configurations := []appcontext.Configuration{
 		&testConfiguration{name: "late", order: 20, log: &log},
-		&priorityTestConfiguration{testConfiguration: &testConfiguration{name: "priority", order: 100, log: &log}},
+		&priorityTestConfiguration{
+			testConfiguration: &testConfiguration{name: "priority", order: 100, log: &log},
+		},
 		&testConfiguration{name: "early", order: 10, log: &log},
 	}
 	for _, configuration := range configurations {
@@ -127,13 +138,16 @@ func TestApplicationContext_whenConfigurationsRegistered_shouldConfigureEnvironm
 	}
 }
 
-func TestApplicationContext_whenConfigurationIsContextAware_shouldUseRegistrationContext(t *testing.T) {
+func TestApplicationContext_whenConfigurationIsContextAware_shouldUseRegistrationContext(
+	t *testing.T,
+) {
 	log := make([]string, 0)
 	app, err := appcontext.New()
 	if err != nil {
 		t.Fatalf("create app failed: %v", err)
 	}
-	if err := app.RegisterConfiguration(&contextAwareConfiguration{name: "aware", log: &log}); err != nil {
+	if err := app.RegisterConfiguration(&contextAwareConfiguration{name: "aware",
+		log: &log}); err != nil {
 		t.Fatalf("register configuration failed: %v", err)
 	}
 
@@ -160,7 +174,12 @@ func TestProfileCondition_whenExpressionMatches_shouldReturnTrue(t *testing.T) {
 	registry := container.NewRegistry()
 	conditionContext := appcontext.NewConfigurationContext(environment, registry)
 
-	matched, err := appcontext.ProfileCondition{Expression: "prod & mysql"}.Matches(conditionContext, appcontext.AnnotationMetadata{Name: "dataSource"})
+	matched, err := appcontext.ProfileCondition{
+		Expression: "prod & mysql",
+	}.Matches(
+		conditionContext,
+		appcontext.AnnotationMetadata{Name: "dataSource"},
+	)
 	if err != nil {
 		t.Fatalf("profile condition failed: %v", err)
 	}
@@ -184,16 +203,21 @@ func TestApplicationContext_whenConfigurationNameDuplicated_shouldReturnError(t 
 	}
 }
 
-func TestApplicationContextConfigurations_whenCalled_shouldReturnReadOnlySortedDescriptors(t *testing.T) {
+func TestApplicationContextConfigurations_whenCalled_shouldReturnReadOnlySortedDescriptors(
+	t *testing.T,
+) {
 	log := make([]string, 0)
 	app, err := appcontext.New()
 	if err != nil {
 		t.Fatalf("create app failed: %v", err)
 	}
-	if err := app.RegisterConfiguration(&testConfiguration{name: "late", order: 20, log: &log}); err != nil {
+	if err := app.RegisterConfiguration(&testConfiguration{name: "late", order: 20,
+		log: &log}); err != nil {
 		t.Fatalf("register late failed: %v", err)
 	}
-	if err := app.RegisterConfiguration(&priorityTestConfiguration{testConfiguration: &testConfiguration{name: "priority", order: 100, log: &log}}); err != nil {
+	if err := app.RegisterConfiguration(
+		&priorityTestConfiguration{testConfiguration: &testConfiguration{name: "priority",
+			order: 100, log: &log}}); err != nil {
 		t.Fatalf("register priority failed: %v", err)
 	}
 
@@ -212,7 +236,9 @@ func TestApplicationContextConfigurations_whenCalled_shouldReturnReadOnlySortedD
 	}
 }
 
-func TestApplicationContext_whenConfigurationRegisteredAfterRefresh_shouldReturnConflict(t *testing.T) {
+func TestApplicationContext_whenConfigurationRegisteredAfterRefresh_shouldReturnConflict(
+	t *testing.T,
+) {
 	log := make([]string, 0)
 	app, err := appcontext.New()
 	if err != nil {
@@ -231,7 +257,9 @@ func TestApplicationContext_whenConfigurationRegisteredAfterRefresh_shouldReturn
 	}
 }
 
-func TestApplicationContext_whenConfigurationRegistrationFails_shouldRollbackRegistryAndAllowRetry(t *testing.T) {
+func TestApplicationContext_whenConfigurationRegistrationFails_shouldRollbackRegistryAndAllowRetry(
+	t *testing.T,
+) {
 	configuration := &failingConfiguration{name: "failing", fail: true}
 	app, err := appcontext.New()
 	if err != nil {
@@ -250,7 +278,10 @@ func TestApplicationContext_whenConfigurationRegistrationFails_shouldRollbackReg
 	}
 	_, err = app.Get(stdcontext.Background(), "configuration.partial")
 	if err == nil || !arkerrors.Is(err, arkerrors.CodeConflict) {
-		t.Fatalf("application should remain unrefreshed after failed configuration registration, got %v", err)
+		t.Fatalf(
+			"application should remain unrefreshed after failed configuration registration, got %v",
+			err,
+		)
 	}
 
 	configuration.fail = false

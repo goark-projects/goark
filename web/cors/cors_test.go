@@ -26,10 +26,13 @@ func TestFilterAllowsPreflightRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
-	handler := servlet.ChainFilters(servlet.HandlerFunc(func(context.Context, *servlet.Request, servlet.Response) error {
-		t.Fatal("preflight should not reach target handler")
-		return nil
-	}), filter)
+	handler := servlet.ChainFilters(
+		servlet.HandlerFunc(func(context.Context, *servlet.Request, servlet.Response) error {
+			t.Fatal("preflight should not reach target handler")
+			return nil
+		}),
+		filter,
+	)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodOptions, "/jobs", nil)
@@ -41,13 +44,15 @@ func TestFilterAllowsPreflightRequest(t *testing.T) {
 	if recorder.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNoContent)
 	}
-	if got := recorder.Header().Get("Access-Control-Allow-Origin"); got != "https://admin.example.com" {
+	if got := recorder.Header().Get("Access-Control-Allow-Origin"); got !=
+		"https://admin.example.com" {
 		t.Fatalf("allow origin = %q", got)
 	}
 	if got := recorder.Header().Get("Access-Control-Allow-Methods"); got != "GET, POST" {
 		t.Fatalf("allow methods = %q", got)
 	}
-	if got := recorder.Header().Get("Access-Control-Allow-Headers"); got != "X-Request-ID, Content-Type" {
+	if got := recorder.Header().Get("Access-Control-Allow-Headers"); got !=
+		"X-Request-ID, Content-Type" {
 		t.Fatalf("allow headers = %q", got)
 	}
 	if got := recorder.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
@@ -73,11 +78,16 @@ func TestFilterAppliesActualRequestHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
-	handler := servlet.ChainFilters(servlet.HandlerFunc(func(_ context.Context, _ *servlet.Request, res servlet.Response) error {
-		res.Header().Set("X-Trace-ID", "trace-1")
-		_, err := res.WriteString("ok")
-		return err
-	}), filter)
+	handler := servlet.ChainFilters(
+		servlet.HandlerFunc(
+			func(_ context.Context, _ *servlet.Request, res servlet.Response) error {
+				res.Header().Set("X-Trace-ID", "trace-1")
+				_, err := res.WriteString("ok")
+				return err
+			},
+		),
+		filter,
+	)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/jobs", nil)
@@ -87,7 +97,8 @@ func TestFilterAppliesActualRequestHeaders(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
-	if got := recorder.Header().Get("Access-Control-Allow-Origin"); got != "https://admin.example.com" {
+	if got := recorder.Header().Get("Access-Control-Allow-Origin"); got !=
+		"https://admin.example.com" {
 		t.Fatalf("allow origin = %q", got)
 	}
 	if got := recorder.Header().Get("Access-Control-Expose-Headers"); got != "X-Trace-ID" {
@@ -109,10 +120,13 @@ func TestFilterRejectsDisallowedPreflight(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New failed: %v", err)
 	}
-	handler := servlet.ChainFilters(servlet.HandlerFunc(func(context.Context, *servlet.Request, servlet.Response) error {
-		t.Fatal("rejected preflight should not reach target handler")
-		return nil
-	}), filter)
+	handler := servlet.ChainFilters(
+		servlet.HandlerFunc(func(context.Context, *servlet.Request, servlet.Response) error {
+			t.Fatal("rejected preflight should not reach target handler")
+			return nil
+		}),
+		filter,
+	)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodOptions, "/jobs", nil)

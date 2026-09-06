@@ -22,7 +22,8 @@ func TestWriterWritesStringByAcceptNegotiation(t *testing.T) {
 	if recorder.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202", recorder.Code)
 	}
-	if contentType := recorder.Header().Get("Content-Type"); contentType != message.MediaTypeTextPlain {
+	if contentType := recorder.Header().Get("Content-Type"); contentType !=
+		message.MediaTypeTextPlain {
 		t.Fatalf("content type = %q, want text/plain", contentType)
 	}
 	if recorder.Body.String() != "ok" {
@@ -34,7 +35,8 @@ func TestWriterWritesJSONWithSonicDefault(t *testing.T) {
 	t.Parallel()
 
 	recorder := serveMessage(t, arkjson.ContentType, func(ctx *arkweb.Context) error {
-		return message.NewWriter().Write(ctx, http.StatusCreated, map[string]string{"name": "goark"}, arkjson.ContentType)
+		return message.NewWriter().
+			Write(ctx, http.StatusCreated, map[string]string{"name": "goark"}, arkjson.ContentType)
 	})
 
 	if recorder.Code != http.StatusCreated {
@@ -56,7 +58,8 @@ func TestWriterReturnsNotAcceptable(t *testing.T) {
 	t.Parallel()
 
 	recorder := serveMessage(t, "application/xml", func(ctx *arkweb.Context) error {
-		return message.NewWriter().Write(ctx, http.StatusOK, map[string]string{"name": "goark"}, arkjson.ContentType)
+		return message.NewWriter().
+			Write(ctx, http.StatusOK, map[string]string{"name": "goark"}, arkjson.ContentType)
 	})
 
 	if recorder.Code != http.StatusNotAcceptable {
@@ -94,10 +97,15 @@ func TestWriterWritesBytes(t *testing.T) {
 	}
 }
 
-func serveMessage(t *testing.T, accept string, fn func(ctx *arkweb.Context) error) *httptest.ResponseRecorder {
+func serveMessage(
+	t *testing.T,
+	accept string,
+	fn func(ctx *arkweb.Context) error,
+) *httptest.ResponseRecorder {
 	t.Helper()
 	router := arkweb.NewRouter()
-	if err := router.Handle(http.MethodGet, "/messages", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+	if err := router.Handle(http.MethodGet, "/messages", arkweb.HandlerFunc(func(
+		ctx *arkweb.Context) (arkweb.Result, error) {
 		if err := fn(ctx); err != nil {
 			return nil, err
 		}

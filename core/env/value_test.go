@@ -93,7 +93,10 @@ func TestResolveValue_whenGaELExpression_shouldEvaluateAndConvert(t *testing.T) 
 	if err := environment.PropertySources().AddFirst(source); err != nil {
 		t.Fatalf("add source failed: %v", err)
 	}
-	value, err := env.ResolveValueAs[bool](environment, "#{environment['feature.enabled'] == 'true'}")
+	value, err := env.ResolveValueAs[bool](
+		environment,
+		"#{environment['feature.enabled'] == 'true'}",
+	)
 	if err != nil {
 		t.Fatalf("resolve GaEL failed: %v", err)
 	}

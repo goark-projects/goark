@@ -44,7 +44,8 @@ func TestFromCurrentRequestURIBuildsCreatedLocation(t *testing.T) {
 	t.Parallel()
 
 	router := arkweb.NewRouter()
-	if err := router.Handle(http.MethodPost, "/jobs", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+	if err := router.Handle(http.MethodPost, "/jobs", arkweb.HandlerFunc(func(
+		ctx *arkweb.Context) (arkweb.Result, error) {
 		location, err := uri.FromCurrentRequestURI(ctx).
 			Path("/{id}").
 			BuildAndExpand(map[string]string{"id": "42"})
@@ -71,7 +72,8 @@ func TestFromCurrentRequestURIKeepsContextPath(t *testing.T) {
 	t.Parallel()
 
 	router := arkweb.NewRouter()
-	if err := router.Handle(http.MethodPost, "/jobs", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+	if err := router.Handle(http.MethodPost, "/jobs", arkweb.HandlerFunc(func(
+		ctx *arkweb.Context) (arkweb.Result, error) {
 		location, err := uri.FromCurrentRequestURI(ctx).
 			Path("/{id}").
 			BuildAndExpand(map[string]string{"id": "42"})
@@ -85,7 +87,8 @@ func TestFromCurrentRequestURIKeepsContextPath(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "https://api.example.com/admin/jobs", nil)
-	nethttp.HandlerWithOptions(router, nethttp.WithRequestContextPath("/admin")).ServeHTTP(recorder, request)
+	nethttp.HandlerWithOptions(router, nethttp.WithRequestContextPath("/admin")).
+		ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want 201", recorder.Code)
 	}

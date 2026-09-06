@@ -77,7 +77,11 @@ func (c *Container) addDefinition(definition Definition) error {
 		return err
 	}
 	if _, exists := c.definitions[definition.Name]; exists {
-		return arkerrors.Newf(arkerrors.CodeAlreadyExists, "bean %q already exists", definition.Name)
+		return arkerrors.Newf(
+			arkerrors.CodeAlreadyExists,
+			"bean %q already exists",
+			definition.Name,
+		)
 	}
 	c.definitions[definition.Name] = definition.clone()
 	return nil
