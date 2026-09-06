@@ -53,13 +53,6 @@ func mergeControllerRouteConditions(controller Conditions, route Conditions) Con
 	return out
 }
 
-func (c Controller) allowsRouteMethod(method string) bool {
-	if len(c.methods) == 0 {
-		return true
-	}
-	return hasRequestMethod(c.methods, method)
-}
-
 func cloneConditions(conditions Conditions) Conditions {
 	return Conditions{
 		Consumes: append([]string(nil), conditions.Consumes...),

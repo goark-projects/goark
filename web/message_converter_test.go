@@ -79,7 +79,7 @@ func TestRegisterMessageConverterContributesReadAndWritePipeline(t *testing.T) {
 	}
 	configurer := mvc.NewConfigurer(mvc.NewController("tokens",
 		mvc.POST("/tokens", mvc.BindBody(http.StatusCreated, func(_ *arkweb.Context, input tokenRequest) (tokenResponse, error) {
-			return tokenResponse{Value: input.Value}, nil
+			return tokenResponse(input), nil
 		}), mvc.WithConsumes(tokenMediaType), mvc.WithProduces(tokenMediaType)),
 	))
 	if err := configurer.ConfigureWeb(t.Context(), registry); err != nil {

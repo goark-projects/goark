@@ -95,10 +95,6 @@ func matrixValueLists(ctx *arkweb.Context, pathVariable string) map[string][]str
 	return out
 }
 
-func matrixSegmentValues(segment string) map[string]string {
-	return firstStringValueMap(matrixSegmentValueLists(segment))
-}
-
 func matrixSegmentValueLists(segment string) map[string][]string {
 	out := make(map[string][]string)
 	parts := strings.Split(segment, ";")

@@ -18,11 +18,6 @@ func redirectResultFromViewName(ctx *arkweb.Context, statusCode int, viewName st
 	return result, ok
 }
 
-func redirectResultFromViewNameWithModel(ctx *arkweb.Context, statusCode int, viewName string, model Model) (arkweb.Result, bool, error) {
-	result, _, ok, err := redirectResultAndLocationFromViewNameWithModel(ctx, statusCode, viewName, model)
-	return result, ok, err
-}
-
 func redirectResultAndLocationFromViewNameWithModel(
 	ctx *arkweb.Context,
 	statusCode int,

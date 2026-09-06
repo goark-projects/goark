@@ -41,11 +41,7 @@ func CharacterEncoding(options ...CharacterEncodingOption) servlet.Filter {
 			option(&config)
 		}
 	}
-	return characterEncodingFilter{
-		encoding:      config.encoding,
-		forceRequest:  config.forceRequest,
-		forceResponse: config.forceResponse,
-	}
+	return characterEncodingFilter(config)
 }
 
 // WithCharacterEncoding 设置请求和响应使用的字符集。

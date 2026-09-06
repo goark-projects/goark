@@ -8,9 +8,8 @@ import (
 )
 
 type orderedValue struct {
-	name     string
-	order    int
-	priority bool
+	name  string
+	order int
 }
 
 func (v orderedValue) Order() int {

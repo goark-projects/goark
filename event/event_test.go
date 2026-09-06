@@ -160,6 +160,7 @@ func TestBus_whenHandlerFails_shouldStopAndWrapError(t *testing.T) {
 func TestBus_whenPublishingWithNilContext_shouldReturnInvalidArgument(t *testing.T) {
 	bus := event.NewBus()
 
+	//lint:ignore SA1012 该测试专门验证 nil 上下文的参数校验。
 	err := bus.Publish(nil, createdEvent{})
 	if err == nil {
 		t.Fatal("expected publish error")
