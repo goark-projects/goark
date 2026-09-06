@@ -7,10 +7,12 @@ import (
 	"strings"
 	"testing"
 
+	arkjson "goark.dev/arkarta/json"
 	servletnethttp "goark.dev/arkarta/servlet/nethttp"
 	arkweb "goark.dev/arkarta/web"
 	"goark.dev/goark/container"
 	"goark.dev/goark/web"
+	"goark.dev/goark/web/problem"
 )
 
 func TestRegistryUsesErrorMapperChain(t *testing.T) {
@@ -211,4 +213,99 @@ func serveRegistry(t *testing.T, registry *web.Registry, method, target string) 
 	recorder := httptest.NewRecorder()
 	servletnethttp.Handler(router).ServeHTTP(recorder, httptest.NewRequest(method, target, nil))
 	return recorder
+}
+
+func TestNewResponseStatusExceptionCreatesStatusError(t *testing.T) {
+	t.Parallel()
+
+	cause := errors.New("database duplicate key")
+	err := web.NewResponseStatusException(http.StatusConflict, "job already exists", cause)
+
+	var statusErr web.StatusError
+	if !errors.As(err, &statusErr) {
+		t.Fatalf("err = %T, want StatusError", err)
+	}
+	if statusErr.StatusCode() != http.StatusConflict {
+		t.Fatalf("status = %d, want 409", statusErr.StatusCode())
+	}
+	if statusErr.PublicMessage() != "job already exists" {
+		t.Fatalf("public message = %q, want job already exists", statusErr.PublicMessage())
+	}
+	if !errors.Is(err, cause) {
+		t.Fatalf("err does not unwrap cause")
+	}
+
+	var exception *web.ResponseStatusException
+	if !errors.As(err, &exception) {
+		t.Fatalf("err = %T, want ResponseStatusException", err)
+	}
+}
+
+func TestResponseStatusExceptionMapsToProblemDetail(t *testing.T) {
+	t.Parallel()
+
+	cause := errors.New("internal storage detail")
+	registry := web.NewRegistry()
+	registry.UseErrorMapper(problem.NewMapper())
+	if err := registry.POST("/jobs", arkweb.HandlerFunc(func(_ *arkweb.Context) (arkweb.Result, error) {
+		return nil, web.NewResponseStatusException(http.StatusConflict, "job already exists", cause)
+	})); err != nil {
+		t.Fatalf("POST failed: %v", err)
+	}
+
+	recorder := serveRegistry(t, registry, http.MethodPost, "/jobs")
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want 409, body=%s", recorder.Code, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, `"detail":"job already exists"`) ||
+		!strings.Contains(body, `"error":"HTTP_409"`) {
+		t.Fatalf("body = %s, want conflict problem detail", body)
+	}
+	if strings.Contains(body, cause.Error()) {
+		t.Fatalf("body exposes cause: %s", body)
+	}
+}
+
+func TestRequestLocaleReadsAcceptLanguageAndWritesContentLanguage(t *testing.T) {
+	t.Parallel()
+
+	registry := web.NewRegistry()
+	if err := registry.GET("/locale", arkweb.HandlerFunc(func(ctx *arkweb.Context) (arkweb.Result, error) {
+		locale, ok := web.RequestLocale(ctx)
+		locales := web.RequestLocales(ctx)
+		payload := map[string]any{
+			"ok":         ok,
+			"locale":     locale.Tag(),
+			"language":   locale.Language(),
+			"region":     locale.Region(),
+			"localeSize": len(locales),
+		}
+		return web.OK(payload).WithContentLanguage(locale), nil
+	})); err != nil {
+		t.Fatalf("GET failed: %v", err)
+	}
+	router, err := registry.Router()
+	if err != nil {
+		t.Fatalf("Router failed: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/locale", nil)
+	request.Header.Set("Accept", arkjson.ContentType)
+	request.Header.Set("Accept-Language", "en-US;q=0.8, zh-CN;q=0.9")
+	recorder := httptest.NewRecorder()
+	servletnethttp.Handler(router).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", recorder.Code, recorder.Body.String())
+	}
+	if got := recorder.Header().Get("Content-Language"); got != "zh-CN" {
+		t.Fatalf("Content-Language = %q, want zh-CN", got)
+	}
+	var payload map[string]any
+	if err := arkjson.Unmarshal(nil, recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("response json invalid: %v", err)
+	}
+	if payload["ok"] != true || payload["locale"] != "zh-CN" || payload["language"] != "zh" || payload["region"] != "CN" || payload["localeSize"] != float64(2) {
+		t.Fatalf("payload = %#v, want request locale details", payload)
+	}
 }

@@ -2,7 +2,9 @@ package web
 
 import (
 	"context"
+	"reflect"
 
+	arkweb "goark.dev/arkarta/web"
 	"goark.dev/goark/container"
 	"goark.dev/goark/web/message"
 )
@@ -70,4 +72,37 @@ func RegisterMessageWriteConverter(registry *container.Registry, name string, co
 
 func isNilMessageConverter(converter any) bool {
 	return isNilWebValue(converter)
+}
+
+type messageResult struct {
+	statusCode int
+	value      any
+	mediaTypes []string
+}
+
+// Message 创建基于消息转换器和 Accept 协商的响应结果。
+func Message(statusCode int, value any, mediaTypes ...string) arkweb.Result {
+	return messageResult{
+		statusCode: statusCode,
+		value:      value,
+		mediaTypes: append([]string(nil), mediaTypes...),
+	}
+}
+
+// Write 将消息响应写入 Arkarta Web 上下文。
+func (r messageResult) Write(ctx *arkweb.Context) error {
+	return message.WriterFromContext(ctx).Write(ctx, r.statusCode, r.value, r.mediaTypes...)
+}
+
+func isNilWebValue(value any) bool {
+	if value == nil {
+		return true
+	}
+	reflectValue := reflect.ValueOf(value)
+	switch reflectValue.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return reflectValue.IsNil()
+	default:
+		return false
+	}
 }
