@@ -8,7 +8,7 @@ All notable changes to Goark Core are recorded here.
 
 No unreleased changes.
 
-## [0.0.1] - 2026-09-06
+## [0.0.1] - 2026-09-07
 
 ### Added
 
