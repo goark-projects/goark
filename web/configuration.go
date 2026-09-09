@@ -16,6 +16,12 @@ type Configurer interface {
 	ConfigureWeb(ctx context.Context, registry *Registry) error
 }
 
+// Finalizer 在所有配置器贡献完成后执行依赖完整路由视图的装配。
+// 实现者可以追加基础设施 Servlet，不应修改已经注册的业务路由。
+type Finalizer interface {
+	FinalizeWeb(ctx context.Context, registry *Registry) error
+}
+
 // ConfigurerFunc 将函数适配为 Web 配置器。
 type ConfigurerFunc func(ctx context.Context, registry *Registry) error
 
@@ -52,6 +58,16 @@ func ApplyConfigurers(ctx context.Context, resolver container.Resolver, registry
 		}
 		if err := configurer.ConfigureWeb(ctx, registry); err != nil {
 			return err
+		}
+	}
+	for _, configurer := range configurers {
+		if finalizer, ok := configurer.(Finalizer); ok {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if err := finalizer.FinalizeWeb(ctx, registry); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

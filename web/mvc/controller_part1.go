@@ -42,6 +42,7 @@ func appendControllerRegistrations(
 				handler = wrapInitBinders(handler, controller.binders)
 				handler = wrapSessionAttributes(handler, controller.sessionAttrs)
 				groups[key] = append(groups[key], routeRegistration{
+					owner:      controller.name,
 					handler:    bindControllerKind(controller.kind, handler),
 					conditions: mergeControllerRouteConditions(controller.conditions, resolvedRoute.Conditions),
 				})

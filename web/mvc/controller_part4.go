@@ -61,7 +61,11 @@ func registerControllers(registry *goweb.Registry, controllers []Controller) err
 		if err != nil {
 			return err
 		}
-		if err := registry.Handle(key.method, key.pattern, handler); err != nil {
+		owners := make([]string, 0, len(groups[key]))
+		for _, registration := range groups[key] {
+			owners = append(owners, registration.owner)
+		}
+		if err := registry.HandleOwned(key.method, key.pattern, handler, owners...); err != nil {
 			return err
 		}
 	}

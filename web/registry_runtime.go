@@ -46,7 +46,11 @@ func (r *Registry) Routes() []Route {
 	if r == nil {
 		return nil
 	}
-	return append([]Route(nil), r.routes...)
+	routes := append([]Route(nil), r.routes...)
+	for i := range routes {
+		routes[i].Owners = append([]string(nil), routes[i].Owners...)
+	}
+	return routes
 }
 
 // ErrorMappers 返回错误映射器快照。

@@ -143,6 +143,8 @@ type Route struct {
 	Method  string
 	Pattern string
 	Handler arkweb.Handler
+	// Owners 保存实际装配的路由贡献者身份，空值表示手写匿名路由。
+	Owners []string
 }
 
 // NewRoute 创建标准化路由描述。

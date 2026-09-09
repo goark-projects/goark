@@ -321,6 +321,7 @@ func (a ControllerAdvice) InitBinders() []BinderInitializer {
 type routeRegistration struct {
 	handler    arkweb.Handler
 	conditions Conditions
+	owner      string
 }
 
 // ModelAttributes 返回控制器级模型初始化器快照。

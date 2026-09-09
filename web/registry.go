@@ -38,10 +38,16 @@ func NewRegistry() *Registry {
 
 // Handle 注册 HTTP 方法路由。
 func (r *Registry) Handle(method, pattern string, handler arkweb.Handler) error {
+	return r.HandleOwned(method, pattern, handler)
+}
+
+// HandleOwned 注册路由及其贡献者身份，不改变请求分派语义。
+func (r *Registry) HandleOwned(method, pattern string, handler arkweb.Handler, owners ...string) error {
 	route, err := NewRoute(method, pattern, handler)
 	if err != nil {
 		return err
 	}
+	route.Owners = append([]string(nil), owners...)
 	r.routes = append(r.routes, route)
 	return nil
 }
